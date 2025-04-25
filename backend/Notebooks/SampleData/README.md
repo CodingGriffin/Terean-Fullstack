@@ -1,0 +1,2 @@
+This directory contains example data, showing the various components of a ReM project, and how it can be used. It is
+meant to be used in conjunction with the `Example2D` notebook to get a brief overview of how the code works. 
