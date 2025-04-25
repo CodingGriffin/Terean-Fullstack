@@ -16,20 +16,17 @@
 **/__pycache__
 **/sql_app.db
 
-**/**/.ipynb_checkpoints
 
 # Envrionments
 **/.venv
 
 # testing
 /coverage
-test_data
 
 # production
 /build
 
 # misc
-**/.env
 .env.local
 .env.development.local
 .env.test.local

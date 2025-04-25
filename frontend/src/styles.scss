@@ -1,0 +1,138 @@
+* {
+  box-sizing: border-box;
+  --blue: #016698;
+  --white: #FFFFFF;
+  --gray: #E0E0DB;
+  --black: #000000;
+}
+
+body{
+  text-align: center;
+  font-family:'Poppins', 'Courier';
+}
+
+.bold {
+  font-weight: bold;
+}
+
+/* Nav styles begin */
+.navbar{
+  border: 2px solid var(--blue);
+  padding: 1rem;
+}
+.eStyle{
+  color: var(--blue);
+}
+
+
+.navbar li a {
+  color: var(--black);
+}
+
+.navbar ul {
+  background-color: var(--gray);
+  padding-left: 1rem;
+  margin-top: 0.5rem;
+}
+
+.active {
+  text-decoration: underline;
+}
+/* hover styles start */
+.navbar li a:hover, .nav-link:hover {
+  background-color: var(--blue);
+  color: var(--white);
+}
+
+.navbar-brand:hover{
+  background-color: var(--gray);
+}
+
+
+/* hover styles end */
+/* Nav styles end */
+
+/* project styles begin here */
+
+.card {
+  background: var(--surface-card);
+  padding: 2rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+}
+
+.p-datatable-header {
+  background-color: var(--blue);
+}
+
+/* project styles end here */
+
+
+/* Form styles begin here */
+.form-container{
+  background-color: var(--gray);
+}
+/* Form styles end here */
+
+/*2ds form styles start here */
+form {
+  background-color: F5F5F5;
+}
+
+.title-div {
+  background-color: var(--blue);
+}
+.advancedfilters-button {
+  background-color: var(--blue);
+}
+.icon-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none; /* Remove outline when focused */
+}
+
+.icon-button:focus {
+  outline: none; /* Remove outline on focus */
+}
+
+.icon-button:hover {
+  opacity: 0.7; /* Slightly dim the icon on hover to make it easier to see as interactable*/
+}
+
+.velocity-files-list li:nth-child(odd){
+  background-color: var(--gray);
+}
+
+.velocity-files-list li:nth-child(even){
+  background-color: var(--white);
+}
+
+.velocity-files-list li:last-of-type{
+  background-color: var(--white);
+}
+.delete-prompt-container{
+  margin-top: 10px;
+  background-color: #f8d7da; /* Light red background for warning */
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #f5c6cb;
+}
+
+.delete-prompt-container span {
+  margin-right: 5px;
+}
+
+.delete-prompt-container button {
+  margin-left: 5px;
+}
+/*2ds form styles end here */
+
+/*1d Sketch styles start here*/
+.one-d-main {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+}
+/*1d Sketch styles end here*/

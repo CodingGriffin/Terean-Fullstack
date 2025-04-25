@@ -1,0 +1,13 @@
+--extra-index-url https://dbarnes-terean.github.io/terean-pypi/
+aiofiles
+bcrypt
+fastapi[standard]
+openpyxl
+pandas
+pyjwt
+python-jose
+python-multipart
+python3-pika
+SQLAlchemy
+tqdm
+uvicorn
