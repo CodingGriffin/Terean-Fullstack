@@ -12,7 +12,7 @@ class User(BaseModel):
     expiration: datetime.datetime | None = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserCreate(User):
     password: str
@@ -40,4 +40,4 @@ class UserOut(BaseModel):
     expiration: datetime.datetime | None = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
