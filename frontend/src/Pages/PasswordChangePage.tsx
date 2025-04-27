@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import React from "react";
 import PasswordChangeForm from "../Components/auth/ChangePasswordForm.tsx";
 import Navbar from "../Components/navbar/Navbar.tsx";

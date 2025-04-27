@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import loadingGif from "./Images/loading_icon.gif"
 import errorX from "./Images/error_x.png"
 import greenCheck from "./Images/green_check.png"

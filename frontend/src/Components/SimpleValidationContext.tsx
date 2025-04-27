@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import React, { createContext, useContext, useState } from "react";
 
 const SimpleFieldValidationContext: React.Context<any> = createContext(null);

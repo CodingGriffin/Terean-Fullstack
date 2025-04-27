@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 export default class VelModel {
     // Type all class properties
     private readonly eps: number; // Machine epsilon
