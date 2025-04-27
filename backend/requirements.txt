@@ -1,9 +1,12 @@
 --extra-index-url https://dbarnes-terean.github.io/terean-pypi/
+tereancore>=2025.4.24
 aiofiles
 bcrypt
+cffi
 fastapi[standard]
 openpyxl
 pandas
+passlib
 pyjwt
 python-jose
 python-multipart

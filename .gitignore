@@ -9,6 +9,9 @@
 *.sln
 *.sw?
 
+# Secret
+**/secret/**
+
 # dependencies
 **/node_modules
 /.pnp
