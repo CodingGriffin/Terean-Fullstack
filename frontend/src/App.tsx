@@ -18,6 +18,8 @@ import AdminDashboardPage from "./Pages/Admin/AdminDashboardPage.tsx";
 import AdminUsers from "./Pages/Admin/AdminUsersPage.tsx";
 import CreateUser from "./Pages/Admin/CreateUserPage.tsx";
 import UpdateUser from "./Pages/Admin/UpdateUser.tsx";
+import PicksPage from "./Pages/Projects/PicksPage.tsx";
+import DisperPage from "./Pages/Projects/DisperPage.tsx";
 
 export default function App() {
   return (
@@ -66,6 +68,22 @@ export default function App() {
             <ProtectedRoute minAuthLevel={1}>
               <OneDSketch />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/picks"
+          element={
+            // <ProtectedRoute minAuthLevel={2}>
+              <PicksPage />
+            // </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/disper"
+          element={
+            // <ProtectedRoute minAuthLevel={2}>
+              <DisperPage />
+            // </ProtectedRoute>
           }
         />
 

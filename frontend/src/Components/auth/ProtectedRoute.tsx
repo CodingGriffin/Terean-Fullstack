@@ -15,6 +15,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const [shouldRedirect, setShouldRedirect] = useState(false);
 
   useEffect(() => {
+    console.log("User Data:", userData)
     if (!userData) {
       setShouldRedirect(true);
     }
