@@ -8,7 +8,6 @@ import zipfile
 from datetime import datetime
 
 import aiofiles
-# import pycuda.autoinit
 from typing import Annotated, List, Union
 
 import numpy as np
