@@ -1,13 +1,23 @@
-export interface GeometryItem {
-    index: number,
-    x: number,
-    y: number,
-    z: number,
-}
+// export interface GeometryItem {
+//     index: number,
+//     x: number,
+//     y: number,
+//     z: number,
+// }
 
-export interface GeometryArray {
-    units: string,
-    data: GeometryItem[]
+// export interface GeometryArray {
+//     units: string,
+//     data: GeometryItem[]
+// }
+
+export interface Window {
+    showSaveFilePicker(options?: {
+        suggestedName?: string;
+        types?: Array<{
+            description: string;
+            accept: Record<string, string[]>;
+        }>;
+    }): Promise<FileSystemFileHandle>;
 }
 
 export interface ContourData {

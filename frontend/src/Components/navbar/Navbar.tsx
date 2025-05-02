@@ -100,6 +100,20 @@ export default function Navbar() {
             userData={userData}
             disabled={userData ? userData.auth_level < 3 : true}
           />
+          <NavbarItem
+            url={"/projects/1/picks"}
+            name={"Picks"}
+            authRequired={0}
+            userData={userData}
+            disabled={userData ? userData.auth_level < 0 : true}
+          />
+          <NavbarItem
+            url={"/projects/1/disper"}
+            name={"Disper"}
+            authRequired={0}
+            userData={userData}
+            disabled={userData ? userData.auth_level < 0 : true}
+          />
         </ul>
       </div>
     </nav>

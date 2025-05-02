@@ -14,18 +14,23 @@ import "primereact/resources/themes/bootstrap4-light-blue/theme.css";
 import { PrimeReactProvider } from "primereact/api";
 import { BrowserRouter } from "react-router-dom";
 
+import { Provider } from "react-redux";
+import { store } from "./store/index.js";
+
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <PrimeReactProvider>
-      <BrowserRouter>
-        <SimpleFieldValidationProvider>
-          <InfoDialogProvider>
-            <AuthProvider>
-              <App />
-            </AuthProvider>
-          </InfoDialogProvider>
-        </SimpleFieldValidationProvider>
-      </BrowserRouter>
-    </PrimeReactProvider>
+    <Provider store={store}>
+      <PrimeReactProvider>
+        <BrowserRouter>
+          <SimpleFieldValidationProvider>
+            <InfoDialogProvider>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </InfoDialogProvider>
+          </SimpleFieldValidationProvider>
+        </BrowserRouter>
+      </PrimeReactProvider>
+    </Provider>
   </React.StrictMode>
 );
