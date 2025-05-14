@@ -3,6 +3,6 @@ import NavbarPageWrapper from "../Components/navbar/NavbarPageWrapper.tsx";
 
 export default function Quick2dS() {
   return (
-    <NavbarPageWrapper redirectOnFail={false} children={<Quick2dSForm />} />
+    <NavbarPageWrapper children={<Quick2dSForm />} />
   );
 }

@@ -12,10 +12,9 @@ export default function Navbar() {
 
   const hasProfileAccess = userData && userData.auth_level >= 1; // Can change later to string roles if needed
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
-    window.location.reload();
   };
 
   return (
@@ -37,7 +36,7 @@ export default function Navbar() {
       </Link>
 
       <div className="d-flex align-items-center">
-        {userData ? (
+        {userData && userData.id ? (
           <>
             <Link
               to={hasProfileAccess ? "/profile" : "#"}

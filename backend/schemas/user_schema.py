@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 
 class User(BaseModel):
+    id: int | None = None
     username: str | None = None
     disabled: bool = False
     auth_level: int = 0

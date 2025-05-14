@@ -2,10 +2,12 @@ import logging
 from datetime import timedelta, datetime, timezone
 from typing import Annotated
 import uuid
+import hashlib
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
 from jose import jwt, JWTError
+from starlette import status
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 import bcrypt
@@ -13,14 +15,16 @@ if not hasattr(bcrypt, '__about__'):
     ## Fix issue with passlib depending on about, which was removed in 4.2
     bcrypt.__about__ = type('about', (object,), {'__version__': bcrypt.__version__})
 
+from backend.database import get_db
 from backend.models.user_model import UserDBModel
 from backend.schemas.user_schema import User as UserSchema
 
 # Your JWT secret and algorithm
 SECRET_KEY = "M3wYVjqjYnJlrHcEDBnR5RunLQ_b7xsMrePSWwiccFQ"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 240
-REFRESH_TOKEN_EXPIRE_MINUTES = 240
+ACCESS_TOKEN_EXPIRE_MINUTES = 240 # 4 hours
+REFRESH_TOKEN_EXPIRE_MINUTES = 43200 # 30 days
+# TODO: Password salt needs to be moved to a .env file
 SALT = "adsefaestdfaADFDSVZXCWEsgfatgs"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -41,17 +45,59 @@ def decode_jwt(token, secret=SECRET_KEY, algorithms=None) -> dict:
 
 
 def get_current_user(
-        token: Annotated[str, Depends(oauth2_scheme)]
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Session = Depends(get_db)
 ) -> UserSchema:
-    payload = decode_jwt(token)
-    print(payload)
+    # Read the token data
+    try:
+        payload = decode_jwt(token)
+    except JWTError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token is invalid or expired",
+        ) from e
+
+    # Get the user from the database
+    user = db.query(UserDBModel).filter(UserDBModel.id == payload.get("id")).first()
+
+    # Check if the user exists
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Check if the user is disabled
+    if user.disabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is disabled",
+        )
+
+    psig = hashlib.sha256(user.hashed_password.encode()).hexdigest()[:16]
+
+    # Verify login related token data matches the database
+    if user.username != payload.get("username"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token username has changed.")
+
+    if user.auth_level != payload.get("auth_level"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token auth_level has changed.")
+
+    if user.email != payload.get("email"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token email has changed.")
+
+    if psig != payload.get("psig"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User has changed passwords.")
+
     decoded_user = UserSchema(
-        username=payload.get("username"),
-        disabled=payload.get("disabled"),
-        auth_level=payload.get("auth_level"),
-        email=payload.get("email"),
-        full_name=payload.get("full_name"),
+        auth_level=user.auth_level,
+        disabled=user.disabled,
+        email=user.email,
+        full_name=user.full_name,
+        id=user.id,
+        username=user.username,
     )
+
     return decoded_user
 
 

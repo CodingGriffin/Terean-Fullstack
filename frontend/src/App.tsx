@@ -6,7 +6,6 @@ import Profile from "./Pages/Profile.js";
 import Logout from "./Pages/Logout.js";
 import Quick2dS from "./Pages/Quick2dS.js";
 import Quick2dP from "./Pages/Quick2dP.js";
-import OneDSketch from "./Pages/OneDSketch.js";
 import { ErrorBoundary } from "./Components/ErrorBoundary.tsx";
 import ErrorPage from "./Pages/ErrorPage.tsx";
 import PasswordChangePage from "./Pages/PasswordChangePage.tsx";
@@ -59,14 +58,6 @@ export default function App() {
           element={
             <ProtectedRoute minAuthLevel={1}>
               <Quick2dS />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/1dSketch"
-          element={
-            <ProtectedRoute minAuthLevel={1}>
-              <OneDSketch />
             </ProtectedRoute>
           }
         />

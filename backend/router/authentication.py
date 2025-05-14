@@ -2,19 +2,21 @@ import uuid
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, APIRouter
+import hashlib
+from fastapi import Depends, HTTPException, APIRouter, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from starlette import status
 from starlette.responses import JSONResponse
 
-from backend.crud.user_crud import get_user_by_username, create_user, \
+from jose import JWTError
+from backend.crud.user_crud import get_user_by_username, get_user_by_id, create_user, \
     get_all_users
 from backend.database import get_db
 from backend.schemas.user_schema import UserCreate, User
 from backend.schemas.auth_schema import UserPasswordChange
-from backend.utils.authentication import authenticate_user, \
-    ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, verify_token, \
+from backend.utils.authentication import decode_jwt, oauth2_scheme, authenticate_user, \
+    ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_MINUTES, create_access_token, verify_token, \
     get_current_user, check_permissions, SECRET_KEY, ALGORITHM, verify_password, hash_password
 from backend.models.user_model import UserDBModel
 
@@ -39,30 +41,37 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(),
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    psig = hashlib.sha256(user.hashed_password.encode()).hexdigest()[:16]
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={
             "sub": f"username:{user.username}",
+            "id": user.id,
             "username": user.username,
             "disabled": user.disabled,
             "auth_level": user.auth_level,
             "email": user.email,
-            "full_name": user.full_name,
+            "psig": psig,
             "jti": str(uuid.uuid4()),
         },
         expires_delta=access_token_expires
     )
+
+    refresh_token_expires = timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
     refresh_token = create_access_token(
         data={
             "sub": f"username:{user.username}",
+            "id": user.id,
             "username": user.username,
             "disabled": user.disabled,
             "auth_level": user.auth_level,
             "email": user.email,
-            "full_name": user.full_name,
+            "psig": psig,
             "jti": str(uuid.uuid4()),
         },
-        expires_delta=access_token_expires
+        expires_delta=refresh_token_expires
     )
 
     # Include user data in the response
@@ -71,26 +80,105 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(),
             "message": "Login successful",
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "user": {
-                "username": user.username,
-                "email": user.email,
-                "full_name": user.full_name,
-                "auth_level": user.auth_level,
-                "disabled": user.disabled,
-            }
         }
     )
 
-@authentication_router.get("/verify-token/{token}")
-async def verify_user_token(token: str):
-    user_data = verify_token(token=token)
-    return user_data
 
+@authentication_router.post("/refresh-token")
+async def refresh_access_token(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Parse request body
+        data = await request.json()
+        token = data.get("token")
 
-@authentication_router.get("/get_user_data/{token}")
-async def get_user_token_data(token: str):
-    user_data = get_current_user(token=token)
-    return user_data
+        # Read the token data
+        try:
+            payload = decode_jwt(token)
+        except JWTError as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token is invalid or expired",
+            ) from e
+
+        # Get the user from the database
+        user = get_user_by_id(db, id=payload.get("id"))
+
+        # Check if the user exists
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        # Check if the user is disabled
+        if user.disabled:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is disabled",
+            )
+
+        psig = hashlib.sha256(user.hashed_password.encode()).hexdigest()[:16]
+
+        # Verify login related token data matches the database
+        if user.username != payload.get("username"):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token username has changed.")
+
+        if user.auth_level != payload.get("auth_level"):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token auth_level has changed.")
+
+        if user.email != payload.get("email"):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token email has changed.")
+
+        if psig != payload.get("psig"):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User has changed passwords.")
+
+        # Create a new access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={
+                "sub": f"username:{user.username}",
+                "id": user.id,
+                "username": user.username,
+                "disabled": user.disabled,
+                "auth_level": user.auth_level,
+                "email": user.email,
+                "psig": psig,
+                "jti": str(uuid.uuid4()),
+            },
+            expires_delta=access_token_expires
+        )
+
+        refresh_token_expires = timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
+        refresh_token = create_access_token(
+            data={
+                "sub": f"username:{user.username}",
+                "id": user.id,
+                "username": user.username,
+                "disabled": user.disabled,
+                "auth_level": user.auth_level,
+                "email": user.email,
+                "psig": psig,
+                "jti": str(uuid.uuid4()),
+            },
+            expires_delta=refresh_token_expires
+        )
+
+        return JSONResponse(
+            content={
+                "message": "Token refreshed successfully",
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
 
 @authentication_router.get("/protected-resource")
 async def protected_resource(

@@ -6,7 +6,7 @@ import { useAuth } from "../Contexts/authContext.tsx";
 import { backendUrl } from "../utils/utils.tsx";
 
 const ProfileCard = () => {
-  const { userData, setUserData } = useAuth();
+  const { userData, mutateUser } = useAuth();
   const [fullName, setFullName] = useState(userData?.full_name || "");
   const [email, setEmail] = useState(userData?.email || "");
   const [message, setMessage] = useState("");
@@ -39,8 +39,8 @@ const ProfileCard = () => {
         throw new Error(errorData.detail || "Failed to update user");
       }
 
-      const updatedUser = await res.json();
-      setUserData(updatedUser);
+      await res.json();
+      mutateUser();
       setMessage("Profile updated successfully!");
       setIsEditing(false);
     } catch (err) {

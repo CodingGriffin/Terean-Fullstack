@@ -4,7 +4,7 @@ import { backendUrl } from "../../utils/utils";
 import { useAuth } from "../../Contexts/authContext";
 
 const LoginForm = () => {
-  const { setUserData } = useAuth();
+  const { mutateUser } = useAuth();
   const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
@@ -44,13 +44,14 @@ const LoginForm = () => {
 
       if (response.ok) {
         const data = await response.json();
+
         const token = data.access_token;
         localStorage.setItem("token", token);
 
-        if (data.user) {
-          setUserData(data.user);
-        }
+        const refresh_token = data.refresh_token;
+        localStorage.setItem("refresh_token", refresh_token);
 
+        await mutateUser();
         navigate("/");
       } else {
         const errorData = await response.json();

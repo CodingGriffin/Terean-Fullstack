@@ -2,6 +2,8 @@
 #FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
 FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04
 
+EXPOSE 5000
+
 # NEED TO MAKE SURE CUDA VERSION IS COMPATIBLE WITH HARDWARE
 
 # Install python 3.13 + Dependencies
@@ -27,6 +29,10 @@ RUN --mount=type=bind,source=backend/settings,target=/container_readonly_data,re
     pip install git+ssh://git@github.com/dbarnes-terean/terean-core.git && \
     rm -rf /root/.ssh/id_rsa
 
+# Alternate way of including terean core from a local archive for testing
+# It was easier for me to just use this method for testing without getting
+# into ssh keys.  You just extract terean core to the root of the project.
+# COPY tereancore tereancore/
 
 # Install Pycuda
 ENV PATH="/usr/local/cuda-12.8/bin:${PATH}"
@@ -42,7 +48,6 @@ COPY backend/requirements.txt .
 RUN pip install -r requirements.txt
 
 # Copy over backend code
-COPY --exclude="backend/settings/secret" --exclude="backend/.venv" backend backend/
+COPY --exclude="settings/secret" --exclude=".venv" backend backend/
 
-#ENTRYPOINT ["sleep", "infinity"]
-CMD [ "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "35198", "--workers", "4" ]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "5050"]

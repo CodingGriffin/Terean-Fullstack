@@ -13,6 +13,10 @@ def get_user_by_username(db: Session, username: str):
     return db.query(UserDBModel).filter(UserDBModel.username == username).first()
 
 
+def get_user_by_id(db: Session, id: int):
+    return db.query(UserDBModel).filter(UserDBModel.id == id).first()
+
+
 def create_user(db: Session, user: UserCreate):
     hashed_password = hash_password(user.password)
     db_user = UserDBModel(

@@ -3,7 +3,7 @@ import { useAuth } from "../../Contexts/authContext";
 import { backendUrl } from "../../utils/utils";
 
 export default function PasswordChangeForm() {
-  const { userData } = useAuth(); // Access user data from AuthContext
+  const { userData, mutateUser } = useAuth(); // Access user data from AuthContext
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -38,6 +38,8 @@ export default function PasswordChangeForm() {
           }),
         }
       );
+
+      mutateUser();
 
       if (response.ok) {
         setSuccessMessage("Your password has been successfully reset.");

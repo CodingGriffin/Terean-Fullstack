@@ -26,7 +26,18 @@ export interface ContourData {
     data: number | number[]
 }
 
+export interface CurrentUser {
+    id: number,
+    username: string,
+    disabled: boolean,
+    auth_level: number,
+    email: string,
+    full_name: string,
+    expiration: DateTime | null,
+}
+
 export interface UserData {
+    id: number,
     username: string,
     auth_level: number,
     email: string,

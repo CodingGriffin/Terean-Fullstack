@@ -1,0 +1,30 @@
+services:
+  backend:
+    container_name: terean-backend-nocude
+    build:
+      context: .
+      dockerfile: docker/backend/fastapi-nocuda/Dockerfile
+      # dockerfile: docker/backend/fastapi-cuda/Dockerfile
+    # env_file:
+    #   - ./.app.env
+    volumes:
+      - ./db:/app/db:rw
+    tmpfs:
+      - /tmp
+    ports:
+      - "5050:5050"
+    restart: unless-stopped
+  frontend:
+    container_name: terean-frontend
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    environment:
+      # - VITE_BACKEND_URL=https://todo-live-backend-domain:5050/
+      - VITE_BACKEND_URL=http://localhost:5050/
+    tmpfs:
+      - /tmp
+    ports:
+        - "3000:3000"
+    restart: unless-stopped
+

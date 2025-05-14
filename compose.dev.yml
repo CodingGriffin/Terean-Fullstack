@@ -1,0 +1,11 @@
+services:
+  backend:
+    volumes:
+      - ./db:/app/db:rw
+      - ./backend:/app/backend:rw
+    command: ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "5050", "--reload"]
+  frontend:
+    volumes:
+      - ./frontend:/app:rw
+    environment:
+      - VITE_BACKEND_URL=http://localhost:5050/

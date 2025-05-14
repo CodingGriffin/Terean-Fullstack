@@ -651,17 +651,19 @@ export default class VelModel {
  * @param vels_shear Shear Wave velocity
  * @param phase_vel_min Minimum velocity - use min value from window
  * @param phase_vel_max Maximum velocity - use max value from window
+ * @param phase_vel_delta Amount of change in phase velocity when trying to find solution.
+ * @param densities Density for each layer.
  * @return Array of velocities for each period
  *         if a value would be outside the range of phase_vel_min-phase_vel_max, then null is returned for that value instead
  */
 export function CalcCurve(
-    period_vals: any[],
+    period_vals: number[],
     num_layers: number,
     layer_thicknesses: number[], //
-    vels_shear: any[], // The velocities from the model
+    vels_shear: number[], // The velocities from the model
     phase_vel_min: number, // The min value on the left plot
     phase_vel_max: number, // The max value on the left plot
-    p0: number,
+    phase_vel_delta: number,
     densities?: number[]
 ) {
     const layer_densities = densities || Array(num_layers).fill(2.0);
@@ -679,7 +681,7 @@ export function CalcCurve(
         vels_shear,
         phase_vel_min,
         phase_vel_max,
-        2.0,
+        phase_vel_delta
     )
     return period_vals.map((x) => model.getc_period(x))
 }

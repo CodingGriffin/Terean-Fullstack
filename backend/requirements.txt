@@ -1,5 +1,5 @@
---extra-index-url https://dbarnes-terean.github.io/terean-pypi/
-tereancore>=2025.4.24
+# --extra-index-url https://dbarnes-terean.github.io/terean-pypi/
+# tereancore>=2025.4.24
 aiofiles
 bcrypt
 cffi
@@ -14,3 +14,6 @@ python3-pika
 SQLAlchemy
 tqdm
 uvicorn
+matplotlib
+scipy
+segyio

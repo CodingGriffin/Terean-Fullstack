@@ -1,6 +1,8 @@
 # syntax=docker.io/docker/dockerfile:1.7-labs
 FROM python:3.13
 
+EXPOSE 5000
+
 WORKDIR /app
 
 # Install terean core from github
@@ -14,13 +16,17 @@ RUN --mount=type=bind,source=backend/settings,target=/container_readonly_data,re
     pip install git+ssh://git@github.com/dbarnes-terean/terean-core.git && \
     rm -rf /root/.ssh/id_rsa
 
+# Alternate way of including terean core from a local archive for testing
+# It was easier for me to just use this method for testing without getting
+# into ssh keys.  You just extract terean core to the root of the project.
+# COPY tereancore tereancore/
+
 # Install requirements
 COPY backend/requirements.txt .
 
 RUN pip install -r requirements.txt
 
 # Copy over backend code
-COPY --exclude="backend/settings/secret" --exclude="backend/.venv" backend backend/
+COPY --exclude="settings/secret" --exclude=".venv" backend backend/
 
-ENTRYPOINT ["sleep", "infinity"]
-#CMD ["uvicorn", "test_main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "5050"]
