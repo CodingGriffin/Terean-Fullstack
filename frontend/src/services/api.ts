@@ -3,7 +3,7 @@ import axios from 'axios';
 import { GeometryItem } from '../types/geometry';
 import { RecordOption } from '../types/record';
 import { PickData } from '../types/data';
-
+import { RecordUploadFile } from '../types/record';
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
@@ -12,8 +12,8 @@ const api = axios.create({
 });
 
 export const processGrids = async (
-  projectId:string,
-  sgyFiles: File[],
+  projectId: string,
+  recordOptions: string,
   geometryData: string,
   maxSlowness: number,
   maxFrequency: number,
@@ -23,10 +23,7 @@ export const processGrids = async (
 ) => {
   const formData = new FormData();
   
-  sgyFiles.forEach(file => {
-    formData.append('sgy_files', file);
-  });
-  
+  formData.append('record_options', recordOptions);
   formData.append('geometry_data', geometryData);
   formData.append('max_slowness', maxSlowness.toString());
   formData.append('max_frequency', maxFrequency.toString());
@@ -35,26 +32,6 @@ export const processGrids = async (
   formData.append('return_freq_and_slow', returnFreqAndSlow.toString());
   
   return api.post(`/project/${projectId}/grids`, formData);
-};
-
-export const processSingleGrid = async (
-  sgyFile: File,
-  geometryData: string,
-  maxSlowness: number,
-  maxFrequency: number,
-  numSlowPoints: number,
-  numFreqPoints: number
-) => {
-  const formData = new FormData();
-  
-  formData.append('sgy_file', sgyFile);
-  formData.append('geometry_data', geometryData);
-  formData.append('max_slowness', maxSlowness.toString());
-  formData.append('max_frequency', maxFrequency.toString());
-  formData.append('num_slow_points', numSlowPoints.toString());
-  formData.append('num_freq_points', numFreqPoints.toString());
-  
-  return api.post('/process/grid', formData);
 };
 
 export const processFrequencyWithSgy = async (
@@ -151,4 +128,54 @@ export const getPicks = async (projectId: string) => {
 //grids
 export const getGrids = async (projectId: string) => {
   return api.get(`/project/${projectId}/grids`);
+};
+
+export const uploadSgyFilesWithIds = async (uploadFiles: RecordUploadFile[]) => {
+  if (!uploadFiles || uploadFiles.length === 0) {
+    throw new Error("No files provided for upload");
+  }
+  
+  const validUploads = uploadFiles.filter(upload => upload.file !== null);
+  
+  if (validUploads.length === 0) {
+    throw new Error("No valid files to upload");
+  }
+  
+  const formData = new FormData();
+  
+  console.log("Uploading files with IDs:", validUploads.map(u => ({ id: u.id, name: u.file?.name })));
+  
+  validUploads.forEach(upload => {
+    if (upload.file) {
+      formData.append('files', upload.file);
+    }
+  });
+  
+  validUploads.forEach(upload => {
+    formData.append('file_ids', upload.id);
+  });
+  
+  try {
+    const response = await api.post('/upload-sgy-with-id', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    console.log("Upload with IDs response:", response.data);
+    return response;
+  } catch (error) {
+    console.error("Error in uploadSgyFilesWithIds:", error);
+    throw error;
+  }
+};
+
+export const getFileInfo = async (fileId: string) => {
+  try {
+    const response = await api.get(`/file-info/${fileId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error in getFileInfo:", error);
+    throw error;
+  }
 };

@@ -1,9 +1,11 @@
-# --extra-index-url https://dbarnes-terean.github.io/terean-pypi/
-# tereancore>=2025.4.24
+--extra-index-url https://dbarnes-terean.github.io/terean-pypi/
+tereancore>=2025.4.24
 aiofiles
 bcrypt
 cffi
 fastapi[standard]
+glob
+matplotlib
 openpyxl
 pandas
 passlib
@@ -11,9 +13,8 @@ pyjwt
 python-jose
 python-multipart
 python3-pika
+segyio
+scipy
 SQLAlchemy
 tqdm
 uvicorn
-matplotlib
-scipy
-segyio

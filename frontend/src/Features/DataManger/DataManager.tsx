@@ -19,6 +19,7 @@ import {
 import { Modal } from "../../Components/Modal/Modal";
 import { processGridsForPreview } from "../../store/thunks/cacheThunks";
 import { useParams } from "react-router";
+import { uploadSgyFilesWithIdsThunk } from "../../store/thunks/cacheThunks";
 
 export const DataManager = () => {
   const dispatch = useAppDispatch();
@@ -51,18 +52,17 @@ export const DataManager = () => {
 
   const getRecordDataFromBackend = useCallback(() => {
     if (!projectId) return;
-    const files = Object.values(uploadFiles).filter(Boolean) as File[];
-    
+
     if (JSON.stringify(savedGeometry) !== JSON.stringify(geometry) ||
         savedFreqSettings.numFreq !== numSlow || savedFreqSettings.maxFreq !== maxFreq || 
         savedSlowSettings.numSlow !== numSlow || savedSlowSettings.maxSlow !== maxSlow ||
         JSON.stringify(savedRecordOptions.map((opt) => opt.fileName)) !== JSON.stringify(recordOptions.map((opt) => opt.fileName))
       ) {
-      
+
       dispatch(
         processGridsForPreview({
           projectId: projectId,
-          sgyFiles: files,
+          recordOptions: JSON.stringify(savedRecordOptions),
           geometryData: JSON.stringify(savedGeometry),
           maxSlowness: savedSlowSettings.maxSlow,
           maxFrequency: savedFreqSettings.maxFreq,
@@ -73,7 +73,7 @@ export const DataManager = () => {
       );
       
       dispatch(addToast({
-        message: `Processing ${files.length} files with ${savedGeometry.length} geometry points`,
+        message: `Processing ${savedRecordOptions.length} files with ${savedGeometry.length} geometry points`,
         type: "info",
         duration: 3000
       }));
@@ -81,11 +81,10 @@ export const DataManager = () => {
   }, [savedGeometry, savedFreqSettings, savedSlowSettings, uploadFiles, dispatch]);
 
   const handleApplyChanges = () => {
-    const files = Object.values(uploadFiles).filter(Boolean) as File[];
     const validationErrors = [];
 
-    if (files.length === 0) {
-      validationErrors.push("No SGY files uploaded");
+    if (savedRecordOptions.length === 0) {
+      validationErrors.push("No RecordOption is provided");
     }
 
     if (savedGeometry.length === 0) {
@@ -153,6 +152,9 @@ export const DataManager = () => {
 
   useEffect(() => {
     console.log("Uploaded Files:", uploadFiles)
+    if (Object.values(uploadFiles).length > 0) {
+      dispatch(uploadSgyFilesWithIdsThunk(uploadFiles))
+    }
   }, [uploadFiles])
 
   useEffect(() => {

@@ -22,13 +22,14 @@ import {
   savePicks,
   saveOptions
 } from "../../services/api";
+import { uploadSgyFilesWithIds } from "../../services/api";
 
 export const processGridsForPreview = createAsyncThunk(
   "cache/processGridsForPreview",
   async (
     {
       projectId,
-      sgyFiles,
+      recordOptions,
       geometryData,
       maxSlowness,
       maxFrequency,
@@ -37,7 +38,7 @@ export const processGridsForPreview = createAsyncThunk(
       returnFreqAndSlow = true,
     }: {
       projectId: string;
-      sgyFiles: File[];
+      recordOptions: string;
       geometryData: string;
       maxSlowness: number;
       maxFrequency: number;
@@ -49,10 +50,9 @@ export const processGridsForPreview = createAsyncThunk(
   ) => {
     try {
       dispatch(setIsLoading(true));
-
       const response = await processGrids(
         projectId,
-        sgyFiles,
+        recordOptions,
         geometryData,
         maxSlowness,
         maxFrequency,
@@ -337,6 +337,43 @@ export const saveOptionsByProjectId = createAsyncThunk(
         duration: 5000
       }));
       throw error;
+    }
+  }
+);
+
+export const uploadSgyFilesWithIdsThunk = createAsyncThunk(
+  "cache/uploadSgyFilesWithIds",
+  async (
+    uploadFiles: {[key: string]: File | null},
+    { dispatch }
+  ) => {
+    try {
+      dispatch(setIsLoading(true));
+      
+      const recordUploadFiles = Object.entries(uploadFiles).map(([id, file]) => ({
+        id,
+        file
+      }));
+      const response = await uploadSgyFilesWithIds(recordUploadFiles);
+      const fileInfos = response.data.file_infos;
+      
+      dispatch(addToast({
+        message: "Files uploaded successfully",
+        type: "success",
+        duration: 3000
+      }));
+      
+      return fileInfos;
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      dispatch(addToast({
+        message: `Error uploading files: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        type: "error",
+        duration: 5000
+      }));
+      throw error;
+    } finally {
+      dispatch(setIsLoading(false));
     }
   }
 );

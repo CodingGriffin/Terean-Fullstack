@@ -5,6 +5,8 @@ import os
 import tempfile
 import time
 import zipfile
+import glob
+import json
 from datetime import datetime
 
 import aiofiles
@@ -742,11 +744,16 @@ class OptionsModel(BaseModel):
     records: List[RecordOption]
     plotLimits: PlotLimits
 
+# Create a global directory for storing SGY files
+GLOBAL_DATA_DIR = os.getenv("MQ_SAVE_DIR", "data")
+GLOBAL_SGY_FILES_DIR = os.path.join(GLOBAL_DATA_DIR, "SGYFiles")
+
+os.makedirs(GLOBAL_SGY_FILES_DIR, exist_ok=True)
 
 @app.post("/process/grids")
 async def process_grids_from_input(
         background_tasks: BackgroundTasks,
-        sgy_files: Annotated[list[UploadFile], File(...)],
+        record_options: Annotated[str, Form(...)],
         geometry_data: Annotated[str, Form(...)],  # Format as json
         max_slowness: Annotated[float, Form(...)],
         max_frequency: Annotated[float, Form(...)],
@@ -769,15 +776,20 @@ async def process_grids_from_input(
             "grids": []
         }
     }
-    for sgy_file in sgy_files:
-        local_result = await get_fastapi_file_locally(
-            background_tasks=None,
-            file_data=sgy_file,
-            extension=".sgy"
-        )
-        if local_result is Exception:
-            raise HTTPException(status_code=500, detail=f"Error processing file {sgy_file.filename}.")
-        file_descriptor, file_path, extension = local_result
+    record_options_list = json.loads(record_options)
+    for option in record_options_list:
+        file_id = option["id"]
+        file_path_pattern = os.path.join(GLOBAL_SGY_FILES_DIR, f"{file_id}.*")
+        matching_files = glob.glob(file_path_pattern)
+        
+        if not matching_files:
+            print(f"File with ID {file_id} not found")
+            continue
+        
+        file_path = matching_files[0]
+        # file_name = os.path.basename(file_path)
+        file_name = option["fileName"]
+        
         logger.debug(f"Temp file is {file_path}")
         stream_data = load_segy_segyio([file_path, ])
         preprocess_streams(stream_data)
@@ -797,7 +809,7 @@ async def process_grids_from_input(
         logger.debug("LenFreq: ", freq_values.shape)
         logger.debug("LenSlow: ", p_values.shape)
         response_data["data"]["grids"].append({
-            "name": sgy_file.filename,
+            "name": file_name,
             "data": combined_grid.tolist(),
             "shape": combined_grid.shape,
         })
@@ -1028,3 +1040,121 @@ async def get_picks(project_id: str):
     project = init_project(project_id)
     return project["picks"]
 # endregion
+
+@app.post("/upload-sgy-with-id")
+async def upload_sgy_with_id(
+    background_tasks: BackgroundTasks,
+    files: List[UploadFile] = File(...),
+    file_ids: List[str] = Form(...),
+):
+    try:
+        # Ensure the directory exists
+        os.makedirs(GLOBAL_SGY_FILES_DIR, exist_ok=True)
+        
+        if len(files) != len(file_ids):
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Number of files ({len(files)}) does not match number of IDs ({len(file_ids)})"
+            )
+        
+        result_files = []
+        
+        for i, (sgy_file, file_id) in enumerate(zip(files, file_ids)):
+            try:
+                # Get original filename
+                original_filename = sgy_file.filename
+                if not original_filename:
+                    continue  # Skip files with no name
+                    
+                file_extension = original_filename.split('.')[-1] if '.' in original_filename else 'sgy'
+                unique_filename = f"{file_id}.{file_extension}"
+                file_path = os.path.join(GLOBAL_SGY_FILES_DIR, unique_filename)
+                
+                # Save the file
+                async with aiofiles.open(file_path, 'wb') as f:
+                    while chunk := await sgy_file.read(CHUNK_SIZE):
+                        await f.write(chunk)
+                
+                # Create file info
+                file_info = {
+                    "id": file_id,
+                    "original_name": original_filename,
+                    "path": file_path,
+                    "size": os.path.getsize(file_path),
+                    "upload_date": datetime.datetime.now().isoformat(),
+                    "file_type": file_extension.upper()
+                }
+                
+                result_files.append(file_info)
+                print(f"Successfully saved file: {original_filename} to {file_path} with ID: {file_id}")
+                
+            except Exception as file_error:
+                print(f"Error processing file {sgy_file.filename} with ID {file_id}: {str(file_error)}")
+                # Continue with other files
+        
+        if not result_files:
+            raise HTTPException(status_code=400, detail="No files were successfully uploaded")
+        
+        return {
+            "status": "success",
+            "message": f"{len(result_files)} file(s) uploaded successfully",
+            "file_infos": result_files
+        }
+        
+    except Exception as e:
+        print(f"Error in upload_sgy_with_id: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error uploading files: {str(e)}")
+
+@app.delete("/delete-sgy/{file_id}")
+async def delete_sgy_file(file_id: str):
+    try:
+        # Search for the file in the global directory
+        file_path = os.path.join(GLOBAL_SGY_FILES_DIR, f"{file_id}.*")
+        matching_files = glob.glob(file_path)
+        
+        if not matching_files:
+            raise HTTPException(status_code=404, detail=f"File with ID {file_id} not found")
+        
+        # Delete the first matching file
+        os.remove(matching_files[0])
+        print(f"Successfully deleted file: {matching_files[0]}")
+        
+        return {
+            "status": "success",
+            "message": f"File with ID {file_id} deleted successfully"
+        }
+        
+    except Exception as e:
+        print(f"Error deleting file with ID {file_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
+
+@app.get("/file-info/{file_id}")
+async def get_file_info(file_id: str):
+    try:
+        # Find the file path using the ID
+        file_path_pattern = os.path.join(GLOBAL_SGY_FILES_DIR, f"{file_id}.*")
+        matching_files = glob.glob(file_path_pattern)
+        
+        if not matching_files:
+            raise HTTPException(status_code=404, detail=f"File with ID {file_id} not found")
+        
+        file_path = matching_files[0]
+        file_name = os.path.basename(file_path)
+        file_extension = os.path.splitext(file_name)[1][1:]  # Remove the dot
+        
+        # Get file info
+        file_size = os.path.getsize(file_path)
+        file_modified = os.path.getmtime(file_path)
+        
+        return {
+            "id": file_id,
+            "original_name": file_name.replace(f"{file_id}.", ""),  # Try to extract original name
+            "path": file_path,
+            "size": file_size,
+            "upload_date": datetime.datetime.fromtimestamp(file_modified).isoformat(),
+            "file_type": file_extension.upper()
+        }
+        
+    except Exception as e:
+        print(f"Error getting file info for ID {file_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting file info: {str(e)}")
