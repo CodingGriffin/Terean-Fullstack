@@ -2,196 +2,34 @@ import {FreqSlowManger} from "./FreqSlowManager/FreqSlowManager";
 import {GeometryManager} from "./GeometryManager/GeometryManager";
 import RecordManager from "./RecordManager/RecordManger";
 import {Button} from "../../Components/Button/Button";
-import {useState, useEffect, useCallback} from "react";
+import {useState} from "react";
 import SectionHeader from "../../Components/SectionHeader/SectionHeader";
-import {useAppDispatch} from "../../hooks/useAppDispatch";
-import {useAppSelector} from "../../hooks/useAppSelector";
-import {setGeometry} from "../../store/slices/geometrySlice";
-import {setNumFreq, updateMaxFreq} from "../../store/slices/freqSlice";
-import {setNumSlow, updateMaxSlow} from "../../store/slices/slowSlice";
-import {setOptions} from "../../store/slices/recordSlice";
-import {addToast} from "../../store/slices/toastSlice";
-import {GeometryItem} from "../../types/geometry";
-import {RecordOption, RecordUploadFile} from "../../types/record";
-import {
-  selectOptions,
-} from "../../store/selectors/recordSelectors";
 import {Modal} from "../../Components/Modal/Modal";
-import {processGridsForPreview} from "../../store/thunks/cacheThunks";
-import {useParams} from "react-router";
-import {uploadSgyFilesWithIdsThunk} from "../../store/thunks/cacheThunks";
-import {setInitialized} from "../../store/slices/initializationSlice";
+import {usePicks} from "../../Contexts/PicksContext";
 
 export const DataManager = () => {
-  const dispatch = useAppDispatch();
   const [showDataManager, setShowDataManager] = useState<boolean>(false);
-  const isInitialized = useAppSelector((state) => state.initialization.isInitialized);
-  const {projectId} = useParams();
+  const {
+    state,
+    handleUploadFiles,
+    handleApplyChanges,
+    handleDiscardChanges,
+    setSavedGeometry,
+    setSavedRecordOptions,
+    setUploadFiles,
+    setSavedFreqSettings,
+    setSavedSlowSettings
+  } = usePicks();
 
-  const geometry = useAppSelector((state) => state.geometry.items);
-  const {numFreq, maxFreq} = useAppSelector((state) => state.freq);
-  const {numSlow, maxSlow} = useAppSelector((state) => state.slow);
-  const recordOptions = useAppSelector(selectOptions);
-
-  const [savedGeometry, setSavedGeometry] = useState<GeometryItem[]>([]);
-  const [savedFreqSettings, setSavedFreqSettings] = useState({numFreq: numFreq, maxFreq: maxFreq});
-  const [savedSlowSettings, setSavedSlowSettings] = useState({numSlow: numSlow, maxSlow: maxSlow});
-  const [savedRecordOptions, setSavedRecordOptions] = useState<RecordOption[]>(recordOptions);
-  const [uploadFiles, setUploadFiles] = useState<{ [key: string]: File | null }>({});
-
-  useEffect(() => {
-    console.log("Geometry data in DataManager:", geometry);
-    setSavedGeometry(geometry);
-  }, [geometry]);
-
-  const handleUploadFiles = (files: RecordUploadFile[] | null) => {
-    const newUploadFiles: { [key: string]: File | null } = {...uploadFiles};
-    if (files === null) {
-      setUploadFiles({});
-      return;
-    } else if (files.length === 1 && files[0].file === null) {
-      delete newUploadFiles[files[0].id];
-    } else {
-      files.forEach((uploadFile) => newUploadFiles[uploadFile.id] = uploadFile.file)
-    }
-    setUploadFiles(newUploadFiles);
-  }
-
-  const getRecordDataFromBackend = useCallback(() => {
-    if (!projectId) return;
-
-    if (JSON.stringify(savedGeometry) !== JSON.stringify(geometry) ||
-      savedFreqSettings.numFreq !== numSlow || savedFreqSettings.maxFreq !== maxFreq ||
-      savedSlowSettings.numSlow !== numSlow || savedSlowSettings.maxSlow !== maxSlow ||
-      JSON.stringify(savedRecordOptions.map((opt) => opt.fileName)) !== JSON.stringify(recordOptions.map((opt) => opt.fileName))
-    ) {
-      dispatch(
-        processGridsForPreview({
-          projectId: projectId,
-          recordOptions: JSON.stringify(savedRecordOptions),
-          geometryData: JSON.stringify(savedGeometry),
-          maxSlowness: savedSlowSettings.maxSlow,
-          maxFrequency: savedFreqSettings.maxFreq,
-          numSlowPoints: savedSlowSettings.numSlow,
-          numFreqPoints: savedFreqSettings.numFreq,
-          returnFreqAndSlow: true
-        })
-      );
-
-      dispatch(addToast({
-        message: `Processing ${savedRecordOptions.length} files with ${savedGeometry.length} geometry points`,
-        type: "info",
-        duration: 3000
-      }));
-    }
-  }, [projectId, savedGeometry, geometry, savedFreqSettings.numFreq, savedFreqSettings.maxFreq, numSlow, maxFreq, savedSlowSettings.numSlow, savedSlowSettings.maxSlow, maxSlow, savedRecordOptions, recordOptions, dispatch]);
-
-  const handleApplyChanges = () => {
-    const validationErrors = [];
-
-    if (savedRecordOptions.length === 0) {
-      validationErrors.push("No RecordOption is provided");
-    }
-
-    if (savedGeometry.length === 0) {
-      validationErrors.push("No geometry data provided");
-    }
-
-    if (savedFreqSettings.numFreq <= 0 || savedFreqSettings.maxFreq <= 0) {
-      validationErrors.push("Invalid frequency settings");
-    }
-
-    if (savedSlowSettings.numSlow <= 0 || savedSlowSettings.maxSlow <= 0) {
-      validationErrors.push("Invalid slowness settings");
-    }
-
-    if (validationErrors.length > 0) {
-      dispatch(addToast({
-        message: `Validation failed: ${validationErrors.join(", ")}`,
-        type: "error",
-        duration: 5000
-      }));
-      return;
-    }
-
-    dispatch(setGeometry(savedGeometry));
-    dispatch(setNumFreq(savedFreqSettings.numFreq));
-    dispatch(updateMaxFreq(savedFreqSettings.maxFreq));
-    dispatch(setNumSlow(savedSlowSettings.numSlow));
-    dispatch(updateMaxSlow(savedSlowSettings.maxSlow));
-    dispatch(setOptions(savedRecordOptions));
-
-    dispatch(addToast({
-      message: "Changes applied successfully",
-      type: "success",
-      duration: 3000
-    }));
-
-    getRecordDataFromBackend();
-
+  const handleClose = () => {
+    handleDiscardChanges();
     setShowDataManager(false);
   };
 
-  const handleDiscardChanges = () => {
-    setSavedGeometry(geometry);
-    setSavedFreqSettings({numFreq: numFreq, maxFreq: maxFreq});
-    setSavedSlowSettings({numSlow: numSlow, maxSlow: maxSlow});
-    setSavedRecordOptions(recordOptions);
-    setUploadFiles({});
-
-    dispatch(addToast({
-      message: "Changes discarded",
-      type: "info",
-      duration: 3000
-    }));
-
+  const handleApply = () => {
+    handleApplyChanges();
     setShowDataManager(false);
   };
-
-
-  // Initialize the data before trying to do anything
-  useEffect(() => {
-    if (!projectId || isInitialized) return;
-
-    // Fetch initial data using the processGridsForPreview thunk
-    dispatch(
-      processGridsForPreview({
-        projectId: projectId,
-        recordOptions: JSON.stringify(recordOptions),
-        geometryData: JSON.stringify(geometry),
-        maxSlowness: maxSlow,
-        maxFrequency: maxFreq,
-        numSlowPoints: numSlow,
-        numFreqPoints: numFreq,
-        returnFreqAndSlow: true
-      })
-    ).then(() => {
-      dispatch(setInitialized(true));
-      dispatch(addToast({
-        message: "Data initialized successfully",
-        type: "success",
-        duration: 3000
-      }));
-    }).catch(() => {
-      dispatch(addToast({
-        message: "Failed to initialize data",
-        type: "error",
-        duration: 5000
-      }));
-    });
-  }, [projectId, isInitialized, dispatch, recordOptions, geometry, maxSlow, maxFreq, numSlow, numFreq]);
-
-  useEffect(() => {
-    console.log("Uploaded Files:", uploadFiles)
-    if (Object.values(uploadFiles).length > 0) {
-      dispatch(uploadSgyFilesWithIdsThunk(uploadFiles))
-    }
-  }, [dispatch, uploadFiles])
-
-  useEffect(() => {
-    setSavedRecordOptions(recordOptions);
-  }, [recordOptions])
-
 
   return (
     <>
@@ -214,7 +52,7 @@ export const DataManager = () => {
 
       <Modal
         isOpen={showDataManager}
-        onClose={handleDiscardChanges}
+        onClose={handleClose}
         className="modal-lg"
       >
         <div className="modal-content">
@@ -223,7 +61,7 @@ export const DataManager = () => {
             <Button
               variant="secondary"
               className="btn-close"
-              onClick={handleDiscardChanges}
+              onClick={handleClose}
               aria-label="Close"
             />
           </div>
@@ -232,16 +70,16 @@ export const DataManager = () => {
               <div className="row mt-3 gy-5">
                 <div className="col border m-3 p-3">
                   <GeometryManager
-                    geometry={savedGeometry}
+                    geometry={state.savedGeometry}
                     onGeometryChange={(geometry) => setSavedGeometry(geometry)}
                   />
                 </div>
                 <div className="col border m-3 p-3">
                   <RecordManager
-                    onUploadFiles={(files) => handleUploadFiles(files)}
+                    onUploadFiles={handleUploadFiles}
                     onFilesChange={(data) => setUploadFiles(data)}
-                    recordOptions={savedRecordOptions}
-                    recordUploadFiles={uploadFiles}
+                    recordOptions={state.savedRecordOptions}
+                    recordUploadFiles={state.uploadFiles}
                     onRecordOptionsChange={(recordOptions) => setSavedRecordOptions(recordOptions)}
                   />
                 </div>
@@ -249,31 +87,25 @@ export const DataManager = () => {
               <div className="row">
                 <div className="col border m-3">
                   <FreqSlowManger
-                    numFreq={savedFreqSettings.numFreq}
-                    maxFreq={savedFreqSettings.maxFreq}
-                    numSlow={savedSlowSettings.numSlow}
-                    maxSlow={savedSlowSettings.maxSlow}
-                    onNumFreqChange={(value) => setSavedFreqSettings({...savedFreqSettings, numFreq: value})}
-                    onMaxFreqChange={(value) => setSavedFreqSettings({...savedFreqSettings, maxFreq: value})}
-                    onNumSlowChange={(value) => setSavedSlowSettings({...savedSlowSettings, numSlow: value})}
-                    onMaxSlowChange={(value) => setSavedSlowSettings({...savedSlowSettings, maxSlow: value})}
+                    numFreq={state.savedFreqSettings.numFreq}
+                    maxFreq={state.savedFreqSettings.maxFreq}
+                    numSlow={state.savedSlowSettings.numSlow}
+                    maxSlow={state.savedSlowSettings.maxSlow}
+                    onNumFreqChange={(value) => setSavedFreqSettings({...state.savedFreqSettings, numFreq: value})}
+                    onMaxFreqChange={(value) => setSavedFreqSettings({...state.savedFreqSettings, maxFreq: value})}
+                    onNumSlowChange={(value) => setSavedSlowSettings({...state.savedSlowSettings, numSlow: value})}
+                    onMaxSlowChange={(value) => setSavedSlowSettings({...state.savedSlowSettings, maxSlow: value})}
                   />
                 </div>
               </div>
             </div>
           </div>
           <div className="modal-footer">
-            <Button
-              variant="primary"
-              onClick={handleApplyChanges}
-            >
-              Apply
+            <Button variant="secondary" onClick={handleClose}>
+              Discard Changes
             </Button>
-            <Button
-              variant="danger"
-              onClick={handleDiscardChanges}
-            >
-              Discard All
+            <Button variant="primary" onClick={handleApply}>
+              Apply Changes
             </Button>
           </div>
         </div>

@@ -7,10 +7,10 @@ import SectionHeader from "../../Components/SectionHeader/SectionHeader";
 import PicksSettingsSave from "../../Features/PicksSettingsSave/PicksSettingsSave";
 import Navbar from "../../Components/navbar/Navbar";
 import { Toast } from "../../Components/Toast/Toast";
-import { useAppSelector } from "../../hooks/useAppSelector";
+import { PicksProvider, usePicks } from "../../Contexts/PicksContext";
 
-const PicksPage: React.FC = () => {
-  const isLoading = useAppSelector((state) => state.plot.isLoading);
+const PicksPageContent: React.FC = () => {
+  const { state: { isLoading } } = usePicks();
 
   if (isLoading) {
     return (
@@ -66,6 +66,14 @@ const PicksPage: React.FC = () => {
         </div>
       </div>
     </>
+  );
+};
+
+const PicksPage: React.FC = () => {
+  return (
+    <PicksProvider>
+      <PicksPageContent />
+    </PicksProvider>
   );
 };
 

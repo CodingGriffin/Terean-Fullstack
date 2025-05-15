@@ -10,7 +10,7 @@ import {rotateClockwise, flipVertical, getMatrixShape} from "../../utils/matrix-
 import {setRecords} from "../slices/recordSlice";
 import {setNumFreq, setMaxFreq} from "../slices/freqSlice";
 import {setMaxSlow, setNumSlow} from "../slices/slowSlice";
-import {setGeometry} from "../slices/geometrySlice";
+import {setGeometrySlice} from "../slices/geometrySlice";
 import {setOptions} from "../slices/recordSlice";
 import {setPoints} from "../slices/plotSlice";
 import {updateDataLimits} from "../slices/plotSlice";
@@ -94,7 +94,7 @@ export const processGridsForPreview = createAsyncThunk(
 
       dispatch(setRecords(recordDataArray))
       dispatch(addToast({
-        message: "Record Data updated successfully",
+        message: "Record Data updated successfully 97",
         type: "success"
       }));
 
@@ -157,7 +157,7 @@ export const fetchGridsByProjectId = createAsyncThunk(
 
       dispatch(setRecords(recordDataArray))
       dispatch(addToast({
-        message: "Record Data updated successfully",
+        message: "Record Data updated successfully 160",
         type: "success"
       }));
 
@@ -190,7 +190,7 @@ export const fetchOptionsByProjectId = createAsyncThunk(
       const optionsResponse = await getOptions(projectId);
       if (optionsResponse.data) {
         console.log("Options from backend:", optionsResponse.data);
-        dispatch(setGeometry(optionsResponse.data.geometry));
+        dispatch(setGeometrySlice(optionsResponse.data.geometry));
         dispatch(setOptions(optionsResponse.data.records));
         dispatch(setNumFreq(optionsResponse.data.plotLimits.numFreq));
         dispatch(setMaxFreq(optionsResponse.data.plotLimits.maxFreq));

@@ -19,5 +19,5 @@ const geometrySlice = createSlice({
   },
 })
 
-export const { setGeometry } = geometrySlice.actions
+export const { setGeometry: setGeometrySlice } = geometrySlice.actions
 export default geometrySlice.reducer
