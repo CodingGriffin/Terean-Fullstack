@@ -1,10 +1,12 @@
-import { createContext, useContext, useReducer, useCallback, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useReducer, useCallback, ReactNode, useEffect, useRef } from 'react';
 import { useAppSelector } from '../hooks/useAppSelector';
 import VelModel from '../utils/disper-util';
 import { Layer, PickData } from '../types/data';
 import { saveDisperSettings, getDisperSettings } from '../services/api';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { addToast } from '../store/slices/toastSlice';
+import { useParams } from 'react-router-dom';
+import { fetchPicksByProjectId } from '../store/thunks/cacheThunks';
 
 const INITIAL_DATA: Layer[] = [
     { startDepth: 0.0, endDepth: 30.0, velocity: 760.0, density: 2.0, ignore: 0 },
@@ -46,7 +48,8 @@ const initialState = {
     periodUnit: "period" as "period" | "frequency",
     velocityReversed: false,
     periodReversed: false,
-    axesSwapped: false
+    axesSwapped: false,
+    isLoading: false
 };
 
 // Define the context type
@@ -77,53 +80,115 @@ type DisperContextType = {
     loadSettings: (projectId: string) => Promise<void>;
     ToFeet: (value: number) => number;
     ToMeter: (value: number) => number;
+    setIsLoading: (value: boolean) => void;
 };
 
-function reducer(state: typeof initialState, action: { type: string; payload: any }) {
+function reducer(state: typeof initialState, action: any) {
     switch (action.type) {
-        case 'SET_LAYERS':
-            return { ...state, layers: action.payload };
         case 'ADD_LAYER':
-            return { ...state, layers: [...state.layers, action.payload] };
+            return {
+                ...state,
+                layers: [...state.layers, action.payload],
+            };
         case 'UPDATE_LAYER':
             return {
                 ...state,
                 layers: state.layers.map((layer, index) =>
-                    index === action.payload.index ? { ...layer, ...action.payload.updatedLayer } : layer
+                    index === action.payload.index
+                        ? { ...layer, ...action.payload.updatedLayer }
+                        : layer
                 ),
             };
         case 'REMOVE_LAYER':
-            return { ...state, layers: state.layers.filter((_, i) => i !== action.payload) };
+            return {
+                ...state,
+                layers: state.layers.filter((_, index) => index !== action.payload),
+            };
+        case 'SET_LAYERS':
+            return {
+                ...state,
+                layers: action.payload,
+            };
         case 'SET_VS30':
-            return { ...state, vs30: action.payload };
+            return {
+                ...state,
+                vs30: action.payload,
+            };
         case 'SET_SITE_CLASS':
-            return { ...state, siteClass: action.payload };
+            return {
+                ...state,
+                siteClass: action.payload,
+            };
         case 'SET_ASCE_VERSION':
-            return { ...state, asceVersion: action.payload };
+            return {
+                ...state,
+                asceVersion: action.payload,
+            };
         case 'SET_PICK_DATA':
-            return { ...state, pickData: action.payload };
+            return {
+                ...state,
+                pickData: action.payload,
+            };
         case 'SET_DISPLAY_UNITS':
-            return { ...state, displayUnits: action.payload };
+            return {
+                ...state,
+                displayUnits: action.payload,
+            };
         case 'SET_DATA_LIMITS':
-            return { ...state, dataLimits: action.payload };
+            return {
+                ...state,
+                dataLimits: action.payload,
+            };
         case 'SET_CURVE_LIMITS':
-            return { ...state, curveAxisLimits: action.payload};
+            return {
+                ...state,
+                curveAxisLimits: action.payload,
+            };
         case 'SET_MODEL_LIMITS':
-            return { ...state, modelAxisLimits: action.payload};
+            return {
+                ...state,
+                modelAxisLimits: action.payload,
+            };
         case 'SET_NUM_POINTS':
-            return { ...state, numPoints: action.payload };
+            return {
+                ...state,
+                numPoints: action.payload,
+            };
         case 'SET_RMSE_VEL':
-            return { ...state, rmseVel: action.payload };
+            return {
+                ...state,
+                rmseVel: action.payload,
+            };
         case 'SET_VELOCITY_UNIT':
-            return { ...state, velocityUnit: action.payload };
+            return {
+                ...state,
+                velocityUnit: action.payload,
+            };
         case 'SET_PERIOD_UNIT':
-            return { ...state, periodUnit: action.payload };
+            return {
+                ...state,
+                periodUnit: action.payload,
+            };
         case 'SET_VELOCITY_REVERSED':
-            return { ...state, velocityReversed: action.payload };
+            return {
+                ...state,
+                velocityReversed: action.payload,
+            };
         case 'SET_PERIOD_REVERSED':
-            return { ...state, periodReversed: action.payload };
+            return {
+                ...state,
+                periodReversed: action.payload,
+            };
         case 'SET_AXES_SWAPPED':
-            return { ...state, axesSwapped: action.payload };
+            return {
+                ...state,
+                axesSwapped: action.payload,
+            };
+        case 'SET_IS_LOADING':
+            return {
+                ...state,
+                isLoading: action.payload,
+            };
         default:
             return state;
     }
@@ -139,8 +204,10 @@ export function useDisper() {
 
 export function DisperProvider({ children }: { children: ReactNode }) {
     const [state, dispatch] = useReducer(reducer, initialState);
-    const points = useAppSelector((state: any) => state.plot.points || []);
+    const points = useAppSelector((state) => state.plot.points);
     const reduxDispatch = useAppDispatch();
+    const { projectId } = useParams<{ projectId: string }>();
+    const initialFetchDone = useRef(false);
     
     const addLayer = useCallback((newLayer: Layer) => {
         dispatch({ type: 'ADD_LAYER', payload: newLayer });
@@ -291,6 +358,10 @@ export function DisperProvider({ children }: { children: ReactNode }) {
 
     const setAxesSwapped = useCallback((value: boolean) => {
         dispatch({ type: 'SET_AXES_SWAPPED', payload: value });
+    }, []);
+
+    const setIsLoading = useCallback((value: boolean) => {
+        dispatch({ type: 'SET_IS_LOADING', payload: value });
     }, []);
 
     const saveSettings = useCallback(async (projectId: string) => {
@@ -455,6 +526,17 @@ export function DisperProvider({ children }: { children: ReactNode }) {
         console.log("Context Layers Changed:", state.layers);
     }, [state.layers]);
 
+    useEffect(() => {
+        if (projectId && !initialFetchDone.current) {
+            setIsLoading(true);
+            reduxDispatch(fetchPicksByProjectId(projectId))
+                .finally(() => {
+                    setIsLoading(false);
+                    initialFetchDone.current = true;
+                });
+        }
+    }, [projectId, reduxDispatch, setIsLoading]);
+
     return (
         <DisperContext.Provider
             value={{
@@ -483,7 +565,8 @@ export function DisperProvider({ children }: { children: ReactNode }) {
                 saveSettings,
                 loadSettings,
                 ToFeet,
-                ToMeter
+                ToMeter,
+                setIsLoading
             }}
         >
             {children}

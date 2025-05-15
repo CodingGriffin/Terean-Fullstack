@@ -1,20 +1,20 @@
-import { createAsyncThunk } from "@reduxjs/toolkit";
-import { RootState } from "..";
+import {createAsyncThunk} from "@reduxjs/toolkit";
+import {RootState} from "..";
 import {
   setPreviewFreqData,
   setPreviewSlowData,
   setIsLoading
 } from "../slices/cacheSlice";
-import { addToast } from "../slices/toastSlice";
-import { rotateClockwise, flipVertical, getMatrixShape } from "../../utils/matrix-util";
-import { setRecords } from "../slices/recordSlice";
-import { setNumFreq, setMaxFreq } from "../slices/freqSlice";
-import { setMaxSlow, setNumSlow } from "../slices/slowSlice";
-import { setGeometry } from "../slices/geometrySlice";
-import { setOptions } from "../slices/recordSlice";
-import { setPoints } from "../slices/plotSlice";
-import { updateDataLimits } from "../slices/plotSlice";
-import { 
+import {addToast} from "../slices/toastSlice";
+import {rotateClockwise, flipVertical, getMatrixShape} from "../../utils/matrix-util";
+import {setRecords} from "../slices/recordSlice";
+import {setNumFreq, setMaxFreq} from "../slices/freqSlice";
+import {setMaxSlow, setNumSlow} from "../slices/slowSlice";
+import {setGeometry} from "../slices/geometrySlice";
+import {setOptions} from "../slices/recordSlice";
+import {setPoints} from "../slices/plotSlice";
+import {updateDataLimits} from "../slices/plotSlice";
+import {
   getOptions,
   getPicks,
   getGrids,
@@ -46,7 +46,7 @@ export const processGridsForPreview = createAsyncThunk(
       numFreqPoints: number;
       returnFreqAndSlow?: boolean;
     },
-    { dispatch }
+    {dispatch}
   ) => {
     try {
       dispatch(setIsLoading(true));
@@ -61,7 +61,7 @@ export const processGridsForPreview = createAsyncThunk(
         returnFreqAndSlow
       );
 
-      const { grids, freq, slow } = response.data.data;
+      const {grids, freq, slow} = response.data.data;
 
       if (freq) {
         dispatch(setPreviewFreqData(freq.data));
@@ -72,7 +72,7 @@ export const processGridsForPreview = createAsyncThunk(
       }
 
       const recordDataArray = grids.map((grid: any) => {
-        const { data, shape, name } = grid;
+        const {data, shape, name} = grid;
         const flatData = data.flat();
         const rotated = rotateClockwise(data);
         const transformed = flipVertical(rotated);
@@ -116,15 +116,15 @@ export const processGridsForPreview = createAsyncThunk(
 export const fetchGridsByProjectId = createAsyncThunk(
   "cache/processGridsForPreview",
   async (
-      projectId: string,
-    { dispatch }
+    projectId: string,
+    {dispatch}
   ) => {
     try {
       dispatch(setIsLoading(true));
 
       const response = await getGrids(projectId)
 
-      const { grids, freq, slow } = response.data.data;
+      const {grids, freq, slow} = response.data.data;
 
       if (freq) {
         dispatch(setPreviewFreqData(freq.data));
@@ -135,7 +135,7 @@ export const fetchGridsByProjectId = createAsyncThunk(
       }
 
       const recordDataArray = grids.map((grid: any) => {
-        const { data, shape, name } = grid;
+        const {data, shape, name} = grid;
         const flatData = data.flat();
         const rotated = rotateClockwise(data);
         const transformed = flipVertical(rotated);
@@ -180,11 +180,12 @@ export const fetchOptionsByProjectId = createAsyncThunk(
   "cache/fetchOptionsByProjectId",
   async (
     projectId: string,
-    { dispatch }
+    {dispatch}
   ) => {
     if (!projectId) return;
 
     try {
+      console.log("Fetching options for project:", projectId);
       // Fetch options
       const optionsResponse = await getOptions(projectId);
       if (optionsResponse.data) {
@@ -199,7 +200,7 @@ export const fetchOptionsByProjectId = createAsyncThunk(
           freqMax: optionsResponse.data.plotLimits.maxFreq,
           freqMin: 0,
           slowMax: optionsResponse.data.plotLimits.maxSlow,
-          slowMin:0,
+          slowMin: 0,
         }));
       }
 
@@ -222,11 +223,12 @@ export const fetchPicksByProjectId = createAsyncThunk(
   "cache/fetchPicksByProjectId",
   async (
     projectId: string,
-    { dispatch }
+    {dispatch}
   ) => {
     if (!projectId) return;
 
     try {
+      dispatch(setIsLoading(true));
       // Fetch picks
       const picksResponse = await getPicks(projectId);
       if (picksResponse.data) {
@@ -245,6 +247,8 @@ export const fetchPicksByProjectId = createAsyncThunk(
         duration: 5000
       }));
       throw error;
+    } finally {
+      dispatch(setIsLoading(false));
     }
   }
 );
@@ -253,7 +257,7 @@ export const savePicksByProjectId = createAsyncThunk(
   "cache/savePicksByProjectId",
   async (
     projectId: string | undefined,
-    { dispatch, getState }
+    {dispatch, getState}
   ) => {
     if (!projectId) {
       dispatch(addToast({
@@ -266,7 +270,7 @@ export const savePicksByProjectId = createAsyncThunk(
 
     const state = getState() as RootState;
     const points = state.plot.points;
-    
+
     // if (points.length === 0) {
     //   dispatch(addToast({
     //     message: "No points to save",
@@ -300,7 +304,7 @@ export const saveOptionsByProjectId = createAsyncThunk(
   "cache/saveOptionsByProjectId",
   async (
     projectId: string | undefined,
-    { dispatch, getState }
+    {dispatch, getState}
   ) => {
     if (!projectId) {
       dispatch(addToast({
@@ -344,25 +348,25 @@ export const saveOptionsByProjectId = createAsyncThunk(
 export const uploadSgyFilesWithIdsThunk = createAsyncThunk(
   "cache/uploadSgyFilesWithIds",
   async (
-    uploadFiles: {[key: string]: File | null},
-    { dispatch }
+    uploadFiles: { [key: string]: File | null },
+    {dispatch}
   ) => {
     try {
       dispatch(setIsLoading(true));
-      
+
       const recordUploadFiles = Object.entries(uploadFiles).map(([id, file]) => ({
         id,
         file
       }));
       const response = await uploadSgyFilesWithIds(recordUploadFiles);
       const fileInfos = response.data.file_infos;
-      
+
       dispatch(addToast({
         message: "Files uploaded successfully",
         type: "success",
         duration: 3000
       }));
-      
+
       return fileInfos;
     } catch (error) {
       console.error("Error uploading files:", error);

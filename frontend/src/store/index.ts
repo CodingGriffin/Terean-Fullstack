@@ -6,6 +6,7 @@ import slowReducer from "./slices/slowSlice";
 import toastReducer from "./slices/toastSlice";
 import cacheReducer from "./slices/cacheSlice";
 import plotReducer from "./slices/plotSlice";
+import initializationReducer from "./slices/initializationSlice";
 
 export const store = configureStore({
   reducer: {
@@ -15,7 +16,8 @@ export const store = configureStore({
     slow: slowReducer,
     toast: toastReducer,
     cache: cacheReducer,
-    plot: plotReducer
+    plot: plotReducer,
+    initialization: initializationReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

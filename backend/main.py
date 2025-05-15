@@ -10,6 +10,7 @@ import json
 from datetime import datetime
 
 import aiofiles
+# import pycuda.autoinit
 from typing import Annotated, List, Union
 
 import numpy as np
@@ -1081,7 +1082,7 @@ async def upload_sgy_with_id(
                     "original_name": original_filename,
                     "path": file_path,
                     "size": os.path.getsize(file_path),
-                    "upload_date": datetime.datetime.now().isoformat(),
+                    "upload_date": datetime.now().isoformat(),
                     "file_type": file_extension.upper()
                 }
                 

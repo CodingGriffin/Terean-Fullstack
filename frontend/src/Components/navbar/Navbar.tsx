@@ -79,7 +79,6 @@ export default function Navbar() {
             name={"Quick 2dS"}
             authRequired={1}
             userData={userData}
-            disabled={userData ? userData.auth_level < 1 : true}
           />
 
           {/* Quick 2dP link, accessible if user has auth level 2 or higher */}
@@ -88,7 +87,6 @@ export default function Navbar() {
             name={"Quick 2dP"}
             authRequired={2}
             userData={userData}
-            disabled={userData ? userData.auth_level < 2 : true}
           />
 
           {/* Admin Dashboard link, accessible to admin users with auth level of 3 or higher */}
@@ -97,21 +95,18 @@ export default function Navbar() {
             name={"Admin"}
             authRequired={3}
             userData={userData}
-            disabled={userData ? userData.auth_level < 3 : true}
           />
           <NavbarItem
             url={"/projects/1/picks"}
             name={"Picks"}
-            authRequired={0}
+            authRequired={2}
             userData={userData}
-            disabled={userData ? userData.auth_level < 0 : true}
           />
           <NavbarItem
             url={"/projects/1/disper"}
             name={"Disper"}
-            authRequired={0}
+            authRequired={2}
             userData={userData}
-            disabled={userData ? userData.auth_level < 0 : true}
           />
         </ul>
       </div>

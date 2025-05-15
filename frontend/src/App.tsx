@@ -64,17 +64,17 @@ export default function App() {
         <Route
           path="/projects/:projectId/picks"
           element={
-            // <ProtectedRoute minAuthLevel={2}>
+            <ProtectedRoute minAuthLevel={2}>
               <PicksPage />
-            // </ProtectedRoute>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/projects/:projectId/disper"
           element={
-            // <ProtectedRoute minAuthLevel={2}>
+            <ProtectedRoute minAuthLevel={2}>
               <DisperPage />
-            // </ProtectedRoute>
+            </ProtectedRoute>
           }
         />
 

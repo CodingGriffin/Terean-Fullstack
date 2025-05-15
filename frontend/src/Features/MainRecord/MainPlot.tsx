@@ -4,7 +4,6 @@ import { extend } from "@pixi/react";
 import { BasePlot } from "../../Components/BasePlot/BasePlot";
 import { useAppSelector } from "../../hooks/useAppSelector";
 import { selectEnabledRecordCount, selectEnabledRecords } from "../../store/selectors/recordSelectors";
-import { Window } from "../../types/index";
 import { Matrix } from "../../types/record";
 import { useAppDispatch } from "../../hooks/useAppDispatch";
 import { addToast } from "../../store/slices/toastSlice";
@@ -35,10 +34,80 @@ import { savePicksByProjectId } from "../../store/thunks/cacheThunks";
 
 extend({ Container, Sprite, Graphics, Text });
 
+interface PlotDimensions {
+  width: number;
+  height: number;
+}
+
+interface DataLimits {
+  slowMin: number;
+  slowMax: number;
+  freqMin: number;
+  freqMax: number;
+}
+
+interface CoordinateHelpers {
+  toScreenX: (value: number) => number;
+  fromScreenX: (x: number) => number;
+  toScreenY: (value: number) => number;
+  fromScreenY: (y: number) => number;
+}
+
+interface PointerEvent {
+  data?: {
+    global: {
+      x: number;
+      y: number;
+    };
+  };
+  clientX?: number;
+  clientY?: number;
+  nativeEvent?: {
+    shiftKey?: boolean;
+    altKey?: boolean;
+  };
+  shiftKey?: boolean;
+  altKey?: boolean;
+}
+
+interface FileHandle {
+  getFile: () => Promise<File>;
+}
+
+interface FilePickerOptions {
+  types: Array<{
+    description: string;
+    accept: {
+      [key: string]: string[];
+    };
+  }>;
+  multiple: boolean;
+}
+
+interface SaveFilePickerOptions {
+  suggestedName: string;
+  types: Array<{
+    description: string;
+    accept: {
+      [key: string]: string[];
+    };
+  }>;
+}
+
+interface FileSystemWritable {
+  write: (data: Blob) => Promise<void>;
+  close: () => Promise<void>;
+}
+
+interface FileSystemFileHandle {
+  createWritable: () => Promise<FileSystemWritable>;
+}
+
 export default function MainPlot() {
   const dispatch = useAppDispatch();
   const enabledRecords = useAppSelector(selectEnabledRecords);
   const enabledRecordCount = useAppSelector(selectEnabledRecordCount);
+  const isInitialized = useAppSelector((state) => state.initialization.isInitialized);
 
   const { 
     selectedColorMap, 
@@ -52,17 +121,30 @@ export default function MainPlot() {
     coordinateMatrix,
     dataLimits,
     transformations
-  } = useAppSelector((state) => state.plot);
+  } = useAppSelector((state: { plot: { 
+    selectedColorMap: string;
+    colorMaps: Record<string, any>;
+    isLoading: boolean;
+    points: PickData[];
+    hoveredPoint: PickData | null;
+    isDragging: boolean;
+    draggedPoint: PickData | null;
+    plotDimensions: PlotDimensions;
+    coordinateMatrix: Matrix;
+    dataLimits: DataLimits;
+    transformations: string[];
+  } }) => state.plot);
   
   const { projectId } = useParams();
 
-  const plotRef = useRef<any>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
   
   const [texture, setTexture] = useState<Texture | null>(null);
-
   const [tooltipContent, setTooltipContent] = useState<string>('');
-  
-  const selectAxisValue = useCallback((axisKey:number) =>{
+  const [showUploadConfirmation, setShowUploadConfirmation] = useState<boolean>(false);
+  const [pendingNewPoints, setPendingNewPoints] = useState<PickData[]>([]);
+
+  const selectAxisValue = useCallback((axisKey:number): number => {
     switch(axisKey) {
       case 1:
         return dataLimits.slowMin;
@@ -75,7 +157,7 @@ export default function MainPlot() {
       default:
         return 0;
     }
-  }, [dataLimits, coordinateMatrix])
+  }, [dataLimits]);
   
   const left = useCallback(() => selectAxisValue(coordinateMatrix[1][0]), [dataLimits, coordinateMatrix]);
   const right = useCallback(() => selectAxisValue(coordinateMatrix[1][2]), [dataLimits, coordinateMatrix]);
@@ -86,7 +168,7 @@ export default function MainPlot() {
   const isFlippedHorizontal = useCallback(() => coordinateMatrix[1][0] < coordinateMatrix[1][2], [coordinateMatrix]);
   const isFlippedVertical = useCallback(() => coordinateMatrix[0][1] < coordinateMatrix[2][1], [coordinateMatrix]);
   
-  const coordinateHelpers = useMemo(
+  const coordinateHelpers : CoordinateHelpers = useMemo(
     () => ({
       toScreenX: (value: number) => {
         if (isAxisSwapped()) {
@@ -147,16 +229,16 @@ export default function MainPlot() {
   );
 
   const handleDimensionChange = useCallback(
-    (dimensions: { width: number; height: number }) => {
+    (dimensions: PlotDimensions) => {
       dispatch(setPlotDimensions(dimensions));
     },
     [dispatch]
   );
 
-  const handlePointerDown = useCallback((event: any) => {
+  const handlePointerDown = useCallback((event: PointerEvent) => {
     console.log("PointerDown event:", event);
     
-    let x, y;
+    let x: number, y: number;
     
     if (event.data && event.data.global) {
       // PixiJS event
@@ -226,8 +308,8 @@ export default function MainPlot() {
     }
   }, [points, dispatch, plotRef, coordinateHelpers]);
   
-  const handlePointerMove = useCallback((event: any) => {
-    let x, y;
+  const handlePointerMove = useCallback((event: PointerEvent) => {
+    let x: number, y: number;
     
     if (event.data && event.data.global) {
       // PixiJS event
@@ -317,7 +399,7 @@ export default function MainPlot() {
     
     // Use showSaveFilePicker API for native file save dialog
     try {
-      (window as unknown as Window)
+      (window as unknown as { showSaveFilePicker: (options: SaveFilePickerOptions) => Promise<FileSystemFileHandle> })
         .showSaveFilePicker({
           suggestedName: "plotted_points.pck",
           types: [
@@ -329,7 +411,7 @@ export default function MainPlot() {
             },
           ],
         })
-        .then(async (handle: any) => {
+        .then(async (handle: FileSystemFileHandle) => {
           const writable = await handle.createWritable();
           await writable.write(blob);
           await writable.close();
@@ -354,22 +436,20 @@ export default function MainPlot() {
     }
   }, [points, dispatch]);
 
-  const [showUploadConfirmation, setShowUploadConfirmation] = useState(false);
-  const [pendingNewPoints, setPendingNewPoints] = useState<PickData[]>([]);
-
   const handleUploadPoints = useCallback(async () => {
     try {
-      const [fileHandle] = await (window as unknown as Window & { showOpenFilePicker: Function }).showOpenFilePicker({
-        types: [
-          {
-            description: "Picked Points",
-            accept: {
-              "text/plain": [".pck"],
+      const [fileHandle] = await (window as unknown as { showOpenFilePicker: (options: FilePickerOptions) => Promise<FileHandle[]> })
+        .showOpenFilePicker({
+          types: [
+            {
+              description: "Picked Points",
+              accept: {
+                "text/plain": [".pck"],
+              },
             },
-          },
-        ],
-        multiple: false,
-      });
+          ],
+          multiple: false,
+        });
       
       const file = await fileHandle.getFile();
       const content = await file.text();
@@ -378,7 +458,7 @@ export default function MainPlot() {
       const newPoints: PickData[] = [];
       
       for (const line of lines) {
-        const values = line.split(' ').map((val:any) => parseFloat(val.trim()));
+        const values = line.split(' ').map((val) => parseFloat(val.trim()));
         
         if (values.length >= 7) {
           const point: PickData = {
@@ -539,6 +619,7 @@ export default function MainPlot() {
   }, [dispatch, points.length]);
 
   useEffect(() => {
+    if (!isInitialized) return;
     
     if (enabledRecordCount === 0) {
       setTexture(null);
@@ -550,7 +631,7 @@ export default function MainPlot() {
     
     console.log("Transformations Changed", transformations);
     console.log("Before:", coordinateMatrix);
-    let newCoordinate = applyTransformation(ORIGINAL_COORDINATE_MATRIX, transformations);
+    const newCoordinate = applyTransformation(ORIGINAL_COORDINATE_MATRIX, transformations);
     if (transformations.length !== 0 && areMatricesEqual(newCoordinate, ORIGINAL_COORDINATE_MATRIX)) {
       dispatch(emptyTransformations());
       console.log("The transforms is reset");
@@ -630,6 +711,18 @@ export default function MainPlot() {
     console.log("Points:", points)
     console.log("Tooltip:", tooltipContent)
   }, [coordinateMatrix, points, tooltipContent])
+
+  // Return loading state if not initialized
+  if (!isInitialized) {
+    return (
+      <div className="d-flex flex-column border rounded h-100 justify-content-center align-items-center">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+        <div className="mt-2">Initializing data...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="card shadow-sm mb-4">
@@ -769,6 +862,7 @@ export default function MainPlot() {
                 </button>
                 <button
                   onClick={() => {
+                    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
                     isAxisSwapped()? dispatch(addTransformation("flipHorizontal")):dispatch(addTransformation("flipVertical"));
                   }}
                   className="btn btn-outline-primary btn-sm"
@@ -779,6 +873,7 @@ export default function MainPlot() {
                 </button>
                 <button
                   onClick={() => {
+                    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
                     isAxisSwapped()? dispatch(addTransformation("flipVertical")):dispatch(addTransformation("flipHorizontal"));
                   }}
                   className="btn btn-outline-primary btn-sm"

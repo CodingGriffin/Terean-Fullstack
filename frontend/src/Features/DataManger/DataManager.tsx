@@ -1,44 +1,51 @@
-import { FreqSlowManger } from "./FreqSlowManager/FreqSlowManager";
-import { GeometryManager } from "./GeometryManager/GeometryManager";
+import {FreqSlowManger} from "./FreqSlowManager/FreqSlowManager";
+import {GeometryManager} from "./GeometryManager/GeometryManager";
 import RecordManager from "./RecordManager/RecordManger";
-import { Button } from "../../Components/Button/Button";
-import { useState, useEffect, useCallback } from "react";
+import {Button} from "../../Components/Button/Button";
+import {useState, useEffect, useCallback} from "react";
 import SectionHeader from "../../Components/SectionHeader/SectionHeader";
-import { useAppDispatch } from "../../hooks/useAppDispatch";
-import { useAppSelector } from "../../hooks/useAppSelector";
-import { setGeometry } from "../../store/slices/geometrySlice";
-import { setNumFreq, updateMaxFreq } from "../../store/slices/freqSlice";
-import { setNumSlow, updateMaxSlow } from "../../store/slices/slowSlice";
-import { setOptions } from "../../store/slices/recordSlice";
-import { addToast } from "../../store/slices/toastSlice";
-import { GeometryItem } from "../../types/geometry";
-import { RecordOption, RecordUploadFile } from "../../types/record";
+import {useAppDispatch} from "../../hooks/useAppDispatch";
+import {useAppSelector} from "../../hooks/useAppSelector";
+import {setGeometry} from "../../store/slices/geometrySlice";
+import {setNumFreq, updateMaxFreq} from "../../store/slices/freqSlice";
+import {setNumSlow, updateMaxSlow} from "../../store/slices/slowSlice";
+import {setOptions} from "../../store/slices/recordSlice";
+import {addToast} from "../../store/slices/toastSlice";
+import {GeometryItem} from "../../types/geometry";
+import {RecordOption, RecordUploadFile} from "../../types/record";
 import {
   selectOptions,
 } from "../../store/selectors/recordSelectors";
-import { Modal } from "../../Components/Modal/Modal";
-import { processGridsForPreview } from "../../store/thunks/cacheThunks";
-import { useParams } from "react-router";
-import { uploadSgyFilesWithIdsThunk } from "../../store/thunks/cacheThunks";
+import {Modal} from "../../Components/Modal/Modal";
+import {processGridsForPreview} from "../../store/thunks/cacheThunks";
+import {useParams} from "react-router";
+import {uploadSgyFilesWithIdsThunk} from "../../store/thunks/cacheThunks";
+import {setInitialized} from "../../store/slices/initializationSlice";
 
 export const DataManager = () => {
   const dispatch = useAppDispatch();
   const [showDataManager, setShowDataManager] = useState<boolean>(false);
-  const { projectId } = useParams();
+  const isInitialized = useAppSelector((state) => state.initialization.isInitialized);
+  const {projectId} = useParams();
 
   const geometry = useAppSelector((state) => state.geometry.items);
-  const { numFreq, maxFreq } = useAppSelector((state) => state.freq);
-  const { numSlow, maxSlow } = useAppSelector((state) => state.slow);
+  const {numFreq, maxFreq} = useAppSelector((state) => state.freq);
+  const {numSlow, maxSlow} = useAppSelector((state) => state.slow);
   const recordOptions = useAppSelector(selectOptions);
 
   const [savedGeometry, setSavedGeometry] = useState<GeometryItem[]>([]);
-  const [savedFreqSettings, setSavedFreqSettings] = useState({ numFreq: numFreq, maxFreq: maxFreq });
-  const [savedSlowSettings, setSavedSlowSettings] = useState({ numSlow: numSlow, maxSlow: maxSlow });
+  const [savedFreqSettings, setSavedFreqSettings] = useState({numFreq: numFreq, maxFreq: maxFreq});
+  const [savedSlowSettings, setSavedSlowSettings] = useState({numSlow: numSlow, maxSlow: maxSlow});
   const [savedRecordOptions, setSavedRecordOptions] = useState<RecordOption[]>(recordOptions);
-  const [uploadFiles, setUploadFiles] = useState<{[key:string]:File|null}>({});
+  const [uploadFiles, setUploadFiles] = useState<{ [key: string]: File | null }>({});
 
-  const handleUploadFiles = (files: RecordUploadFile[]|null) => {
-    let newUploadFiles:{[key:string]:File|null} = {...uploadFiles};
+  useEffect(() => {
+    console.log("Geometry data in DataManager:", geometry);
+    setSavedGeometry(geometry);
+  }, [geometry]);
+
+  const handleUploadFiles = (files: RecordUploadFile[] | null) => {
+    const newUploadFiles: { [key: string]: File | null } = {...uploadFiles};
     if (files === null) {
       setUploadFiles({});
       return;
@@ -54,11 +61,10 @@ export const DataManager = () => {
     if (!projectId) return;
 
     if (JSON.stringify(savedGeometry) !== JSON.stringify(geometry) ||
-        savedFreqSettings.numFreq !== numSlow || savedFreqSettings.maxFreq !== maxFreq || 
-        savedSlowSettings.numSlow !== numSlow || savedSlowSettings.maxSlow !== maxSlow ||
-        JSON.stringify(savedRecordOptions.map((opt) => opt.fileName)) !== JSON.stringify(recordOptions.map((opt) => opt.fileName))
-      ) {
-
+      savedFreqSettings.numFreq !== numSlow || savedFreqSettings.maxFreq !== maxFreq ||
+      savedSlowSettings.numSlow !== numSlow || savedSlowSettings.maxSlow !== maxSlow ||
+      JSON.stringify(savedRecordOptions.map((opt) => opt.fileName)) !== JSON.stringify(recordOptions.map((opt) => opt.fileName))
+    ) {
       dispatch(
         processGridsForPreview({
           projectId: projectId,
@@ -71,14 +77,14 @@ export const DataManager = () => {
           returnFreqAndSlow: true
         })
       );
-      
+
       dispatch(addToast({
         message: `Processing ${savedRecordOptions.length} files with ${savedGeometry.length} geometry points`,
         type: "info",
         duration: 3000
       }));
     }
-  }, [savedGeometry, savedFreqSettings, savedSlowSettings, uploadFiles, dispatch]);
+  }, [projectId, savedGeometry, geometry, savedFreqSettings.numFreq, savedFreqSettings.maxFreq, numSlow, maxFreq, savedSlowSettings.numSlow, savedSlowSettings.maxSlow, maxSlow, savedRecordOptions, recordOptions, dispatch]);
 
   const handleApplyChanges = () => {
     const validationErrors = [];
@@ -122,14 +128,14 @@ export const DataManager = () => {
     }));
 
     getRecordDataFromBackend();
-    
+
     setShowDataManager(false);
   };
 
   const handleDiscardChanges = () => {
     setSavedGeometry(geometry);
-    setSavedFreqSettings({ numFreq: numFreq, maxFreq: maxFreq });
-    setSavedSlowSettings({ numSlow: numSlow, maxSlow: maxSlow });
+    setSavedFreqSettings({numFreq: numFreq, maxFreq: maxFreq});
+    setSavedSlowSettings({numSlow: numSlow, maxSlow: maxSlow});
     setSavedRecordOptions(recordOptions);
     setUploadFiles({});
 
@@ -142,24 +148,50 @@ export const DataManager = () => {
     setShowDataManager(false);
   };
 
-  useEffect(() => {
-    console.log("Local Geometry Changed:", savedGeometry);
-  }, [savedGeometry])
 
+  // Initialize the data before trying to do anything
   useEffect(() => {
-    console.log("Global Geometry Changed:", geometry);
-  }, [geometry])
+    if (!projectId || isInitialized) return;
+
+    // Fetch initial data using the processGridsForPreview thunk
+    dispatch(
+      processGridsForPreview({
+        projectId: projectId,
+        recordOptions: JSON.stringify(recordOptions),
+        geometryData: JSON.stringify(geometry),
+        maxSlowness: maxSlow,
+        maxFrequency: maxFreq,
+        numSlowPoints: numSlow,
+        numFreqPoints: numFreq,
+        returnFreqAndSlow: true
+      })
+    ).then(() => {
+      dispatch(setInitialized(true));
+      dispatch(addToast({
+        message: "Data initialized successfully",
+        type: "success",
+        duration: 3000
+      }));
+    }).catch(() => {
+      dispatch(addToast({
+        message: "Failed to initialize data",
+        type: "error",
+        duration: 5000
+      }));
+    });
+  }, [projectId, isInitialized, dispatch, recordOptions, geometry, maxSlow, maxFreq, numSlow, numFreq]);
 
   useEffect(() => {
     console.log("Uploaded Files:", uploadFiles)
     if (Object.values(uploadFiles).length > 0) {
       dispatch(uploadSgyFilesWithIdsThunk(uploadFiles))
     }
-  }, [uploadFiles])
+  }, [dispatch, uploadFiles])
 
   useEffect(() => {
     setSavedRecordOptions(recordOptions);
   }, [recordOptions])
+
 
   return (
     <>
@@ -167,7 +199,7 @@ export const DataManager = () => {
         <SectionHeader
           title="Controls"
         />
-        <div className="d-flex justify-content-between flex-column gap-3 pt-1" style={{ height: "210px", margin: "8px" }}>
+        <div className="d-flex justify-content-between flex-column gap-3 pt-1" style={{height: "210px", margin: "8px"}}>
           <Button
             variant="primary"
             onClick={() => setShowDataManager(true)}
@@ -206,7 +238,7 @@ export const DataManager = () => {
                 </div>
                 <div className="col border m-3 p-3">
                   <RecordManager
-                    onUploadFiles={(files) =>handleUploadFiles(files)}
+                    onUploadFiles={(files) => handleUploadFiles(files)}
                     onFilesChange={(data) => setUploadFiles(data)}
                     recordOptions={savedRecordOptions}
                     recordUploadFiles={uploadFiles}
@@ -221,10 +253,10 @@ export const DataManager = () => {
                     maxFreq={savedFreqSettings.maxFreq}
                     numSlow={savedSlowSettings.numSlow}
                     maxSlow={savedSlowSettings.maxSlow}
-                    onNumFreqChange={(value) => setSavedFreqSettings({ ...savedFreqSettings, numFreq: value })}
-                    onMaxFreqChange={(value) => setSavedFreqSettings({ ...savedFreqSettings, maxFreq: value })}
-                    onNumSlowChange={(value) => setSavedSlowSettings({ ...savedSlowSettings, numSlow: value })}
-                    onMaxSlowChange={(value) => setSavedSlowSettings({ ...savedSlowSettings, maxSlow: value })}
+                    onNumFreqChange={(value) => setSavedFreqSettings({...savedFreqSettings, numFreq: value})}
+                    onMaxFreqChange={(value) => setSavedFreqSettings({...savedFreqSettings, maxFreq: value})}
+                    onNumSlowChange={(value) => setSavedSlowSettings({...savedSlowSettings, numSlow: value})}
+                    onMaxSlowChange={(value) => setSavedSlowSettings({...savedSlowSettings, maxSlow: value})}
                   />
                 </div>
               </div>

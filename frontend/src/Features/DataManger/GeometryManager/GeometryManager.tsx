@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GeometryItem } from "../../../types/geometry";
 import GeometryButton from "./GeometryButton/GeometryButton";
 import AddGeometry from "./AddGeometry/AddGeometry";
@@ -22,6 +22,10 @@ export const GeometryManager = ({
   });
 
   const [isUpdated, setIsUpdated] = useState<boolean>(false);
+
+  useEffect(() => {
+    console.log("Geometry data in GeometryManager:", geometry);
+  }, [geometry]);
 
   const handleModals = (modalName: string, value: boolean) => {
     Object.keys(modals).forEach((key) => {

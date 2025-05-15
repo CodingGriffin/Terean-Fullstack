@@ -1,20 +1,38 @@
 import { DisperCurveManager } from '../../Features/DisperCurveManager/DisperCurveManager';
 import { DisperModelManager } from '../../Features/DisperModelManager/DisperModelManager';
-import { DisperProvider } from '../../Contexts/DisperContext';
+import { DisperProvider, useDisper } from '../../Contexts/DisperContext';
 import UnitsSelector from '../../Features/DisperUnitSelector/DisperUnitSelector';
 import SectionHeader from '../../Components/SectionHeader/SectionHeader';
 import DisperSettingsSave from '../../Features/DisperSettingsSave/DisperSettingsSave';
 import { Toast } from '../../Components/Toast/Toast';
 import Navbar from '../../Components/navbar/Navbar';
 
-export default function DisperPage() {
+const DisperPageContent = () => {
+    const { state: { isLoading } } = useDisper();
+
+    if (isLoading) {
+        return (
+            <>
+                <Navbar />
+                <div className="w-full">
+                    <Toast />
+                    <div className="container-fluid py-4">
+                        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "60vh" }}>
+                            <div className="spinner-border text-primary" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </>
+        );
+    }
 
     return (
         <>
-        <Navbar/>
-        <div className="w-full">
-            <Toast/>
-            <DisperProvider>
+            <Navbar />
+            <div className="w-full">
+                <Toast />
                 <div className="container-fluid py-4">
                     <div className="row mb-4">
                         <div className="col-12">
@@ -36,8 +54,15 @@ export default function DisperPage() {
                         </div>
                     </div>
                 </div>
-            </DisperProvider>
-        </div>
+            </div>
         </>
+    );
+};
+
+export default function DisperPage() {
+    return (
+        <DisperProvider>
+            <DisperPageContent />
+        </DisperProvider>
     );
 }
