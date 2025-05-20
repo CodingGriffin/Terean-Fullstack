@@ -1,6 +1,5 @@
 import type React from "react";
 import RecordCarousel from "../../Features/RecordCarosel/RecordCarosel";
-import SelectedRecordsSummary from "../../Features/RecordSummary/RecordSummary";
 import MainPlot from "../../Features/MainRecord/MainPlot";
 import { DataManager } from "../../Features/DataManger/DataManager";
 import SectionHeader from "../../Components/SectionHeader/SectionHeader";
@@ -49,13 +48,8 @@ const PicksPageContent: React.FC = () => {
             <div className="col-12 col-md-2">
               <DataManager />
             </div>
-
-            <div className="col-12 col-md-7">
+            <div className="col-12 col-md-10">
               <RecordCarousel />
-            </div>
-
-            <div className="col-12 col-md-3">
-              <SelectedRecordsSummary />
             </div>
           </div>
           <div className="row mb-3">
