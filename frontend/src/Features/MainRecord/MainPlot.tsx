@@ -8,7 +8,6 @@ import { Matrix } from "../../types/record";
 import { useAppDispatch } from "../../hooks/useAppDispatch";
 import { addToast } from "../../store/slices/toastSlice";
 import SectionHeader from "../../Components/SectionHeader/SectionHeader";
-import { ColorMapManager } from "./ColorMapManager/ColorMapManager";
 import ConfirmationModal from "../../Components/ConfirmationModal/ConfirmationModal";
 
 import { 
@@ -19,7 +18,6 @@ import {
   setDraggedPoint,
   setPlotDimensions,
   setIsLoading,
-  addTransformation,
   setCoordinateMatrix,
   emptyTransformations,
   setPoints,
@@ -730,12 +728,6 @@ export default function MainPlot() {
         <div className="d-flex gap-2">
           <button 
             className="btn btn-outline-secondary btn-sm"
-            onClick={handleSavePoints}
-          >
-            Save Picks
-          </button>
-          <button 
-            className="btn btn-outline-secondary btn-sm"
             onClick={handleUploadPoints}
           >
             Upload Picks
@@ -747,11 +739,24 @@ export default function MainPlot() {
           >
             Download Picks
           </button>
+          <button 
+            className="btn btn-outline-primary btn-sm"
+            onClick={handleSavePoints}
+          >
+            Save Picks
+          </button>
+          <button 
+            className="btn btn-outline-danger btn-sm"
+            onClick={handleClearPoints}
+            disabled={points.length === 0}
+          >
+            Clear All Picks
+          </button>
         </div>
       </SectionHeader>
       <div className="card-body p-0">
         <div className="row g-0">
-          <div className="col-lg-9">
+          <div className="main-plot-container">
             <div className="aspect-ratio-container">
               <div className="plot-container">
                 {isLoading ? (
@@ -822,92 +827,6 @@ export default function MainPlot() {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-          
-          {/* Controls Panel */}
-          <div className="col-lg-3 border-start">
-            <div className="p-3">
-              <h6 className="mb-3">Plot Controls</h6>
-              
-              {/* ColorMap Controls */}
-              <div className="mb-3">
-                <label className="form-label">Color Map</label>
-                <ColorMapManager/>
-              </div>
-
-              {/* Transform Controls */}
-              <div className="mb-3">
-                <label className="form-label">Transform</label>
-                <div className="d-flex flex-wrap gap-2 justify-content-between">
-                <button
-                  onClick={() => {
-                    dispatch(addTransformation("rotateCounterClockwise"));
-                  }}
-                  className="btn btn-outline-primary btn-sm"
-                  title="Rotate Counter-clockwise"
-                  disabled={isLoading || !texture}
-                >
-                  <span>↺</span>
-                </button>
-                <button
-                  onClick={() => {
-                    dispatch(addTransformation("rotateClockwise"));
-                  }}
-                  className="btn btn-outline-primary btn-sm"
-                  title="Rotate Clockwise"
-                  disabled={isLoading || !texture}
-                >
-                  <span>↻</span>
-                </button>
-                <button
-                  onClick={() => {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                    isAxisSwapped()? dispatch(addTransformation("flipHorizontal")):dispatch(addTransformation("flipVertical"));
-                  }}
-                  className="btn btn-outline-primary btn-sm"
-                  title="Flip Horizontal"
-                  disabled={isLoading || !texture}
-                >
-                  <span>↔</span>
-                </button>
-                <button
-                  onClick={() => {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                    isAxisSwapped()? dispatch(addTransformation("flipVertical")):dispatch(addTransformation("flipHorizontal"));
-                  }}
-                  className="btn btn-outline-primary btn-sm"
-                  title="Flip Vertical"
-                  disabled={isLoading || !texture}
-                >
-                  <span>↕</span>
-                </button>
-                </div>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="d-grid gap-2 mt-4">
-                <button 
-                  className="btn btn-outline-danger btn-sm"
-                  onClick={handleClearPoints}
-                  disabled={points.length === 0}
-                >
-                  Clear All Picks
-                </button>
-              </div>
-              
-              {/* Points Info */}
-              {points.length > 0 && (
-                <div className="mt-3">
-                  <small className="text-muted d-block mb-1">
-                    {points.length} point{points.length !== 1 ? 's' : ''} added
-                  </small>
-                  <small className="text-muted d-block">
-                    Shift+Click: Add point<br/>
-                    Alt+Click: Remove point
-                  </small>
-                </div>
-              )}
             </div>
           </div>
         </div>
