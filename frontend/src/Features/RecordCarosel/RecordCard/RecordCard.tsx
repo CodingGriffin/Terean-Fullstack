@@ -7,7 +7,6 @@ import { extend } from "@pixi/react";
 import { createTexture } from "../../../utils/plot-util";
 import { useAppDispatch } from "../../../hooks/useAppDispatch";
 import { updateRecordOption } from "../../../store/slices/recordSlice";
-import { updateRecordWeightDebounced } from "../../../store/thunks/recordThunks";
 import { useAppSelector } from "../../../hooks/useAppSelector";
 import { selectRecordById } from "../../../store/selectors/recordSelectors";
 import SectionHeader from "../../../Components/SectionHeader/SectionHeader";
@@ -29,8 +28,6 @@ const RecordCard: React.FC<RecordCardProps> = ({
   const colorMap = colorMaps[selectedColorMap];
   const dispatch = useAppDispatch();
 
-  const [sliderValue, setSliderValue] = useState(record?.weight || 0);
-
   const plotRef = useRef<HTMLDivElement>(null);
 
   const textureRef = useRef<Texture | null>(null);
@@ -49,17 +46,6 @@ const RecordCard: React.FC<RecordCardProps> = ({
       })
     );
   };
-
-  const handleSliderChange = (value: number) => {
-    setSliderValue(value);
-    dispatch(updateRecordWeightDebounced(id, value));
-  };
-
-  useEffect(() => {
-    if (record?.weight !== undefined) {
-      setSliderValue(record.weight);
-    }
-  }, [record?.weight]);
 
   const textureParamsRef = useRef({
     colorMap: null as any,
@@ -132,7 +118,7 @@ const RecordCard: React.FC<RecordCardProps> = ({
   const renderCardContent = () => {
     if (!isVisible || (isVisible && isLoading) || !record) {
       return (
-        <div className="d-flex justify-content-center align-items-center position-relative" style={{ height: "140px" }}>
+        <div className="d-flex justify-content-center align-items-center position-relative" style={{ height: "210px" }}>
           <div className="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-light bg-opacity-75">
             <div className="spinner-border spinner-border-sm text-primary" role="status">
               <span className="visually-hidden">Loading...</span>
@@ -143,18 +129,17 @@ const RecordCard: React.FC<RecordCardProps> = ({
     }
 
     return (
-      <div className="d-flex justify-content-center align-items-center position-relative" style={{ height: "140px" }}>
+      <div className="d-flex justify-content-center align-items-center position-relative" style={{ height: "210px" }}>
         {texture && texture.width > 0 ? (
           <BasePlot
             ref={plotRef}
-            forceWidth={180}
-            forceHeight={140}
+            plotDimensions={{ width: 180, height: 210 }}
           >
             <pixiContainer>
               <pixiSprite
                 texture={texture}
                 width={180}
-                height={140}
+                height={210}
                 anchor={0}
                 x={0}
                 y={0}
@@ -168,35 +153,6 @@ const RecordCard: React.FC<RecordCardProps> = ({
             </div>
           </div>
         )}
-      </div>
-    );
-  };
-
-  const renderSlider = () => {
-    if (!record) return null;
-    
-    return (
-      <div
-        className="mx-2 d-flex flex-column justify-content-center"
-        style={{ height: "70px" }}
-      >
-        <label
-          htmlFor={`slider-${record.fileName}`}
-          className="form-label d-flex justify-content-between"
-        >
-          <span>State:</span>
-          <span>{sliderValue}</span>
-        </label>
-        <input
-          type="range"
-          id={`slider-${id}`}
-          min="0"
-          max="100"
-          value={sliderValue}
-          onChange={isVisible ? (e) => handleSliderChange(Number.parseInt(e.target.value)) : undefined}
-          onClick={isVisible ? (e) => e.stopPropagation() : undefined}
-          disabled={!isVisible}
-        />
       </div>
     );
   };
@@ -222,7 +178,6 @@ const RecordCard: React.FC<RecordCardProps> = ({
       </div>
       <div className="card-body p-2">
         {renderCardContent()}
-        {renderSlider()}
       </div>
     </div>
   );

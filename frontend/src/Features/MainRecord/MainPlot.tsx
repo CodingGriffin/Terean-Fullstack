@@ -136,6 +136,7 @@ export default function MainPlot() {
   const { projectId } = useParams();
 
   const plotRef = useRef<HTMLDivElement>(null);
+  const plotContainerRef = useRef<HTMLDivElement>(null);
   
   const [texture, setTexture] = useState<Texture | null>(null);
   const [tooltipContent, setTooltipContent] = useState<string>('');
@@ -233,9 +234,7 @@ export default function MainPlot() {
     [dispatch]
   );
 
-  const handlePointerDown = useCallback((event: PointerEvent) => {
-    console.log("PointerDown event:", event);
-    
+  const handlePointerDown = useCallback((event: PointerEvent) => {    
     let x: number, y: number;
     
     if (event.data && event.data.global) {
@@ -263,7 +262,6 @@ export default function MainPlot() {
         ? coordinateHelpers.fromScreenX(x) 
         : coordinateHelpers.fromScreenY(y);
       
-      console.log("Adding new point at coordinates:", { slow, freq });
       const newPoint:PickData = {
         d1: 0,
         d2: 0,
@@ -296,10 +294,8 @@ export default function MainPlot() {
       const clickedPoint = points[clickedPointIndex];
       
       if ((event.nativeEvent && event.nativeEvent.altKey) || event.altKey) {
-        console.log("Removing point:", clickedPoint);
         dispatch(removePoint(clickedPoint));
       } else {
-        console.log("Starting drag on point:", clickedPoint);
         dispatch(setDraggedPoint(clickedPoint));
         dispatch(setIsDragging(true));
       }
@@ -626,17 +622,13 @@ export default function MainPlot() {
     }
     
     dispatch(setIsLoading(true));
-    
-    console.log("Transformations Changed", transformations);
-    console.log("Before:", coordinateMatrix);
     const newCoordinate = applyTransformation(ORIGINAL_COORDINATE_MATRIX, transformations);
     if (transformations.length !== 0 && areMatricesEqual(newCoordinate, ORIGINAL_COORDINATE_MATRIX)) {
       dispatch(emptyTransformations());
-      console.log("The transforms is reset");
     }
-    console.log("New:", newCoordinate);
+
     dispatch(setCoordinateMatrix(newCoordinate));
-    // Create weighted texture from selected records
+    
     const createWeightedTexture = async () => {
       try {
         const totalWeight = enabledRecords.reduce(
@@ -704,13 +696,34 @@ export default function MainPlot() {
     createWeightedTexture();
   }, [enabledRecords, selectedColorMap, colorMaps, dispatch, transformations]);
 
-  useEffect(() => {
-    console.log("Coordinates:", coordinateMatrix)
-    console.log("Points:", points)
-    console.log("Tooltip:", tooltipContent)
-  }, [coordinateMatrix, points, tooltipContent])
+  const updateDimensions = useCallback(() => {
+    
+    if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
+      const rect = plotContainerRef.current.getBoundingClientRect();
+      const newDimensions = {
+        width: rect.width,
+        // height: rect.height,
+        height: rect.width *0.75,
+      };
+      handleDimensionChange(newDimensions);
+    }
+  }, [plotContainerRef, plotDimensions.width, plotDimensions.height]);
 
-  // Return loading state if not initialized
+  useEffect(() => {
+    updateDimensions();
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
+      resizeObserver.observe(plotContainerRef.current);
+    }
+
+    window.addEventListener("resize", updateDimensions);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateDimensions);
+    };
+  }, [plotContainerRef]);
+
   if (!isInitialized) {
     return (
       <div className="d-flex flex-column border rounded h-100 justify-content-center align-items-center">
@@ -723,7 +736,7 @@ export default function MainPlot() {
   }
 
   return (
-    <div className="card shadow-sm mb-4">
+    <div className="card p-0 shadow-sm mb-4">
       <SectionHeader title="Main Plot">
         <div className="d-flex gap-2">
           <button 
@@ -754,11 +767,11 @@ export default function MainPlot() {
           </button>
         </div>
       </SectionHeader>
-      <div className="card-body p-0">
+      <div className="card-body">
         <div className="row g-0">
           <div className="main-plot-container">
-            <div className="aspect-ratio-container">
-              <div className="plot-container">
+            <div className="d-flex justify-content-center align-items-center">
+              <div className="w-75 m-3" ref={plotContainerRef}>
                 {isLoading ? (
                   <div className="d-flex align-items-center justify-content-center h-100">
                     <div className="spinner-border text-primary" role="status">
@@ -778,8 +791,8 @@ export default function MainPlot() {
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
                     onPointerDown={handlePointerDown}
-                    onDimensionChange={handleDimensionChange}
                     tooltipContent={tooltipContent}
+                    plotDimensions={plotDimensions}
                   >
                     <pixiContainer>
                       {texture && (
