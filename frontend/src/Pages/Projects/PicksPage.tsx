@@ -8,12 +8,9 @@ import PicksSettingsSave from "../../Features/PicksSettingsSave/PicksSettingsSav
 import Navbar from "../../Components/navbar/Navbar";
 import { Toast } from "../../Components/Toast/Toast";
 import { PicksProvider, usePicks } from "../../Contexts/PicksContext";
-import { Button } from "../../Components/Button/Button";
-
 const PicksPageContent: React.FC = () => {
   const { state: { isLoading } } = usePicks();
-  const [showDataManager, setShowDataManager] = useState(true);
-  const [showRecordCarousel, setShowRecordCarousel] = useState(true);
+  const [showOptions, setShowOptions] = useState(true);
 
   if (isLoading) {
     return (
@@ -44,16 +41,10 @@ const PicksPageContent: React.FC = () => {
               <SectionHeader title="Picks Analysis">
                 <div className="d-flex gap-2 mb-2">
                   <button 
-                    className={`btn ${showDataManager ? "btn-outline-primary" : "btn-outline-secondary"}`}
-                    onClick={() => setShowDataManager(!showDataManager)}
+                    className={`btn ${showOptions ? "btn-outline-primary" : "btn-outline-secondary"}`}
+                    onClick={() => setShowOptions(!showOptions)}
                   >
-                    {showDataManager ? "Hide Data Manager" : "Show Data Manager"}
-                  </button>
-                  <button 
-                    className={`btn ${showRecordCarousel ? "btn-outline-primary" : "btn-outline-secondary"}`}
-                    onClick={() => setShowRecordCarousel(!showRecordCarousel)}
-                  >
-                    {showRecordCarousel ? "Hide Record Carousel" : "Show Record Carousel"}
+                    {showOptions ? "Hide Options" : "Show Options"}
                   </button>
                   <PicksSettingsSave />
                 </div>
@@ -62,18 +53,16 @@ const PicksPageContent: React.FC = () => {
           </div>
           
           {/* Conditional rendering for DataManager and RecordCarousel */}
-          {(showDataManager || showRecordCarousel) && (
+          {(showOptions) && (
             <div className="row g-3 mb-3">
-              {showDataManager && (
-                <div className={`col-12 ${showRecordCarousel ? 'col-md-2' : 'col-md-3'}`}>
+              
+                <div className="col-12  col-md-2">
                   <DataManager />
                 </div>
-              )}
-              {showRecordCarousel && (
-                <div className={`col-12 ${showDataManager ? 'col-md-10' : 'col-md-12'}`}>
+             
+                <div className="col-12 col-md-10">
                   <RecordCarousel />
                 </div>
-              )}
             </div>
           )}
           

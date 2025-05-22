@@ -736,7 +736,7 @@ export default function MainPlot() {
   }
 
   return (
-    <div className="card p-0 shadow-sm mb-4">
+    <div className="flex-grow-1 card p-0 shadow-sm mb-4">
       <SectionHeader title="Main Plot">
         <div className="d-flex gap-2">
           <button 
@@ -835,7 +835,7 @@ export default function MainPlot() {
                     </pixiContainer>
                   </BasePlot>
                 ) : (
-                  <div className="d-flex align-items-center justify-content-center h-100">
+                  <div className="d-flex align-items-center justify-content-center aspect-ratio-4-3" style={{width: "100%", paddingTop: "35%", paddingBottom: "35%" }}>
                     <p className="text-muted">No data selected</p>
                   </div>
                 )}
