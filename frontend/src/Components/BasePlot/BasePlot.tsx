@@ -18,9 +18,7 @@ interface BasePlotProps {
   onPointerMove?: (event: React.PointerEvent) => void;
   onPointerUp?: () => void;
   onPointerDown?: (event: React.PointerEvent) => void;
-  onDimensionChange?: (dimensions: { width: number; height: number }) => void;
-  forceWidth?: number;
-  forceHeight?: number;
+  plotDimensions?: { width: number; height: number };
 }
 
 export const BasePlot = forwardRef<HTMLDivElement, BasePlotProps>(({
@@ -36,17 +34,11 @@ export const BasePlot = forwardRef<HTMLDivElement, BasePlotProps>(({
   onPointerMove,
   onPointerUp,
   onPointerDown,
-  onDimensionChange,
   axesSwapped = false,
   xAxisReversed = false,
   yAxisReversed = false,
-  forceWidth,
-  forceHeight,
+  plotDimensions = { width: 640, height: 480 },
 }, ref) => {
-  const [plotDimensions, setPlotDimensions] = useState({
-    width: 640,
-    height: 480,
-  });
 
   const [isFullyMounted, SetIsFullyMounted] = useState(false);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
@@ -63,55 +55,6 @@ export const BasePlot = forwardRef<HTMLDivElement, BasePlotProps>(({
       onPointerMove(event);
     }
   }, [ref, onPointerMove]);
-
-  const updateDimensions = useCallback(() => {
-    if (forceWidth && forceHeight) {
-      setPlotDimensions({
-        width: forceWidth,
-        height: forceHeight
-      });
-      return;
-    }
-    
-    if (ref && 'current' in ref && ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      const newDimensions = {
-        width: rect.width,
-        height: rect.height,
-      };
-      
-      if (newDimensions.width !== plotDimensions.width || 
-          newDimensions.height !== plotDimensions.height) {
-        setPlotDimensions(newDimensions);
-      }
-    }
-  }, [ref, plotDimensions.width, plotDimensions.height, forceWidth, forceHeight]);
-
-  useEffect(() => {
-    updateDimensions();
-
-    const resizeObserver = new ResizeObserver(updateDimensions);
-    if (ref && 'current' in ref && ref.current) {
-      resizeObserver.observe(ref.current);
-    }
-
-    window.addEventListener("resize", updateDimensions);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", updateDimensions);
-    };
-  }, [ref, updateDimensions]);
-
-  useEffect(() => {
-    console.log("Canvas Rerendered")
-  }, []);
-
-  useEffect(() => {
-    if (onDimensionChange) {
-      onDimensionChange(plotDimensions);
-    }
-  }, [plotDimensions, onDimensionChange]);
 
   const getDisplayedXLabel = useCallback(() => {
     return axesSwapped ? yLabel : xLabel;
@@ -172,7 +115,8 @@ export const BasePlot = forwardRef<HTMLDivElement, BasePlotProps>(({
 
   return (
     <div
-      className="position-relative border bg-white shadow-sm w-100 h-100 min-vh-50"
+      className="position-relative border"
+      style={{width:plotDimensions.width, height:plotDimensions.height}}
     >
       <div 
         className="position-absolute small" 
@@ -206,7 +150,7 @@ export const BasePlot = forwardRef<HTMLDivElement, BasePlotProps>(({
       </div>
       
       <div 
-        className="w-full h-full"
+        style={{width:plotDimensions.width, height:plotDimensions.height}}
         onPointerMove={handlePointerMove}
         onPointerUp={onPointerUp}
         onPointerDown={onPointerDown}
@@ -216,7 +160,7 @@ export const BasePlot = forwardRef<HTMLDivElement, BasePlotProps>(({
           <Application
             className="flex-1"
             width={plotDimensions.width}
-            height={plotDimensions.width /4 * 3}
+            height={plotDimensions.height}
             background="white"
             resizeTo={ref.current}
             autoDensity={true}

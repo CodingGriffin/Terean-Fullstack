@@ -50,6 +50,7 @@ export const DisperModelManager = () => {
   });
 
   const plotRef = useRef<HTMLDivElement>(null);
+  const plotContainerRef = useRef<HTMLDivElement>(null);
 
   // Update coordinate helpers to use dynamic dimensions
   const coordinateHelpers = useMemo(
@@ -567,11 +568,39 @@ export const DisperModelManager = () => {
     []
   );
 
+  const updateDimensions = useCallback(() => {
+      
+      if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
+        const rect = plotContainerRef.current.getBoundingClientRect();
+        const newDimensions = {
+          width: rect.width,
+          // height: rect.height,
+          height: rect.width *0.75,
+        };
+        handleDimensionChange(newDimensions);
+      }
+    }, [plotContainerRef, plotDimensions.width, plotDimensions.height]);
+  
+    useEffect(() => {
+      updateDimensions();
+      const resizeObserver = new ResizeObserver(updateDimensions);
+      if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
+        resizeObserver.observe(plotContainerRef.current);
+      }
+  
+      window.addEventListener("resize", updateDimensions);
+  
+      return () => {
+        resizeObserver.disconnect();
+        window.removeEventListener("resize", updateDimensions);
+      };
+    }, [plotContainerRef]);
+
   return (
-    <div className="card shadow-sm">
+    <div className="card p-0 shadow-sm">
       <SectionHeader title="Dispersion Model"/>
       <div className="card-body">
-        <div className="row g-4">
+        <div className="row g-4 mb-2">
           <div className="col d-flex gap-5">
             {/* <FileControls
               onFileSelect={handleFileSelect}
@@ -701,14 +730,14 @@ export const DisperModelManager = () => {
         <div className="row mb-4"></div>
         <div className="row">
           <div className="col">
-            <div className="d-flex">
-              <label className="form-label w-50">
+            <div className="d-flex align-items-center">
+              <label className="form-label m-0 w-50">
                 ASCE Version:
               </label>
               <select
                 value={asceVersion}
                 onChange={(e) => setAsceVersion(e.target.value)}
-                className="w-30 px-2 py-1 text-sm border rounded shadow-sm"
+                className="w-30 px-2 text-sm border rounded shadow-sm"
               >
                 <option value="ASCE 7-22">ASCE 7-22</option>
                 <option value="ASCE 7-16">ASCE 7-16</option>
@@ -717,7 +746,7 @@ export const DisperModelManager = () => {
           </div>
         </div>
 
-        <div className="position-relative m-5">
+        <div className="position-relative m-5" ref={plotContainerRef}>
           <BasePlot
             xLabel={`Velocity (${displayUnits}/s)`}
             yLabel={`Depth (${displayUnits})`}
@@ -735,7 +764,7 @@ export const DisperModelManager = () => {
               setTooltipContent("");
             }}
             onPointerDown={handlePlotClick}
-            onDimensionChange={handleDimensionChange}
+            plotDimensions={plotDimensions}
             ref={plotRef}
           >
             <pixiContainer>
@@ -830,6 +859,7 @@ export const DisperModelManager = () => {
                 <pixiContainer key={`velocity-container-${index}-${Date.now()}`}>
                   <pixiGraphics
                     draw={(g) => {
+                      console.log("Layer:", layer);
                       g.clear();
                       // Fill the region to the left of the velocity line with light red
                       g.setFillStyle({ color: 0xff0000, alpha: 0.1 });

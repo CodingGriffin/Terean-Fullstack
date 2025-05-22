@@ -4,6 +4,10 @@ import RecordCard from "./RecordCard/RecordCard";
 import { useAppSelector } from "../../hooks/useAppSelector";
 import { selectRecordItems } from "../../store/selectors/recordSelectors";
 import Pagination from "../../Components/Pagination/Pagination";
+import { useAppDispatch } from "../../hooks/useAppDispatch";
+import { useParams } from "react-router-dom";
+import { saveOptionsByProjectId } from "../../store/thunks/cacheThunks";
+import { updateRecordOption } from "../../store/slices/recordSlice";
 
 const CARD_WIDTH = 200;
 const CARD_MARGIN = 10;
@@ -12,8 +16,12 @@ const TOTAL_CARD_WIDTH = CARD_WIDTH + CARD_MARGIN * 2;
 interface RecordCarouselProps {}
 
 const RecordCarousel: React.FC<RecordCarouselProps> = () => {
+  const dispatch = useAppDispatch();
+  const { projectId } = useParams();
   const records = useAppSelector(selectRecordItems);
   
+  const enabledRecords = records.filter((item) => item.enabled);
+
   const orderedIds = records.map(record => record.id);
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -23,6 +31,21 @@ const RecordCarousel: React.FC<RecordCarouselProps> = () => {
   const [current, setCurrent] = useState(0);
   const isScrolling = useRef(false);
   const [scrollToRecordId, setScrollToRecordId] = useState<string | null>(null);
+
+  const handleSaveOptions = () => {
+    dispatch(saveOptionsByProjectId(projectId));
+  }
+
+  const handleClearSelection = () => {
+    enabledRecords.forEach((record) => {
+      dispatch(
+        updateRecordOption({
+          id: record.id,
+          enabled: false,
+        })
+      );
+    });
+  };
 
   useEffect(() => {
     const handleScrollToRecord = (event: CustomEvent<{ recordId: string }>) => {
@@ -202,7 +225,7 @@ const RecordCarousel: React.FC<RecordCarouselProps> = () => {
               )
             )}
           </div>
-          <div className="d-flex justify-content-center mt-3">
+          <div className="d-flex justify-content-center mt-3 gap-2" style={{ height: "31px" }}>
             <Pagination 
               currentPage={current}
               totalPages={pageCount}
@@ -212,6 +235,18 @@ const RecordCarousel: React.FC<RecordCarouselProps> = () => {
               siblingCount={2}
               boundaryCount={1}
             />
+            <button
+              className="btn btn-outline-primary btn-sm h-100"
+              onClick={handleSaveOptions}
+            >
+              Save Options
+            </button>
+            <button
+              className="btn btn-outline-danger btn-sm h-100"
+              onClick={handleClearSelection}
+            >
+              Clear
+            </button>
           </div>
         </>
       )}

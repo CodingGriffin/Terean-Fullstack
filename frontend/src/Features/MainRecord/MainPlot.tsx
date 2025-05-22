@@ -8,7 +8,6 @@ import { Matrix } from "../../types/record";
 import { useAppDispatch } from "../../hooks/useAppDispatch";
 import { addToast } from "../../store/slices/toastSlice";
 import SectionHeader from "../../Components/SectionHeader/SectionHeader";
-import { ColorMapManager } from "./ColorMapManager/ColorMapManager";
 import ConfirmationModal from "../../Components/ConfirmationModal/ConfirmationModal";
 
 import { 
@@ -19,7 +18,6 @@ import {
   setDraggedPoint,
   setPlotDimensions,
   setIsLoading,
-  addTransformation,
   setCoordinateMatrix,
   emptyTransformations,
   setPoints,
@@ -138,6 +136,7 @@ export default function MainPlot() {
   const { projectId } = useParams();
 
   const plotRef = useRef<HTMLDivElement>(null);
+  const plotContainerRef = useRef<HTMLDivElement>(null);
   
   const [texture, setTexture] = useState<Texture | null>(null);
   const [tooltipContent, setTooltipContent] = useState<string>('');
@@ -235,9 +234,7 @@ export default function MainPlot() {
     [dispatch]
   );
 
-  const handlePointerDown = useCallback((event: PointerEvent) => {
-    console.log("PointerDown event:", event);
-    
+  const handlePointerDown = useCallback((event: PointerEvent) => {    
     let x: number, y: number;
     
     if (event.data && event.data.global) {
@@ -265,7 +262,6 @@ export default function MainPlot() {
         ? coordinateHelpers.fromScreenX(x) 
         : coordinateHelpers.fromScreenY(y);
       
-      console.log("Adding new point at coordinates:", { slow, freq });
       const newPoint:PickData = {
         d1: 0,
         d2: 0,
@@ -298,10 +294,8 @@ export default function MainPlot() {
       const clickedPoint = points[clickedPointIndex];
       
       if ((event.nativeEvent && event.nativeEvent.altKey) || event.altKey) {
-        console.log("Removing point:", clickedPoint);
         dispatch(removePoint(clickedPoint));
       } else {
-        console.log("Starting drag on point:", clickedPoint);
         dispatch(setDraggedPoint(clickedPoint));
         dispatch(setIsDragging(true));
       }
@@ -628,17 +622,13 @@ export default function MainPlot() {
     }
     
     dispatch(setIsLoading(true));
-    
-    console.log("Transformations Changed", transformations);
-    console.log("Before:", coordinateMatrix);
     const newCoordinate = applyTransformation(ORIGINAL_COORDINATE_MATRIX, transformations);
     if (transformations.length !== 0 && areMatricesEqual(newCoordinate, ORIGINAL_COORDINATE_MATRIX)) {
       dispatch(emptyTransformations());
-      console.log("The transforms is reset");
     }
-    console.log("New:", newCoordinate);
+
     dispatch(setCoordinateMatrix(newCoordinate));
-    // Create weighted texture from selected records
+    
     const createWeightedTexture = async () => {
       try {
         const totalWeight = enabledRecords.reduce(
@@ -706,13 +696,34 @@ export default function MainPlot() {
     createWeightedTexture();
   }, [enabledRecords, selectedColorMap, colorMaps, dispatch, transformations]);
 
-  useEffect(() => {
-    console.log("Coordinates:", coordinateMatrix)
-    console.log("Points:", points)
-    console.log("Tooltip:", tooltipContent)
-  }, [coordinateMatrix, points, tooltipContent])
+  const updateDimensions = useCallback(() => {
+    
+    if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
+      const rect = plotContainerRef.current.getBoundingClientRect();
+      const newDimensions = {
+        width: rect.width,
+        // height: rect.height,
+        height: rect.width *0.75,
+      };
+      handleDimensionChange(newDimensions);
+    }
+  }, [plotContainerRef, plotDimensions.width, plotDimensions.height]);
 
-  // Return loading state if not initialized
+  useEffect(() => {
+    updateDimensions();
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
+      resizeObserver.observe(plotContainerRef.current);
+    }
+
+    window.addEventListener("resize", updateDimensions);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateDimensions);
+    };
+  }, [plotContainerRef]);
+
   if (!isInitialized) {
     return (
       <div className="d-flex flex-column border rounded h-100 justify-content-center align-items-center">
@@ -725,15 +736,9 @@ export default function MainPlot() {
   }
 
   return (
-    <div className="card shadow-sm mb-4">
+    <div className="card p-0 shadow-sm mb-4">
       <SectionHeader title="Main Plot">
         <div className="d-flex gap-2">
-          <button 
-            className="btn btn-outline-secondary btn-sm"
-            onClick={handleSavePoints}
-          >
-            Save Picks
-          </button>
           <button 
             className="btn btn-outline-secondary btn-sm"
             onClick={handleUploadPoints}
@@ -747,13 +752,26 @@ export default function MainPlot() {
           >
             Download Picks
           </button>
+          <button 
+            className="btn btn-outline-primary btn-sm"
+            onClick={handleSavePoints}
+          >
+            Save Picks
+          </button>
+          <button 
+            className="btn btn-outline-danger btn-sm"
+            onClick={handleClearPoints}
+            disabled={points.length === 0}
+          >
+            Clear All Picks
+          </button>
         </div>
       </SectionHeader>
-      <div className="card-body p-0">
+      <div className="card-body">
         <div className="row g-0">
-          <div className="col-lg-9">
-            <div className="aspect-ratio-container">
-              <div className="plot-container">
+          <div className="main-plot-container">
+            <div className="d-flex justify-content-center align-items-center">
+              <div className="w-75 m-3" ref={plotContainerRef}>
                 {isLoading ? (
                   <div className="d-flex align-items-center justify-content-center h-100">
                     <div className="spinner-border text-primary" role="status">
@@ -773,8 +791,8 @@ export default function MainPlot() {
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
                     onPointerDown={handlePointerDown}
-                    onDimensionChange={handleDimensionChange}
                     tooltipContent={tooltipContent}
+                    plotDimensions={plotDimensions}
                   >
                     <pixiContainer>
                       {texture && (
@@ -822,92 +840,6 @@ export default function MainPlot() {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-          
-          {/* Controls Panel */}
-          <div className="col-lg-3 border-start">
-            <div className="p-3">
-              <h6 className="mb-3">Plot Controls</h6>
-              
-              {/* ColorMap Controls */}
-              <div className="mb-3">
-                <label className="form-label">Color Map</label>
-                <ColorMapManager/>
-              </div>
-
-              {/* Transform Controls */}
-              <div className="mb-3">
-                <label className="form-label">Transform</label>
-                <div className="d-flex flex-wrap gap-2 justify-content-between">
-                <button
-                  onClick={() => {
-                    dispatch(addTransformation("rotateCounterClockwise"));
-                  }}
-                  className="btn btn-outline-primary btn-sm"
-                  title="Rotate Counter-clockwise"
-                  disabled={isLoading || !texture}
-                >
-                  <span>↺</span>
-                </button>
-                <button
-                  onClick={() => {
-                    dispatch(addTransformation("rotateClockwise"));
-                  }}
-                  className="btn btn-outline-primary btn-sm"
-                  title="Rotate Clockwise"
-                  disabled={isLoading || !texture}
-                >
-                  <span>↻</span>
-                </button>
-                <button
-                  onClick={() => {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                    isAxisSwapped()? dispatch(addTransformation("flipHorizontal")):dispatch(addTransformation("flipVertical"));
-                  }}
-                  className="btn btn-outline-primary btn-sm"
-                  title="Flip Horizontal"
-                  disabled={isLoading || !texture}
-                >
-                  <span>↔</span>
-                </button>
-                <button
-                  onClick={() => {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                    isAxisSwapped()? dispatch(addTransformation("flipVertical")):dispatch(addTransformation("flipHorizontal"));
-                  }}
-                  className="btn btn-outline-primary btn-sm"
-                  title="Flip Vertical"
-                  disabled={isLoading || !texture}
-                >
-                  <span>↕</span>
-                </button>
-                </div>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="d-grid gap-2 mt-4">
-                <button 
-                  className="btn btn-outline-danger btn-sm"
-                  onClick={handleClearPoints}
-                  disabled={points.length === 0}
-                >
-                  Clear All Picks
-                </button>
-              </div>
-              
-              {/* Points Info */}
-              {points.length > 0 && (
-                <div className="mt-3">
-                  <small className="text-muted d-block mb-1">
-                    {points.length} point{points.length !== 1 ? 's' : ''} added
-                  </small>
-                  <small className="text-muted d-block">
-                    Shift+Click: Add point<br/>
-                    Alt+Click: Remove point
-                  </small>
-                </div>
-              )}
             </div>
           </div>
         </div>

@@ -60,6 +60,8 @@ export const DisperCurveManager = () => {
   const [pickPoints, setPickPoints] = useState<Point[]>([]);
   const [tooltipContent, setTooltipContent] = useState<string>("");
 
+  const plotContainerRef = useRef<HTMLDivElement>(null);
+
   const [hoveredPoint, setHoveredPoint] = useState<Point | undefined>(
     undefined
   );
@@ -363,7 +365,6 @@ export const DisperCurveManager = () => {
         newLimits.xmax = Math.max(newLimits.xmin + minDelta, numValue);
       }
 
-      console.log("newCurveLimits:", newLimits);
       setCurveAxisLimits(newLimits);
     } else {
       // Velocity/Slowness limits
@@ -383,8 +384,6 @@ export const DisperCurveManager = () => {
         const minDelta = velocityUnit === "velocity" ? ABS_MIN_VELOCITY : ABS_MIN_SLOWNESS;
         newLimits.ymax = Math.max(newLimits.ymin + minDelta, valueInMeters);
       }
-
-      console.log("newCurveLimits:", newLimits);
       setCurveAxisLimits(newLimits);
     }
   };
@@ -443,7 +442,6 @@ export const DisperCurveManager = () => {
       })
       .filter((point) => point.dist < 5)
       .sort((a, b) => a.dist - b.dist)[0];
-    // nearestPoint && console.log("Nearest Point:", nearestPoint);
     setHoveredPoint(nearestPoint);
   };
 
@@ -510,10 +508,6 @@ export const DisperCurveManager = () => {
   }, [dataLimits, axesSwapped, periodUnit, velocityUnit]);
 
   useEffect(() => {
-    console.log("curveAxisLimits:", curveAxisLimits, dataLimits);
-  }, [curveAxisLimits]);
-
-  useEffect(() => {
     hoveredPoint
       ? setTooltipContent(
         (() => {
@@ -550,10 +544,6 @@ export const DisperCurveManager = () => {
     periodUnit,
     velocityUnit,
   ]);
-
-  useEffect(() => {
-    // console.log("Pick Points After Changed:", curveAxisLimits, pickPoints);
-  }, [pickPoints]);
 
   useEffect(() => {
     // Generate points that exactly match the axis limits
@@ -620,7 +610,6 @@ export const DisperCurveManager = () => {
       newPeriods = calcPeriods;
     }
 
-    // console.log("Periods:", newPeriods)
     if (layers.length) {
       const num_layers = layers.length;
 
@@ -670,8 +659,7 @@ export const DisperCurveManager = () => {
         2.0,
         densities
       );
-      console.log(1 / dataLimits.maxSlowness,
-        1 / dataLimits.minSlowness,)
+
       if (pointIdxs != null) {
         const curveVels = pointIdxs.map((i) => newVelocities[i]);
         const pointVels: number[] = pickData.map((p) =>
@@ -704,7 +692,6 @@ export const DisperCurveManager = () => {
         }
       }
 
-      // console.log("newVelocities:", newVelocities);
       const newCurvePoints: Point[] = newPeriods
         .map((period, index) => {
           if (period === null || newVelocities[index] === null) return null;
@@ -752,15 +739,39 @@ export const DisperCurveManager = () => {
     axesSwapped,
   ]);
 
+  const updateDimensions = useCallback(() => {
+    
+    if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
+      const rect = plotContainerRef.current.getBoundingClientRect();
+      const newDimensions = {
+        width: rect.width,
+        // height: rect.height,
+        height: rect.width *0.75,
+      };
+      handleDimensionChange(newDimensions);
+    }
+  }, [plotContainerRef, plotDimensions.width, plotDimensions.height]);
+
   useEffect(() => {
-    console.log("Plot Dimesions:", plotDimensions)
-  }, [plotDimensions]);
+    updateDimensions();
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
+      resizeObserver.observe(plotContainerRef.current);
+    }
+
+    window.addEventListener("resize", updateDimensions);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateDimensions);
+    };
+  }, [plotContainerRef]);
 
   return (
-    <div className="card shadow-sm">
+    <div className="card p-0 shadow-sm">
       <SectionHeader title="Dispersion Curve" />
       <div className="card-body">
-        <div className="row g-4">
+        <div className="row g-4 mb-2">
           <div className="col-md-6 d-flex">
             <button 
               className="btn btn-outline-secondary btn-sm"
@@ -771,7 +782,7 @@ export const DisperCurveManager = () => {
           </div>
           <div className="col-md-6">
             <div className="d-flex">
-              <label className="form-label w-50">Number of Points:</label>
+              <label className="form-label w-50">Num of Points:</label>
               <input
                 type="number"
                 value={numPoints}
@@ -933,7 +944,7 @@ export const DisperCurveManager = () => {
             <span className="fw-bold">{siteClass || "N/A"}</span>
           </div>
         </div>
-        <div className="position-relative m-5">
+        <div className="position-relative m-5" ref={plotContainerRef}>
           <BasePlot
             ref={plotRef}
             yLabel={
@@ -953,15 +964,14 @@ export const DisperCurveManager = () => {
             }
             tooltipContent={tooltipContent}
             onPointerMove={handlePointerMove}
-            onDimensionChange={handleDimensionChange}
             axesSwapped={axesSwapped}
             xAxisReversed={periodReversed}
             yAxisReversed={velocityReversed}
+            plotDimensions={plotDimensions}
           >
             <pixiContainer>
               <pixiGraphics
                 draw={(g) => {
-                  // console.log("Pick Points:", pickPoints)
                   g.clear();
                   // Draw the main plot area boundary
                   // g.setStrokeStyle({ width: 1, color: 0xCCCCCC });
@@ -1000,7 +1010,6 @@ export const DisperCurveManager = () => {
               />
               <pixiGraphics
                 draw={(g: Graphics) => {
-                  // console.log("Pick Points in Drawing:", pickPoints);
                   g.clear();
                   pickPoints.map((point) => {
                     let x = coordinateHelpers.toScreenX(point.x);
@@ -1028,7 +1037,6 @@ export const DisperCurveManager = () => {
             </pixiContainer>
             <pixiGraphics
               draw={(g: Graphics) => {
-                // console.log("Curve Points in Drawing:", curvePoints);
                 g.clear();
                 g.setStrokeStyle({
                   width: 2,
