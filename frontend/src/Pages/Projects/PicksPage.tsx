@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import RecordCarousel from "../../Features/RecordCarosel/RecordCarosel";
 import MainPlot from "../../Features/MainRecord/MainPlot";
 import { DataManager } from "../../Features/DataManger/DataManager";
@@ -8,12 +8,21 @@ import PicksSettingsSave from "../../Features/PicksSettingsSave/PicksSettingsSav
 import Navbar from "../../Components/navbar/Navbar";
 import { Toast } from "../../Components/Toast/Toast";
 import { PicksProvider, usePicks } from "../../Contexts/PicksContext";
-import { Button } from "../../Components/Button/Button";
-
 const PicksPageContent: React.FC = () => {
   const { state: { isLoading } } = usePicks();
-  const [showDataManager, setShowDataManager] = useState(true);
-  const [showRecordCarousel, setShowRecordCarousel] = useState(true);
+  const [showOptions, setShowOptions] = useState(true);
+
+  useEffect(() => {
+    if (isLoading) {
+      setShowOptions(false);
+    } else {
+      window.addEventListener("resize", function () {
+        if (window.innerHeight < 768) {
+          setShowOptions(false);
+        }
+      });
+    }
+  }, [isLoading]);
 
   if (isLoading) {
     return (
@@ -36,52 +45,45 @@ const PicksPageContent: React.FC = () => {
   return (
     <>
       <Navbar />
-      <div className="w-full">
+      <div className="w-100">
         <Toast />
-        <div className="container-fluid py-4">
-          <div className="row mb-4">
-            <div className="col-12">
-              <SectionHeader title="Picks Analysis">
-                <div className="d-flex gap-2 mb-2">
-                  <button 
-                    className={`btn ${showDataManager ? "btn-outline-primary" : "btn-outline-secondary"}`}
-                    onClick={() => setShowDataManager(!showDataManager)}
-                  >
-                    {showDataManager ? "Hide Data Manager" : "Show Data Manager"}
-                  </button>
-                  <button 
-                    className={`btn ${showRecordCarousel ? "btn-outline-primary" : "btn-outline-secondary"}`}
-                    onClick={() => setShowRecordCarousel(!showRecordCarousel)}
-                  >
-                    {showRecordCarousel ? "Hide Record Carousel" : "Show Record Carousel"}
-                  </button>
-                  <PicksSettingsSave />
-                </div>
-              </SectionHeader>
-            </div>
+        <div className="w-100 h-100 d-flex flex-column">
+          <div className="row m-2">
+            <SectionHeader title="Picks Analysis">
+              <div className="d-flex gap-2">
+                <button 
+                  className={`btn btn-sm ${showOptions ? "btn-outline-primary" : "btn-outline-secondary"}`}
+                  onClick={() => setShowOptions(!showOptions)}
+                >
+                  {showOptions ? "Hide Options" : "Show Options"}
+                </button>
+                <PicksSettingsSave />
+              </div>
+            </SectionHeader>
           </div>
           
           {/* Conditional rendering for DataManager and RecordCarousel */}
-          {(showDataManager || showRecordCarousel) && (
-            <div className="row g-3 mb-3">
-              {showDataManager && (
-                <div className={`col-12 ${showRecordCarousel ? 'col-md-2' : 'col-md-3'}`}>
+          {(showOptions) && (
+            <div className="row g-3 m-2">
+              
+                <div className="col-12 col-md-2 m-0">
                   <DataManager />
                 </div>
-              )}
-              {showRecordCarousel && (
-                <div className={`col-12 ${showDataManager ? 'col-md-10' : 'col-md-12'}`}>
+             
+                <div className="col-12 col-md-10 m-0">
                   <RecordCarousel />
                 </div>
-              )}
             </div>
           )}
-          
-          <div className="row mb-3">
-            <div className="col-12">
+        
+          {showOptions ?
+            (<div className="row m-2" style={{height:"calc(100vh - 70px - 42px - 251px - 2rem - 2rem)"}}>
               <MainPlot />
-            </div>
-          </div>
+            </div>):(
+              <div className="row m-2" style={{height:"calc(100vh - 70px - 42px - 2rem)"}}>
+                <MainPlot />
+              </div>)
+          }
         </div>
       </div>
     </>

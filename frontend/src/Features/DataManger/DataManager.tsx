@@ -55,11 +55,11 @@ export const DataManager = () => {
 
   return (
     <>
-      <div className="d-flex flex-column border rounded">
+      <div className="d-flex flex-column border rounded w-100 h-100">
         <SectionHeader
           title="Controls"
         />
-        <div className="d-flex justify-content-space-between flex-column gap-3 pt-1" style={{height: "210px", margin: "8px"}}>
+        <div className="d-flex justify-content-center align-items-center flex-grow-1 flex-column gap-3 p-2">
           <Button
             variant="primary"
             onClick={() => setShowDataManager(true)}

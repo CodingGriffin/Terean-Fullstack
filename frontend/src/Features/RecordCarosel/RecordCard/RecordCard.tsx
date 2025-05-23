@@ -118,7 +118,7 @@ const RecordCard: React.FC<RecordCardProps> = ({
   const renderCardContent = () => {
     if (!isVisible || (isVisible && isLoading) || !record) {
       return (
-        <div className="d-flex justify-content-center align-items-center position-relative" style={{ height: "210px" }}>
+        <div className="d-flex justify-content-center align-items-center position-relative" style={{ height: "140px" }}>
           <div className="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-light bg-opacity-75">
             <div className="spinner-border spinner-border-sm text-primary" role="status">
               <span className="visually-hidden">Loading...</span>
@@ -129,11 +129,11 @@ const RecordCard: React.FC<RecordCardProps> = ({
     }
 
     return (
-      <div className="d-flex justify-content-center align-items-center position-relative" style={{ height: "210px" }}>
+      <div className="d-flex justify-content-center align-items-center position-relative" style={{ height: "140px" }}>
         {texture && texture.width > 0 ? (
           <BasePlot
             ref={plotRef}
-            plotDimensions={{ width: 180, height: 210 }}
+            plotDimensions={{ width: 180, height: 140 }}
           >
             <pixiContainer>
               <pixiSprite

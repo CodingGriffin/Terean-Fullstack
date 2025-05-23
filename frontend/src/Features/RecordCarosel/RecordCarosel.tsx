@@ -225,7 +225,7 @@ const RecordCarousel: React.FC<RecordCarouselProps> = () => {
               )
             )}
           </div>
-          <div className="d-flex justify-content-center mt-3 gap-2" style={{ height: "31px" }}>
+          <div className="d-flex justify-content-center mt-1 gap-2" style={{ height: "31px" }}>
             <Pagination 
               currentPage={current}
               totalPages={pageCount}

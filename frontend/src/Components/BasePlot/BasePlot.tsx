@@ -115,8 +115,7 @@ export const BasePlot = forwardRef<HTMLDivElement, BasePlotProps>(({
 
   return (
     <div
-      className="position-relative border"
-      style={{width:plotDimensions.width, height:plotDimensions.height}}
+      className="position-relative border w-100 h-100"
     >
       <div 
         className="position-absolute small" 
@@ -150,7 +149,7 @@ export const BasePlot = forwardRef<HTMLDivElement, BasePlotProps>(({
       </div>
       
       <div 
-        style={{width:plotDimensions.width, height:plotDimensions.height}}
+        className="w-100 h-100 overflow-hidden"
         onPointerMove={handlePointerMove}
         onPointerUp={onPointerUp}
         onPointerDown={onPointerDown}
@@ -158,9 +157,8 @@ export const BasePlot = forwardRef<HTMLDivElement, BasePlotProps>(({
       >
         {isFullyMounted && ref && 'current' in ref && ref.current ? (
           <Application
-            className="flex-1"
-            width={plotDimensions.width}
-            height={plotDimensions.height}
+            width={ref.current.getBoundingClientRect().width}
+            height={ref.current.getBoundingClientRect().height}
             background="white"
             resizeTo={ref.current}
             autoDensity={true}
