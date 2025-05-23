@@ -700,15 +700,20 @@ export default function MainPlot() {
     
     if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
       const rect = plotContainerRef.current.getBoundingClientRect();
+      const windowRect = window.innerHeight;
       const newDimensions = {
         width: rect.width,
         // height: rect.height,
-        height: rect.width *0.75,
+        height: windowRect - rect.y - 40
+        // height: rect.width *0.75,
       };
       handleDimensionChange(newDimensions);
     }
   }, [plotContainerRef, plotDimensions.width, plotDimensions.height]);
 
+  useEffect(() => {
+    console.log("Plot Dimensions", plotDimensions)
+  }, [plotDimensions])
   useEffect(() => {
     updateDimensions();
     const resizeObserver = new ResizeObserver(updateDimensions);
@@ -736,7 +741,7 @@ export default function MainPlot() {
   }
 
   return (
-    <div className="flex-grow-1 card p-0 shadow-sm mb-4">
+    <div className="card p-0 m-0 h-100">
       <SectionHeader title="Main Plot">
         <div className="d-flex gap-2">
           <button 
@@ -767,81 +772,75 @@ export default function MainPlot() {
           </button>
         </div>
       </SectionHeader>
-      <div className="card-body">
-        <div className="row g-0">
-          <div className="main-plot-container">
-            <div className="d-flex justify-content-center align-items-center">
-              <div className="w-75 m-3" ref={plotContainerRef}>
-                {isLoading ? (
-                  <div className="d-flex align-items-center justify-content-center h-100">
-                    <div className="spinner-border text-primary" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
-                  </div>
-                ) : texture ? (
-                  <BasePlot
-                    ref={plotRef}
-                    xLabel={isAxisSwapped() ? "Frequency" : "Slowness"}
-                    yLabel={isAxisSwapped() ? "Slowness" : "Frequency"}
-                    xMax={right()}
-                    xMin={left()}
-                    yMin={bottom()}
-                    yMax={top()}
-                    display={(value) => value.toFixed(3)}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerDown={handlePointerDown}
-                    tooltipContent={tooltipContent}
-                    plotDimensions={plotDimensions}
-                  >
-                    <pixiContainer>
-                      {texture && (
-                        <pixiSprite
-                          texture={texture}
-                          width={plotDimensions.width}
-                          height={plotDimensions.height}
-                          anchor={0}
-                        />
-                      )}
-                      <pixiGraphics
-                        draw={(g) => {
-                          g.clear();
-
-                          points.forEach((point) => {
-                            const isHovered = hoveredPoint === point;
-                            const isDragged = draggedPoint === point;
-                            
-                            const screenX = isAxisSwapped() 
-                              ? coordinateHelpers.toScreenX(point.frequency) 
-                              : coordinateHelpers.toScreenX(point.slowness);
-                            const screenY = isAxisSwapped() 
-                              ? coordinateHelpers.toScreenY(point.slowness) 
-                              : coordinateHelpers.toScreenY(point.frequency);
-                            
-                            g.setFillStyle({
-                              color: isHovered || isDragged ? 0x00ff00 : 0xff0000,
-                              alpha: 0.8,
-                            });
-                            
-                            g.circle(
-                              screenX,
-                              screenY,
-                              isHovered || isDragged ? 6 : 4
-                            );
-                            g.fill();
-                          });
-                        }}
-                      />
-                    </pixiContainer>
-                  </BasePlot>
-                ) : (
-                  <div className="d-flex align-items-center justify-content-center aspect-ratio-4-3" style={{width: "100%", paddingTop: "35%", paddingBottom: "35%" }}>
-                    <p className="text-muted">No data selected</p>
-                  </div>
-                )}
+      <div style={{height:"calc(100% - 42px)"}}>
+        <div ref={plotContainerRef} style={{margin:"60px", marginTop:"0px", height:"calc(100% - 30px)"}}>
+          {isLoading ? (
+            <div className="d-flex align-items-center justify-content-center h-100">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
               </div>
             </div>
-          </div>
+          ) : texture ? (
+            <BasePlot
+              ref={plotRef}
+              xLabel={isAxisSwapped() ? "Frequency" : "Slowness"}
+              yLabel={isAxisSwapped() ? "Slowness" : "Frequency"}
+              xMax={right()}
+              xMin={left()}
+              yMin={bottom()}
+              yMax={top()}
+              display={(value) => value.toFixed(3)}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerDown={handlePointerDown}
+              tooltipContent={tooltipContent}
+              plotDimensions={plotDimensions}
+            >
+              <pixiContainer>
+                {texture && (
+                  <pixiSprite
+                    texture={texture}
+                    width={plotDimensions.width}
+                    height={plotDimensions.height}
+                    anchor={0}
+                  />
+                )}
+                <pixiGraphics
+                  draw={(g) => {
+                    g.clear();
+
+                    points.forEach((point) => {
+                      const isHovered = hoveredPoint === point;
+                      const isDragged = draggedPoint === point;
+                      
+                      const screenX = isAxisSwapped() 
+                        ? coordinateHelpers.toScreenX(point.frequency) 
+                        : coordinateHelpers.toScreenX(point.slowness);
+                      const screenY = isAxisSwapped() 
+                        ? coordinateHelpers.toScreenY(point.slowness) 
+                        : coordinateHelpers.toScreenY(point.frequency);
+                      
+                      g.setFillStyle({
+                        color: isHovered || isDragged ? 0x00ff00 : 0xff0000,
+                        alpha: 0.8,
+                      });
+                      
+                      g.circle(
+                        screenX,
+                        screenY,
+                        isHovered || isDragged ? 6 : 4
+                      );
+                      g.fill();
+                    });
+                  }}
+                />
+              </pixiContainer>
+            </BasePlot>
+          ) : (
+            <div className="d-flex align-items-center justify-content-center aspect-ratio-4-3" style={{width: "100%", paddingTop: "35%", paddingBottom: "35%" }}>
+              <p className="text-muted">No data selected</p>
+            </div>
+          )}
         </div>
       </div>
       <ConfirmationModal
