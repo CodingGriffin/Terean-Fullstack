@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import RecordCarousel from "../../Features/RecordCarosel/RecordCarosel";
 import MainPlot from "../../Features/MainRecord/MainPlot";
 import { DataManager } from "../../Features/DataManger/DataManager";
@@ -12,18 +12,6 @@ const PicksPageContent: React.FC = () => {
   const { state: { isLoading } } = usePicks();
   const [showOptions, setShowOptions] = useState(true);
 
-  useEffect(() => {
-    if (isLoading) {
-      setShowOptions(false);
-    } else {
-      window.addEventListener("resize", function () {
-        if (window.innerHeight < 768) {
-          setShowOptions(false);
-        }
-      });
-    }
-  }, [isLoading]);
-
   if (isLoading) {
     return (
       <>
@@ -31,7 +19,7 @@ const PicksPageContent: React.FC = () => {
         <div className="w-full">
           <Toast />
           <div className="container-fluid py-4">
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "60vh" }}>
+            <div className="d-flex justify-content-center align-items-center">
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Loading...</span>
               </div>
@@ -66,7 +54,7 @@ const PicksPageContent: React.FC = () => {
           {(showOptions) && (
             <div className="row g-3 m-2">
               
-                <div className="col-12 col-md-2 m-0">
+                <div className="col-12 col-md-2 m-0" style={{minHeight:'251px'}}>
                   <DataManager />
                 </div>
              
