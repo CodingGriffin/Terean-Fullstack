@@ -139,7 +139,7 @@ const RecordCard: React.FC<RecordCardProps> = ({
               <pixiSprite
                 texture={texture}
                 width={180}
-                height={210}
+                height={140}
                 anchor={0}
                 x={0}
                 y={0}

@@ -714,6 +714,7 @@ export default function MainPlot() {
   useEffect(() => {
     console.log("Plot Dimensions", plotDimensions)
   }, [plotDimensions])
+
   useEffect(() => {
     updateDimensions();
     const resizeObserver = new ResizeObserver(updateDimensions);
@@ -837,7 +838,7 @@ export default function MainPlot() {
               </pixiContainer>
             </BasePlot>
           ) : (
-            <div className="d-flex align-items-center justify-content-center aspect-ratio-4-3" style={{width: "100%", paddingTop: "35%", paddingBottom: "35%" }}>
+            <div className="d-flex align-items-center justify-content-center aspect-ratio-4-3">
               <p className="text-muted">No data selected</p>
             </div>
           )}
