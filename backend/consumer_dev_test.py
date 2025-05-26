@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from backend.utils.consumer_utils import write_zip_bytes, extract_zip_data, make_for_processor_file, \
     make_for_processor_zip, get_user_info
 from backend.utils.email_utils import generate_request_received, send_email_gmail, generate_data_received_email
+from backend.utils.token_manager import TokenManager
 
 logger = logging.getLogger("ReMi1dConsumer")
 
@@ -17,7 +18,7 @@ def main():
         format='%(asctime)s - %(name)s::%(lineno)d - %(levelname)s - %(message)s',
         level=logging.INFO,
     )
-    load_dotenv("/settings/.env", override=True)
+    load_dotenv("backend/settings/.env", override=True)
     download_base_url = os.getenv("DOWNLOAD_BASE_URL")
     mq_host_name = os.getenv("MQ_HOST_NAME")
     mq_port = int(os.getenv("MQ_PORT"))
@@ -25,6 +26,15 @@ def main():
     mq_user_name = os.getenv("MQ_USER_NAME")
     mq_password = os.getenv("MQ_PASSWORD")
     queue_name = os.getenv("MQ_QUEUE_NAME")
+    
+    # Initialize Token Manager
+    backend_url = os.environ.get("BACKEND_URL")
+    backend_username = os.environ.get("BACKEND_USERNAME")
+    backend_password = os.environ.get("BACKEND_PASSWORD")
+    token_manager = TokenManager(backend_url, backend_username, backend_password)
+    
+    # Get initial tokens
+    _, _ = token_manager.get_initial_tokens()
 
     channel = None
     connection = None
@@ -51,14 +61,19 @@ def main():
                     method: pika.spec.Basic.Deliver,
                     properties: pika.spec.BasicProperties,
                     body: bytes,
-                    endpoint: str = os.getenv("MQ_ENDPOINT"),
             ):
                 logger.info(f"Received a Message!")
                 logger.info(f"Channel is {ch} of type {type(ch)}")
                 logger.info(f"Method is {method} of type {type(method)}")
                 logger.info(f"Properties is {properties} of type {type(properties)}")
+                
+                # Save and extract zip file to temporary directory
                 zip_path, zip_uuid = write_zip_bytes(body, save_dir + "Zips/")
                 extracted_dir = extract_zip_data(zip_path, save_dir + "Extracted/")
+                
+                
+                
+                
                 make_for_processor_file(extracted_dir)
                 processor_zip_path = make_for_processor_zip(extracted_dir, os.path.join(save_dir + "ProcessorReady/"))
                 user_name, user_phone, user_email = get_user_info(extracted_dir)
