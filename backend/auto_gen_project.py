@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import requests
+import time
 from dotenv import load_dotenv
 from typing import Tuple, Optional
 
@@ -25,6 +26,7 @@ class TokenManager:
         Raises:
             requests.exceptions.RequestException: If the request fails
         """
+        logger.info("Getting initial tokens using username/password")
         token_url = f"{self.backend_url}/token"
         token_data = {
             "username": self.username,
@@ -36,6 +38,7 @@ class TokenManager:
         tokens = response.json()
         self.access_token = tokens["access_token"]
         self.refresh_token = tokens["refresh_token"]
+        logger.info("Successfully obtained initial tokens")
         return self.access_token, self.refresh_token
 
     def refresh_access_token(self) -> str:
@@ -51,12 +54,14 @@ class TokenManager:
         if not self.refresh_token:
             raise ValueError("No refresh token available")
 
+        logger.info("Refreshing access token using refresh token")
         refresh_url = f"{self.backend_url}/token/refresh"
         headers = {"Authorization": f"Bearer {self.refresh_token}"}
         
         response = requests.post(refresh_url, headers=headers)
         response.raise_for_status()
         self.access_token = response.json()["access_token"]
+        logger.info("Successfully refreshed access token")
         return self.access_token
 
     def get_valid_access_token(self) -> str:
@@ -67,6 +72,7 @@ class TokenManager:
             str: Valid access token
         """
         if not self.access_token:
+            logger.info("No access token available, getting initial tokens")
             return self.get_initial_tokens()[0]
 
         try:
@@ -75,13 +81,16 @@ class TokenManager:
             headers = {"Authorization": f"Bearer {self.access_token}"}
             response = requests.get(test_url, headers=headers)
             response.raise_for_status()
+            logger.info("Current access token is valid")
             return self.access_token
         except requests.exceptions.RequestException:
             try:
                 # Try to refresh the access token
+                logger.info("Access token is invalid, attempting to refresh")
                 return self.refresh_access_token()
             except requests.exceptions.RequestException:
                 # If refresh fails, get new tokens
+                logger.info("Refresh token is invalid, getting new tokens")
                 return self.get_initial_tokens()[0]
 
 def make_authenticated_request(url: str, token_manager: TokenManager, method: str = "GET", **kwargs) -> requests.Response:
@@ -110,13 +119,15 @@ def main():
         format='%(asctime)s - %(name)s::%(lineno)d - %(levelname)s - %(message)s',
         level=logging.INFO,
     )
-    load_dotenv("/settings/.env", override=True)
-    logger.info("Hello World!")
+    load_dotenv("backend/settings/.env", override=True)
+    logger.info("Starting application")
 
     # Initialize token manager
     backend_url = os.environ.get("BACKEND_URL")
     backend_username = os.environ.get("BACKEND_USERNAME")
     backend_password = os.environ.get("BACKEND_PASSWORD")
+    logger.info(f"backend_url: {backend_url}")
+    logger.info(f"backend_username: {backend_username}")
 
     try:
         token_manager = TokenManager(backend_url, backend_username, backend_password)
@@ -125,20 +136,28 @@ def main():
         access_token, refresh_token = token_manager.get_initial_tokens()
         logger.info("Successfully obtained initial tokens")
 
-        # Hit the /users/me endpoint using the token manager
-        me_url = f"{backend_url}/users/me"
-        response = make_authenticated_request(me_url, token_manager)
-        response.raise_for_status()
-        user_data = response.json()
-        logger.info(f"Successfully retrieved user data: {user_data}")
+        while True:
+            try:
+                # Hit the protected resource endpoint
+                protected_url = f"{backend_url}/protected-resource"
+                response = make_authenticated_request(protected_url, token_manager)
+                response.raise_for_status()
+                data = response.json()
+                logger.info(f"Successfully retrieved protected resource data: {data}")
 
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error making request: {e}")
+                # Wait for 25 seconds before next request
+                time.sleep(25)
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Error accessing protected resource: {e}")
+                # Continue the loop even if there's an error
+                time.sleep(25)
+
+    except KeyboardInterrupt:
+        logger.info("Application stopped by user")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
         sys.exit(1)
 
 if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print('Interrupted')
-        sys.exit(0)
+    main()
