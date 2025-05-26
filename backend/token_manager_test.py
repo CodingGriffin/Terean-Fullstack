@@ -22,12 +22,11 @@ def main():
     backend_url = os.environ.get("BACKEND_URL")
     backend_username = os.environ.get("BACKEND_USERNAME")
     backend_password = os.environ.get("BACKEND_PASSWORD")
+    token_manager = TokenManager(backend_url, backend_username, backend_password)
     logger.info(f"backend_url: {backend_url}")
     logger.info(f"backend_username: {backend_username}")
 
-    try:
-        token_manager = TokenManager(backend_url, backend_username, backend_password)
-        
+    try:        
         # Get initial tokens
         _, _ = token_manager.get_initial_tokens()
 
