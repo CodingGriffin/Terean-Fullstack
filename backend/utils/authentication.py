@@ -28,8 +28,9 @@ load_dotenv("backend/settings/.env", override=True)
 SECRET_KEY = os.environ.get("SECRET_KEY")
 # SECRET_KEY = "M3wYVjqjYnJlrHcEDBnR5RunLQ_b7xsMrePSWwiccFQ"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES") #240 # 4 hours
-REFRESH_TOKEN_EXPIRE_MINUTES = os.environ.get("REFRESH_TOKEN_EXPIRE_MINUTES") #43200 # 30 days
+print(f"Environ ACCESS_TOKEN_EXPIRE_MINUTES = {os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES")}")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES")) #240 # 4 hours
+REFRESH_TOKEN_EXPIRE_MINUTES = int(os.environ.get("REFRESH_TOKEN_EXPIRE_MINUTES")) #43200 # 30 days
 # TODO: Password salt needs to be moved to a .env file
 SALT = os.environ.get("PASSWORD_SALT") #"adsefaestdfaADFDSVZXCWEsgfatgs"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

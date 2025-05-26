@@ -55,7 +55,7 @@ class TokenManager:
             raise ValueError("No refresh token available")
 
         logger.info("Refreshing access token using refresh token")
-        refresh_url = f"{self.backend_url}/token/refresh"
+        refresh_url = f"{self.backend_url}/refresh-token"
         headers = {"Authorization": f"Bearer {self.refresh_token}"}
         
         response = requests.post(refresh_url, headers=headers)
@@ -133,8 +133,7 @@ def main():
         token_manager = TokenManager(backend_url, backend_username, backend_password)
         
         # Get initial tokens
-        access_token, refresh_token = token_manager.get_initial_tokens()
-        logger.info("Successfully obtained initial tokens")
+        _, _ = token_manager.get_initial_tokens()
 
         while True:
             try:
@@ -146,11 +145,11 @@ def main():
                 logger.info(f"Successfully retrieved protected resource data: {data}")
 
                 # Wait for 25 seconds before next request
-                time.sleep(25)
+                time.sleep(10)
             except requests.exceptions.RequestException as e:
                 logger.error(f"Error accessing protected resource: {e}")
                 # Continue the loop even if there's an error
-                time.sleep(25)
+                time.sleep(10)
 
     except KeyboardInterrupt:
         logger.info("Application stopped by user")
