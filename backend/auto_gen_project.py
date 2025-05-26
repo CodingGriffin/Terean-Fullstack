@@ -39,6 +39,8 @@ class TokenManager:
         self.access_token = tokens["access_token"]
         self.refresh_token = tokens["refresh_token"]
         logger.info("Successfully obtained initial tokens")
+        logger.info(f"access_token: {self.access_token}")
+        logger.info(f"refresh_token: {self.refresh_token}")
         return self.access_token, self.refresh_token
 
     def refresh_access_token(self) -> str:
@@ -56,9 +58,11 @@ class TokenManager:
 
         logger.info("Refreshing access token using refresh token")
         refresh_url = f"{self.backend_url}/refresh-token"
-        headers = {"Authorization": f"Bearer {self.refresh_token}"}
+        data = {
+            "token": self.refresh_token
+        }
         
-        response = requests.post(refresh_url, headers=headers)
+        response = requests.post(refresh_url, json=data)
         response.raise_for_status()
         self.access_token = response.json()["access_token"]
         logger.info("Successfully refreshed access token")
