@@ -3,10 +3,11 @@ import io
 import logging
 import os
 import tempfile
-import time
 import zipfile
 import glob
 import json
+import json_fix
+from contextlib import asynccontextmanager
 from datetime import datetime
 
 import aiofiles
@@ -22,27 +23,37 @@ from fastapi import FastAPI, Depends, UploadFile, File, Form, BackgroundTasks, R
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.models import HTTPBearer
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException
 from starlette.responses import FileResponse, StreamingResponse
+
 from tereancore.VelocityModel import VelocityModel
 from tereancore.plotting_utils import validate_contours, validate_unit_str, build_tick_dicts
 from tereancore.twodp_utils import plot_2dp_from_geoct
-
 from tereancore.twods_utils import plot_2ds
-from tereancore.sgy_utils import validate_record_is_record, load_segy_segyio, preprocess_streams
+from tereancore.sgy_utils import load_segy_segyio, preprocess_streams
 from tereancore.utils import lambda0, get_geom_func_from_excel, model_search_pattern
 from tereancore.vspect import vspect_stream
 
-from backend.database import engine, Base
+from backend.crud.project_crud import get_project, create_default_project, update_project
+from backend.crud.user_crud import get_user_by_username, create_user
+from backend.database import engine, Base, get_db, SessionLocal
 from backend.router.authentication import authentication_router
 from backend.router.admin import admin_router
-from backend.utils.authentication import oauth2_scheme, check_permissions, require_auth_level
+from backend.utils.authentication import require_auth_level, check_permissions, get_current_user
+from backend.router.sgy_file_router import sgy_file_router
+from backend.schemas.project_schema import Project, ProjectCreate
+from backend.schemas.user_schema import UserCreate, User
+from backend.utils.authentication import oauth2_scheme
 from backend.utils.consumer_utils import get_user_info
 from backend.utils.email_utils import generate_vs_surf_results, send_email_gmail
 from backend.utils.utils import CHUNK_SIZE, get_fastapi_file_locally
 from backend.schemas.user_schema import User as UserSchema
 
-load_dotenv("/settings/.env", override=True)
+# Allows json to serialize objects using __json__
+json_fix.fix_it()
+
+load_dotenv("backend/settings/.env", override=True)
 logging.basicConfig(
     format='%(asctime)s - %(name)s::%(lineno)d - %(levelname)s - %(message)s',
     level=logging.INFO,
@@ -52,10 +63,50 @@ logger = logging.getLogger(__name__)
 # Initialize / Update DB
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+
+def init_users_from_env():
+    pass
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("before")
+    db = SessionLocal()
+    raw_users = os.getenv("INITIAL_USERS")
+    if raw_users is not None:
+        initial_users = ast.literal_eval(raw_users)
+        for initial_user in initial_users:
+            # Ensure user has username and password
+            if not "username" in initial_user or not "password" in initial_user:
+                logger.warning(f"user missing username or password: {initial_user}")
+                continue
+
+            # Check db
+            query_res = get_user_by_username(db=db, username=initial_user['username'])
+            if query_res is None:
+                # Register a user with that info
+                new_user = UserCreate(
+                    username=initial_user.get('username'),
+                    password=initial_user.get('password'),
+                    disabled=initial_user.get('disabled', False),
+                    auth_level=initial_user.get('auth_level', 1),
+                    email=initial_user.get('email', None),
+                    full_name=initial_user.get('full_name', None),
+                    expiration=initial_user.get('expiration', None)
+                )
+                res = create_user(db=db, user=new_user)
+                logger.info(f"created user {new_user.username}: {res}")
+            else:
+                logger.info(f"user {initial_user['username']} already exists")
+    yield
+    logger.info("after")
+
+
+app = FastAPI(lifespan=lifespan)
 security = HTTPBearer()
 app.include_router(authentication_router)
 app.include_router(admin_router)
+app.include_router(sgy_file_router)
 
 origins = [
     "http://localhost:3000",
@@ -72,6 +123,8 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+db_dependency = Depends(get_db)
 
 
 @app.exception_handler(RequestValidationError)
@@ -92,152 +145,62 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.get("/hello/{name}")
-async def say_hello(name: str):
-    return {"message": f"Hello {name}"}
-
-
-@app.post("/checkRecord")
-async def checkRecord(
-        background_tasks: BackgroundTasks,
-        file_data: UploadFile = File(...),
-):
-    file_name = file_data.filename
-    split = file_name.split('.')
-    if len(split) <= 1:
-        raise HTTPException(400, "No file extension found.")
-    extension = "." + file_name.split('.')[-1]
-    print(extension)
-    try:
-        fd, path = tempfile.mkstemp(suffix=extension)
-        print(path)
-        async with aiofiles.open(path, 'wb') as f:
-            while chunk := await file_data.read(CHUNK_SIZE):
-                await f.write(chunk)
-        validate_record_is_record(path)
-        # background_tasks.add_task(fd.close)
-    except Exception as e:
-        return False
-    return True
-
-
-@app.post("/checkRecord2")
-async def checkRecord2(
-        background_tasks: BackgroundTasks,
-        file_data: UploadFile = File(...),
-):
-    ret = await get_fastapi_file_locally(background_tasks, file_data)
-    if ret is Exception:
-        return False
-    fp, path, extension = ret
-    try:
-        validate_record_is_record(path)
-    except Exception as e:
-        return False
-    return True
-
-
-@app.post("/uploadTest")
-async def upload_test(
-        int_value: str = Form(...),
-        float_value: str = Form(...),
-        string_value: str = Form(...),
-        file_data: UploadFile = File(...),
-):
-    print(int_value)
-    print(float_value)
-    print(string_value)
-    print(file_data.filename)
-    time.sleep(5)
-    return FileResponse("backend/Terean-logo.png")
-
-
-@app.post("/uploadTestTwo")
-async def upload_test_two(
-        # int_value: str = Form(...),
-        # float_value: str = Form(...),
-        # string_value: str = Form(...),
-        files: List[UploadFile] = File(...),
-):
-    # print(int_value)
-    # print(float_value)
-    # print(string_value)
-    print(len(files))
-    # print(file_data.filename)
-    time.sleep(5)
-    return FileResponse("backend/Terean-logo.png")
-
-
-@app.post("/uploadTestThree")
-async def upload_test_three(
-        int_value: str = Form(...),
-        # float_value: str = Form(...),
-        # string_value: str = Form(...),
-        files: list[UploadFile] = File(...),
-):
-    print(int_value)
-    print(len(files))
-    # print(file_data.filename)
-    time.sleep(5)
-    return FileResponse("backend/Terean-logo.png")
-
-
 @app.post("/process2dP")
-async def process2dP(
-        geoct_model_file: Annotated[UploadFile, File(...)],
-        background_tasks: BackgroundTasks,
-        current_user: UserSchema = Depends(require_auth_level(2)),
-        travel_time_file: Annotated[UploadFile, File(...)] = None,
-        title: Annotated[str, Form(...)] = None,
-        x_min: Annotated[float, Form(...)] = None,
-        x_max: Annotated[float, Form(...)] = None,
-        min_depth: Annotated[float, Form(...)] = None,
-        max_depth: Annotated[float, Form(...)] = None,
-        vel_min: Annotated[float, Form(...)] = None,
-        vel_max: Annotated[float, Form(...)] = None,
-        smoothing: Annotated[int, Form(...)] = 20,
-        contours: Annotated[str, Form(...)] = None,  # JSON THIS
-        unit_override: Annotated[str, Form(...)] = None,
-        y_label: Annotated[str, Form(...)] = None,
-        x_label: Annotated[str, Form(...)] = None,
-        label_pad_size: Annotated[float, Form(...)] = -58,
-        cbar_label: Annotated[str, Form(...)] = None,
-        cbar_pad_size: Annotated[float, Form(...)] = 0.10,
-        invert_colorbar_axis: Annotated[bool, Form(...)] = False,
-        cbar_ticks: Annotated[list[float], Form(...)] = None,
-        contour_color: Annotated[str, Form(...)] = "k",
-        contour_width: Annotated[float, Form(...)] = 0.8,
-        aboveground_color: Annotated[str, Form(...)] = "w",
-        aboveground_border_color: Annotated[str, Form(...)] = None,
-        shift_elevation: Annotated[bool, Form(...)] = False,
-        display_as_depth: Annotated[bool, Form(...)] = None,
-        elevation_tick_increment: Annotated[float, Form(...)] = 50,
-        reverse_elevation: Annotated[bool, Form(...)] = False,
-        reverse_data: Annotated[bool, Form(...)] = False,
-        peak_elevation: Annotated[float, Form(...)] = None,
-        tick_right: Annotated[bool, Form(...)] = False,
-        tick_left: Annotated[bool, Form(...)] = True,
-        tick_top: Annotated[bool, Form(...)] = True,
-        tick_bottom: Annotated[bool, Form(...)] = False,
-        ticklabel_right: Annotated[bool, Form(...)] = False,
-        ticklabel_left: Annotated[bool, Form(...)] = True,
-        ticklabel_top: Annotated[bool, Form(...)] = True,
-        ticklabel_bottom: Annotated[bool, Form(...)] = False,
-        x_axis_label_pos: Annotated[str, Form(...)] = "top",
-        y_axis_label_pos: Annotated[str, Form(...)] = "left",
-        test_mode: Annotated[bool, Form(...)] = True,
+async def process_2dp(
+    geoct_model_file: Annotated[UploadFile, File(...)],
+    background_tasks: BackgroundTasks,
+    current_user: UserSchema = Depends(require_auth_level(2)),
+    travel_time_file: Annotated[UploadFile, File(...)] = None,
+    title: Annotated[str, Form(...)] = None,
+    x_min: Annotated[float, Form(...)] = None,
+    x_max: Annotated[float, Form(...)] = None,
+    min_depth: Annotated[float, Form(...)] = None,
+    max_depth: Annotated[float, Form(...)] = None,
+    vel_min: Annotated[float, Form(...)] = None,
+    vel_max: Annotated[float, Form(...)] = None,
+    smoothing: Annotated[int, Form(...)] = 20,
+    contours: Annotated[str, Form(...)] = None,  # JSON THIS
+    unit_override: Annotated[str, Form(...)] = None,
+    y_label: Annotated[str, Form(...)] = None,
+    x_label: Annotated[str, Form(...)] = None,
+    label_pad_size: Annotated[float, Form(...)] = -58,
+    cbar_label: Annotated[str, Form(...)] = None,
+    cbar_pad_size: Annotated[float, Form(...)] = 0.10,
+    invert_colorbar_axis: Annotated[bool, Form(...)] = False,
+    cbar_ticks: Annotated[list[float], Form(...)] = None,
+    contour_color: Annotated[str, Form(...)] = "k",
+    contour_width: Annotated[float, Form(...)] = 0.8,
+    aboveground_color: Annotated[str, Form(...)] = "w",
+    aboveground_border_color: Annotated[str, Form(...)] = None,
+    shift_elevation: Annotated[bool, Form(...)] = False,
+    display_as_depth: Annotated[bool, Form(...)] = None,
+    elevation_tick_increment: Annotated[float, Form(...)] = 50,
+    reverse_elevation: Annotated[bool, Form(...)] = False,
+    reverse_data: Annotated[bool, Form(...)] = False,
+    peak_elevation: Annotated[float, Form(...)] = None,
+    tick_right: Annotated[bool, Form(...)] = False,
+    tick_left: Annotated[bool, Form(...)] = True,
+    tick_top: Annotated[bool, Form(...)] = True,
+    tick_bottom: Annotated[bool, Form(...)] = False,
+    ticklabel_right: Annotated[bool, Form(...)] = False,
+    ticklabel_left: Annotated[bool, Form(...)] = True,
+    ticklabel_top: Annotated[bool, Form(...)] = True,
+    ticklabel_bottom: Annotated[bool, Form(...)] = False,
+    x_axis_label_pos: Annotated[str, Form(...)] = "top",
+    y_axis_label_pos: Annotated[str, Form(...)] = "left",
+    test_mode: Annotated[bool, Form(...)] = False,
 ):
     if test_mode is not None and test_mode:
         return FileResponse("backend/Terean-logo.png")
 
     # Get GeoCT Model and TT files as local files
-    model_ret = await get_fastapi_file_locally(background_tasks, geoct_model_file)
+    model_ret = await get_fastapi_file_locally(background_tasks=None, file_data=geoct_model_file)
     if model_ret is Exception:
         raise HTTPException(500, "Error loading model file.")
     _, model_local, _ = model_ret
 
     if travel_time_file is not None:
-        tt_ret = await get_fastapi_file_locally(background_tasks, travel_time_file)
+        tt_ret = await get_fastapi_file_locally(background_tasks=None, file_data=travel_time_file)
         if tt_ret is Exception:
             raise HTTPException(500, "Error loading tt file.")
         _, tt_local, _ = tt_ret
@@ -306,54 +269,54 @@ async def process2dP(
 
 
 @app.post("/process2dS")
-async def process2dS(
-        velocity_models: Annotated[list[UploadFile], File(...)],
-        background_tasks: BackgroundTasks,
-        current_user: UserSchema = Depends(require_auth_level(1)),
-        title: Annotated[str, Form(...)] = None,
-        elevation_data: Annotated[UploadFile, File(...)] = None,
-        min_depth: Annotated[float, Form(...)] = None,
-        max_depth: Annotated[float, Form(...)] = None,
-        vel_min: Annotated[float, Form(...)] = None,
-        vel_max: Annotated[float, Form(...)] = None,
-        resolution: Annotated[float, Form(...)] = 0.1,
-        smoothing: Annotated[int, Form(...)] = 20,
-        contours: Annotated[str, Form(...)] = None,  # JSON THIS
-        enable_colorbar: Annotated[bool, Form(...)] = True,
-        invert_colorbar_axis: Annotated[bool, Form(...)] = False,
-        x_min: Annotated[float, Form(...)] = None,
-        x_max: Annotated[float, Form(...)] = None,
-        unit_override: Annotated[str, Form(...)] = None,
-        y_label: Annotated[str, Form(...)] = None,
-        x_label: Annotated[str, Form(...)] = None,
-        label_pad_size: Annotated[float, Form(...)] = -58,
-        cbar_label: Annotated[str, Form(...)] = None,
-        cbar_pad_size: Annotated[float, Form(...)] = 0.10,
-        cbar_ticks: Annotated[list[float], Form(...)] = None,
-        contour_color: Annotated[str, Form(...)] = "k",
-        contour_width: Annotated[float, Form(...)] = 0.8,
-        elevation_tick_size: Annotated[float, Form(...)] = 50,
-        cbar_fraction: Annotated[float, Form(...)] = 0.05,
-        cbar_orientation: Annotated[str, Form(...)] = "vertical",
-        aspect_ratio: Annotated[str, Form(...)] = None,
-        aboveground_color: Annotated[str, Form(...)] = "w",
-        aboveground_border_color: Annotated[str, Form(...)] = None,
-        shift_elevation: Annotated[bool, Form(...)] = False,
-        display_as_depth: Annotated[bool, Form(...)] = None,
-        elevation_tick_increment: Annotated[float, Form(...)] = 50,
-        reverse_elevation: Annotated[bool, Form(...)] = False,
-        reverse_data: Annotated[bool, Form(...)] = False,
-        tick_right: Annotated[bool, Form(...)] = False,
-        tick_left: Annotated[bool, Form(...)] = True,
-        tick_top: Annotated[bool, Form(...)] = True,
-        tick_bottom: Annotated[bool, Form(...)] = False,
-        ticklabel_right: Annotated[bool, Form(...)] = False,
-        ticklabel_left: Annotated[bool, Form(...)] = True,
-        ticklabel_top: Annotated[bool, Form(...)] = True,
-        ticklabel_bottom: Annotated[bool, Form(...)] = False,
-        x_axis_label_pos: Annotated[str, Form(...)] = "top",
-        y_axis_label_pos: Annotated[str, Form(...)] = "left",
-        test_mode: Annotated[bool, Form(...)] = False,
+async def process_2ds(
+    velocity_models: Annotated[list[UploadFile], File(...)],
+    background_tasks: BackgroundTasks,
+    current_user: UserSchema = Depends(require_auth_level(1)),
+    title: Annotated[str, Form(...)] = None,
+    elevation_data: Annotated[UploadFile, File(...)] = None,
+    min_depth: Annotated[float, Form(...)] = None,
+    max_depth: Annotated[float, Form(...)] = None,
+    vel_min: Annotated[float, Form(...)] = None,
+    vel_max: Annotated[float, Form(...)] = None,
+    resolution: Annotated[float, Form(...)] = 0.1,
+    smoothing: Annotated[int, Form(...)] = 20,
+    contours: Annotated[str, Form(...)] = None,  # JSON THIS
+    enable_colorbar: Annotated[bool, Form(...)] = True,
+    invert_colorbar_axis: Annotated[bool, Form(...)] = False,
+    x_min: Annotated[float, Form(...)] = None,
+    x_max: Annotated[float, Form(...)] = None,
+    unit_override: Annotated[str, Form(...)] = None,
+    y_label: Annotated[str, Form(...)] = None,
+    x_label: Annotated[str, Form(...)] = None,
+    label_pad_size: Annotated[float, Form(...)] = -58,
+    cbar_label: Annotated[str, Form(...)] = None,
+    cbar_pad_size: Annotated[float, Form(...)] = 0.10,
+    cbar_ticks: Annotated[list[float], Form(...)] = None,
+    contour_color: Annotated[str, Form(...)] = "k",
+    contour_width: Annotated[float, Form(...)] = 0.8,
+    elevation_tick_size: Annotated[float, Form(...)] = 50,
+    cbar_fraction: Annotated[float, Form(...)] = 0.05,
+    cbar_orientation: Annotated[str, Form(...)] = "vertical",
+    aspect_ratio: Annotated[str, Form(...)] = None,
+    aboveground_color: Annotated[str, Form(...)] = "w",
+    aboveground_border_color: Annotated[str, Form(...)] = None,
+    shift_elevation: Annotated[bool, Form(...)] = False,
+    display_as_depth: Annotated[bool, Form(...)] = None,
+    elevation_tick_increment: Annotated[float, Form(...)] = 50,
+    reverse_elevation: Annotated[bool, Form(...)] = False,
+    reverse_data: Annotated[bool, Form(...)] = False,
+    tick_right: Annotated[bool, Form(...)] = False,
+    tick_left: Annotated[bool, Form(...)] = True,
+    tick_top: Annotated[bool, Form(...)] = True,
+    tick_bottom: Annotated[bool, Form(...)] = False,
+    ticklabel_right: Annotated[bool, Form(...)] = False,
+    ticklabel_left: Annotated[bool, Form(...)] = True,
+    ticklabel_top: Annotated[bool, Form(...)] = True,
+    ticklabel_bottom: Annotated[bool, Form(...)] = False,
+    x_axis_label_pos: Annotated[str, Form(...)] = "top",
+    y_axis_label_pos: Annotated[str, Form(...)] = "left",
+    test_mode: Annotated[bool, Form(...)] = False,
 ):
     if test_mode is not None and test_mode:
         print("elevation tick size: ", elevation_tick_size)
@@ -415,8 +378,8 @@ async def process2dS(
                     to_meters_factor = 1.0
                     unit_str = "m"
             if (unit_str is not None
-                    and prev_units_str is not None
-                    and prev_units_str != unit):
+                and prev_units_str is not None
+                and prev_units_str != unit):
                 print("ERROR: Unit string changed between models!")
             ingested_model = VelocityModel.from_file(
                 vel_model.file,
@@ -484,7 +447,11 @@ async def process2dS(
 
 # region Processor / File Download Endpoints
 @app.get("/projects/{file_id}/sgy")
-async def download_file(file_id: str):
+async def download_file(
+    file_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    check_permissions(current_user, 1)
     data_dir = os.getenv("MQ_SAVE_DIR")
     sgy_dir = os.path.join(data_dir, "Extracted", file_id, "Save")
     sgy_files = [x for x in os.listdir(sgy_dir) if x.endswith(".sgy")]
@@ -507,7 +474,11 @@ async def download_file(file_id: str):
 
 
 @app.get("/projects/{file_id}/raw_data")
-async def download_raw_data(file_id: str):
+async def download_raw_data(
+    file_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    check_permissions(current_user, 1)
     data_dir = os.getenv("MQ_SAVE_DIR")
     file_path = f"{data_dir}/Zips/{file_id}.zip"
     return FileResponse(
@@ -518,7 +489,11 @@ async def download_raw_data(file_id: str):
 
 
 @app.get("/projects/{file_id}/processor_zip")
-async def download_processor_zip(file_id: str):
+async def download_processor_zip(
+    file_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    check_permissions(current_user, 1)
     data_dir = os.getenv("MQ_SAVE_DIR")
     file_path = f"{data_dir}/ProcessorReady/{file_id}.zip"
     return FileResponse(
@@ -530,11 +505,13 @@ async def download_processor_zip(file_id: str):
 
 @app.post("/generateResultsEmail")
 async def generate_results_email(
-        velocity_model: Annotated[UploadFile, File(...)],
-        client_name: Annotated[str, Form(...)],
-        client_email: Annotated[str, Form(...)],
-        file_id: Annotated[str, Form(...)],
+    velocity_model: Annotated[UploadFile, File(...)],
+    client_name: Annotated[str, Form(...)],
+    client_email: Annotated[str, Form(...)],
+    file_id: Annotated[str, Form(...)],
+    current_user: User = Depends(get_current_user)
 ):
+    check_permissions(current_user, 1)
     data_dir = os.getenv("MQ_SAVE_DIR")
     sent_results_dir = os.path.join(data_dir, "SentResults")
     final_results_dir = os.path.join(sent_results_dir, file_id, datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
@@ -559,6 +536,8 @@ async def generate_results_email(
 
     plain_text, html_text = generate_vs_surf_results(client_name)
     send_email_gmail(
+        from_address=os.environ.get("YOUR_GOOGLE_EMAIL"),
+        application_password=os.environ.get("YOUR_GOOGLE_EMAIL_APP_PASSWORD"),
         subject="Your VsSurf 1dS® Results Are Ready!",
         body_plain=plain_text,
         body_html=html_text,
@@ -576,7 +555,11 @@ async def generate_results_email(
 
 
 @app.get("/projects/{file_id}/results_email_form", response_class=Response)
-async def results_email_form(file_id: str):
+async def results_email_form(
+    file_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    check_permissions(current_user, 1)
     data_dir = os.getenv("MQ_SAVE_DIR")
 
     # Get user info
@@ -618,57 +601,21 @@ async def results_email_form(file_id: str):
 
 
 # region 1dS Endpoints
-
-
-# In-memory storage (in a real app, use a database)
-project_data = {}
-
-
 # Initialize the project data structure if it doesn't exist
-def init_project(project_id: str):
-    if project_id not in project_data:
-        project_data[project_id] = {
-            "geometry": [],
-            "records": [],
-            "plotLimits": {
-                "numFreq": 50,
-                "maxFreq": 50,
-                "numSlow": 50,
-                "maxSlow": 0.015
-            },
-            "freq": [],
-            "slow": [],
-            "grids": [],
-            "picks": [],
-            "disperSettings": {
-                "layers": [
-                    {"startDepth": 0.0, "endDepth": 30.0, "velocity": 760.0, "density": 2.0, "ignore": 0},
-                    {"startDepth": 30.0, "endDepth": 44.0, "velocity": 1061.0, "density": 2.0, "ignore": 0},
-                    {"startDepth": 44.0, "endDepth": 144.0, "velocity": 1270.657, "density": 2.0, "ignore": 0},
-                ],
-                "displayUnits": "m",
-                "asceVersion": "ASCE 7-22",
-                "curveAxisLimits": {
-                    "xmin": 0.001,
-                    "xmax": 0.6,
-                    "ymin": 30,
-                    "ymax": 500
-                },
-                "modelAxisLimits": {
-                    "xmin": 50,
-                    "xmax": 1400,
-                    "ymin": 0,
-                    "ymax": 50
-                },
-                "numPoints": 10,
-                "velocityUnit": "velocity",
-                "periodUnit": "period",
-                "velocityReversed": False,
-                "periodReversed": False,
-                "axesSwapped": False
-            }
-        }
-    return project_data[project_id]
+def init_project(project_id: str, db: Session) -> Project:
+    # See if project exists in db
+    logger.info(f"Checking Project ID: {project_id}")
+    db_project = get_project(db, project_id)
+    logger.info(f"DB Project: {db_project}")
+
+    # No project yet
+    if db_project is None:
+        # Create a default
+        ret_project = create_default_project(db=db, project_id=project_id)
+    else:
+        ret_project = Project.from_db(db_project)
+    logger.info(f"Returning Project: {ret_project}")
+    return ret_project
 
 
 # data models
@@ -678,12 +625,28 @@ class GeometryItem(BaseModel):
     z: float
     index: Union[str, int]  # Accept either string or integer
 
+    def __json__(self):
+        return {
+            'x': self.x,
+            'y': self.y,
+            'z': self.z,
+            'index': self.index,
+        }
+
 
 class PlotLimits(BaseModel):
     numFreq: int
     maxFreq: float
     numSlow: int
     maxSlow: float
+
+    def __json__(self):
+        return {
+            'numFreq': self.numFreq,
+            'maxFreq': self.maxFreq,
+            'numSlow': self.numSlow,
+            'maxSlow': self.maxSlow,
+        }
 
 
 class Layer(BaseModel):
@@ -692,6 +655,15 @@ class Layer(BaseModel):
     velocity: float
     density: float
     ignore: int
+
+    def __json__(self):
+        return {
+            'startDepth': self.startDepth,
+            'endDepth': self.endDepth,
+            'velocity': self.velocity,
+            'density': self.density,
+            'ignore': self.ignore,
+        }
 
 
 class DisperSettingsModel(BaseModel):
@@ -719,12 +691,35 @@ class DisperSettingsModel(BaseModel):
     periodReversed: bool
     axesSwapped: bool
 
+    def __json__(self):
+        return {
+            'displayUnits': self.displayUnits,
+            'layers': [layer.__json__() for layer in self.layers],
+            'asceVersion': self.asceVersion,
+            'modelAxisLimits': self.modelAxisLimits,
+            'curveAxisLimits': self.curveAxisLimits,
+            'numPoints': self.numPoints,
+            'velocityUnit': self.velocityUnit,
+            'periodUnit': self.periodUnit,
+            'velocityReversed': self.velocityReversed,
+            'periodReversed': self.periodReversed,
+            'axesSwapped': self.axesSwapped,
+        }
+
 
 class RecordOption(BaseModel):
     id: str
     enabled: bool
     weight: float
     fileName: str
+
+    def __json__(self):
+        return {
+            'id': self.id,
+            'enabled': self.enabled,
+            'weight': self.weight,
+            'fileName': self.fileName,
+        }
 
 
 class PickData(BaseModel):
@@ -736,11 +731,29 @@ class PickData(BaseModel):
     d4: float
     d5: float
 
+    def __json__(self):
+        return {
+            'd1': self.d1,
+            'd2': self.d2,
+            'frequency': self.frequency,
+            'd3': self.d3,
+            'slowness': self.slowness,
+            'd4': self.d4,
+            'd5': self.d5,
+        }
+
 
 class Grid(BaseModel):
     name: str
     data: list
     shape: list
+
+    def __json__(self):
+        return {
+            'name': self.name,
+            'data': self.data,
+            'shape': self.shape,
+        }
 
 
 class OptionsModel(BaseModel):
@@ -748,26 +761,46 @@ class OptionsModel(BaseModel):
     records: List[RecordOption]
     plotLimits: PlotLimits
 
+    def __json__(self):
+        return {
+            'geometry': [geom.__json__() for geom in self.geometry],
+            'records': [record.__json__() for record in self.records],
+            'plotLimits': self.plotLimits.__json__(),
+        }
+
+
 # Create a global directory for storing SGY files
 GLOBAL_DATA_DIR = os.getenv("MQ_SAVE_DIR", "data")
 GLOBAL_SGY_FILES_DIR = os.path.join(GLOBAL_DATA_DIR, "SGYFiles")
 
 os.makedirs(GLOBAL_SGY_FILES_DIR, exist_ok=True)
 
+
 @app.post("/process/grids")
 async def process_grids_from_input(
-        background_tasks: BackgroundTasks,
-        record_options: Annotated[str, Form(...)],
-        geometry_data: Annotated[str, Form(...)],  # Format as json
-        max_slowness: Annotated[float, Form(...)],
-        max_frequency: Annotated[float, Form(...)],
-        num_slow_points: Annotated[int, Form(...)],
-        num_freq_points: Annotated[int, Form(...)],
-        return_freq_and_slow: Annotated[bool, Form(...)] = True,
+    record_options: Annotated[str, Form(...)],
+    geometry_data: Annotated[str, Form(...)],  # Format as json
+    max_slowness: Annotated[float, Form(...)],
+    max_frequency: Annotated[float, Form(...)],
+    num_slow_points: Annotated[int, Form(...)],
+    num_freq_points: Annotated[int, Form(...)],
+    return_freq_and_slow: Annotated[bool, Form(...)] = True,
+    current_user: User = Depends(get_current_user)
 ):
+    check_permissions(current_user, 1)
+    # Set default response data
+    response_data = {
+        "data": {
+            "grids": []
+        }
+    }
+
     # Parse geometry data to get geophone spacing as an average
     geometry_data = ast.literal_eval(geometry_data)
+    record_options_list = json.loads(record_options)
     geom_list = [np.array([x['x'], x['y'], x['z']]) for x in geometry_data]
+    if len(record_options_list) <= 0 or len(geom_list) <= 0:
+        return response_data
     distances = []
     for idx in range(len(geom_list) - 1):
         distances.append(np.linalg.norm(geom_list[idx] - geom_list[idx + 1]))
@@ -775,25 +808,19 @@ async def process_grids_from_input(
     # TODO: Convert between feet and meters.
     geophone_spacing = float(np.average(distances))
     provided_freq_slow = False
-    response_data = {
-        "data": {
-            "grids": []
-        }
-    }
-    record_options_list = json.loads(record_options)
     for option in record_options_list:
         file_id = option["id"]
         file_path_pattern = os.path.join(GLOBAL_SGY_FILES_DIR, f"{file_id}.*")
         matching_files = glob.glob(file_path_pattern)
-        
+
         if not matching_files:
             print(f"File with ID {file_id} not found")
             continue
-        
+
         file_path = matching_files[0]
         # file_name = os.path.basename(file_path)
         file_name = option["fileName"]
-        
+
         logger.debug(f"Temp file is {file_path}")
         stream_data = load_segy_segyio([file_path, ])
         preprocess_streams(stream_data)
@@ -827,258 +854,147 @@ async def process_grids_from_input(
                 "data": p_values.tolist(),
             }
             provided_freq_slow = True
-    # print(response_data)
-    # for item in response_data["data"]["grids"]:
-    #     print(item)
     return response_data
 
 
-# Geometry endpoints
-# @app.get("/project/{project_id}/geometry")
-# async def get_geometry(project_id: str):
-#     project = init_project(project_id)
-#     return {"geometry": project["geometry"]}
-
-# @app.post("/project/{project_id}/geometry")
-# async def save_geometry(project_id: str, geometry: List[GeometryItem]):
-#     project = init_project(project_id)
-#     project["geometry"] = [item.dict() for item in geometry]
-#     return {"status": "success", "count": len(geometry)}
-
-# # Plot limits endpoints
-# @app.get("/project/{project_id}/pickPlotLimits")
-# async def get_plot_limits(project_id: str):
-#     project = init_project(project_id)
-#     return project["plotLimits"]
-
-# @app.post("/project/{project_id}/pickPlotLimits")
-# async def save_plot_limits(project_id: str, limits: PlotLimits):
-#     project = init_project(project_id)
-#     project["plotLimits"] = limits.dict()
-#     return {"status": "success"}
-
-# model endpoints
+# region disper-settings endpoint 
 @app.get("/project/{project_id}/disper-settings")
-async def get_disper_settings(project_id: str):
-    project = init_project(project_id)
-    return project["disperSettings"]
-
-
-# grids endpoint
-@app.post("/project/{project_id}/grids")
-async def dummy_grids_save(
-        project_id: str,
-        background_tasks: BackgroundTasks,
-        sgy_files: Annotated[list[UploadFile], File(...)],
-        geometry_data: Annotated[str | None, Form(...)] = None,  # Format as json
-        max_slowness: Annotated[float | None, Form(...)] = None,
-        max_frequency: Annotated[float | None, Form(...)] = None,
-        num_slow_points: Annotated[int | None, Form(...)] = None,
-        num_freq_points: Annotated[int | None, Form(...)] = None,
-        return_freq_and_slow: Annotated[bool, Form(...)] = True,
-):
-    # Grab data from stored project if not provided
-    if geometry_data is None:
-        geometry_data = project_data[project_id]["geometry"]
-    else:
-        geometry_data = ast.literal_eval(geometry_data)
-    if max_slowness is None or max_frequency is None or num_slow_points is None or num_freq_points is None:
-        plot_limits = project_data[project_id]["plotLimits"]
-        if max_slowness is None:
-            max_slowness = plot_limits["maxSlow"]
-        if max_frequency is None:
-            max_frequency = plot_limits["maxFreq"]
-        if num_freq_points is None:
-            num_freq_points = plot_limits["numFreq"]
-        if num_slow_points is None:
-            num_slow_points = plot_limits["numSlow"]
-    geom_list = [np.array([x['x'], x['y'], x['z']]) for x in geometry_data]
-    distances = []
-    for idx in range(len(geom_list) - 1):
-        distances.append(np.linalg.norm(geom_list[idx] - geom_list[idx + 1]))
-
-    # TODO: Convert between feet and meters.
-    geophone_spacing = float(np.average(distances))
-    provided_freq_slow = False
-    response_data = {
-        "data": {
-            "grids": []
-        }
-    }
-    for sgy_file in sgy_files:
-        local_result = await get_fastapi_file_locally(
-            background_tasks=None,
-            file_data=sgy_file,
-            extension=".sgy"
-        )
-        if local_result is Exception:
-            raise HTTPException(status_code=500, detail=f"Error processing file {sgy_file.filename}.")
-        file_descriptor, file_path, extension = local_result
-        logger.debug(f"Temp file is {file_path}")
-        stream_data = load_segy_segyio([file_path, ])
-        preprocess_streams(stream_data)
-        p_values, freq_values, slant_stack_grid, forward_grid, reverse_grid, combined_grid, timing_info = (
-            vspect_stream(
-                stream=stream_data[0],
-                geophone_dist=geophone_spacing,
-                f_min=0.0,
-                f_max=max_frequency,
-                f_points=num_freq_points,
-                p_points=num_slow_points,
-                p_max=max_slowness,
-                reduce_nyquist_to_f_max=True,
-                ratio_grids=True,
-                normalize_grids=True,
-            ))
-        logger.debug("LenFreq: ", freq_values.shape)
-        logger.debug("LenSlow: ", p_values.shape)
-        response_data["data"]["grids"].append({
-            "name": sgy_file.filename,
-            "data": combined_grid.tolist(),
-            "shape": combined_grid.shape,
-        })
-
-        # Add frequency and slowness data if requested
-        if return_freq_and_slow and not provided_freq_slow:
-            response_data["data"]["freq"] = {
-                "data": freq_values.tolist(),
-            }
-            response_data["data"]["slow"] = {
-                "data": p_values.tolist(),
-            }
-            provided_freq_slow = True
-    project_data[project_id]["grids"] = response_data["data"]["grids"]
-    return response_data
-
-
-@app.get("/project/{project_id}/grids")
-async def dummy_grids_get(project_id: str, return_freq_and_slow=True):
-    project = init_project(project_id)
-    response_data = {
-        "data": {
-            "grids": project["grids"]
-        }
-    }
-
-    # Add frequency and slowness data if requested
-    if return_freq_and_slow:
-        response_data["data"]["freq"] = {
-            "data": project["freq"],
-        }
-        response_data["data"]["slow"] = {
-            "data": project["slow"],
-        }
-
-    return response_data
-
-
-# Geometry endpoints
-# @app.get("/project/{project_id}/geometry")
-# async def get_geometry(project_id: str):
-#     project = init_project(project_id)
-#     return {"geometry": project["geometry"]}
-
-# @app.post("/project/{project_id}/geometry")
-# async def save_geometry(project_id: str, geometry: List[GeometryItem]):
-#     project = init_project(project_id)
-#     project["geometry"] = [item.dict() for item in geometry]
-#     return {"status": "success", "count": len(geometry)}
-
-# # Plot limits endpoints
-# @app.get("/project/{project_id}/pickPlotLimits")
-# async def get_plot_limits(project_id: str):
-#     project = init_project(project_id)
-#     return project["plotLimits"]
-
-# @app.post("/project/{project_id}/pickPlotLimits")
-# async def save_plot_limits(project_id: str, limits: PlotLimits):
-#     project = init_project(project_id)
-#     project["plotLimits"] = limits.dict()
-#     return {"status": "success"}
-
-# model endpoints
-@app.get("/project/{project_id}/disper-settings")
-async def get_disper_settings(project_id: str):
-    project = init_project(project_id)
-    return project["disperSettings"]
+async def get_disper_settings(
+    project_id: str,
+    db: Session = db_dependency,
+    current_user: User = Depends(get_current_user),
+) -> DisperSettingsModel:
+    check_permissions(current_user, 1)
+    project = init_project(project_id=project_id, db=db)
+    return json.loads(project.disper_settings)
 
 
 @app.post("/project/{project_id}/disper-settings")
-async def save_disper_settings(project_id: str, model: DisperSettingsModel):
-    project = init_project(project_id)
-    project["disperSettings"] = model.dict()
+async def save_disper_settings(
+    project_id: str,
+    model: DisperSettingsModel,
+    db: Session = db_dependency,
+    current_user: User = Depends(get_current_user),
+):
+    check_permissions(current_user, 1)
+    project = init_project(project_id=project_id, db=db)
+    project_update = ProjectCreate(**project.model_dump())
+    project_update.disper_settings = json.dumps(model.model_dump())
+    update_project(db=db, project_id=project_id, project=project_update)
     return {"status": "success"}
 
 
-# pick data endpoints
+# endregion
+
+# region pick options endpoint
 @app.get("/project/{project_id}/options")
-async def get_options(project_id: str):
-    project = init_project(project_id)
+async def get_options(
+    project_id: str,
+    db: Session = db_dependency,
+    current_user: User = Depends(get_current_user),
+):
+    check_permissions(current_user, 1)
+    project = init_project(project_id=project_id, db=db)
     response_data = {}
-    response_data["geometry"] = project["geometry"]
-    response_data["records"] = project["records"]
-    response_data["plotLimits"] = project["plotLimits"]
+    response_data["geometry"] = json.loads(project.geometry)
+    response_data["records"] = json.loads(project.record_options)
+    response_data["plotLimits"] = json.loads(project.plot_limits)
 
     return response_data
 
 
 @app.post("/project/{project_id}/options")
-async def save_options(project_id: str, options: OptionsModel):
-    project = init_project(project_id)
-    project["geometry"] = options.geometry
-    project["records"] = options.records
-    project["plotLimits"] = options.plotLimits
+async def save_options(
+    project_id: str,
+    options: OptionsModel,
+    db: Session = db_dependency,
+    current_user: User = Depends(get_current_user),
+):
+    check_permissions(current_user, 1)
+    logger.info(f"Options: {options}")
+    project = init_project(project_id=project_id, db=db)
+    project_update = ProjectCreate(**project.model_dump())
+    project_update.geometry = json.dumps(options.geometry)
+    project_update.record_options = json.dumps(options.records)
+    logger.info(f"options.plotLimits: {options.plotLimits}")
+    project_update.plot_limits = json.dumps(options.plotLimits)
+    update_project(db=db, project_id=project_id, project=project_update)
     return {"status": "success"}
 
 
-# pick data endpoint
+# endregion
+
+# region pick data endpoint
+@app.get("/project/{project_id}/picks")
+async def get_picks(
+    project_id: str,
+    db: Session = db_dependency,
+    current_user: User = Depends(get_current_user),
+):
+    check_permissions(current_user, 1)
+    project = init_project(project_id=project_id, db=db)
+    return json.loads(project.picks)
+
+
 @app.post("/project/{project_id}/picks")
-async def save_picks(project_id: str, picks: List[PickData]):
-    project = init_project(project_id)
-    project["picks"] = [item.dict() for item in picks]
+async def save_picks(
+    project_id: str,
+    picks: List[PickData],
+    db: Session = db_dependency,
+    current_user: User = Depends(get_current_user),
+):
+    check_permissions(current_user, 1)
+    project = init_project(project_id=project_id, db=db)
+    project_update = ProjectCreate(**project.model_dump())
+    project_update.picks = json.dumps(picks)
+    update_project(db=db, project_id=project_id, project=project_update)
     return {"status": "success", "count": len(picks)}
 
 
-@app.get("/project/{project_id}/picks")
-async def get_picks(project_id: str):
-    project = init_project(project_id)
-    return project["picks"]
+# endregion
+
 # endregion
 
 @app.post("/upload-sgy-with-id")
 async def upload_sgy_with_id(
-    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     file_ids: List[str] = Form(...),
+    project_id: str = "no_project_id",
+    current_user: User = Depends(get_current_user),
 ):
+    check_permissions(current_user, 1)
+    # Get the dir to write to (Adding project ID)
+    write_dir = os.path.join(GLOBAL_SGY_FILES_DIR, project_id)
+    logger.info(file_ids)
+
     try:
         # Ensure the directory exists
-        os.makedirs(GLOBAL_SGY_FILES_DIR, exist_ok=True)
-        
+        os.makedirs(write_dir, exist_ok=True)
+
         if len(files) != len(file_ids):
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Number of files ({len(files)}) does not match number of IDs ({len(file_ids)})"
             )
-        
+
         result_files = []
-        
+
         for i, (sgy_file, file_id) in enumerate(zip(files, file_ids)):
             try:
                 # Get original filename
                 original_filename = sgy_file.filename
                 if not original_filename:
                     continue  # Skip files with no name
-                    
+
                 file_extension = original_filename.split('.')[-1] if '.' in original_filename else 'sgy'
                 unique_filename = f"{file_id}.{file_extension}"
                 file_path = os.path.join(GLOBAL_SGY_FILES_DIR, unique_filename)
-                
+
                 # Save the file
                 async with aiofiles.open(file_path, 'wb') as f:
                     while chunk := await sgy_file.read(CHUNK_SIZE):
                         await f.write(chunk)
-                
+
                 # Create file info
                 file_info = {
                     "id": file_id,
@@ -1088,77 +1004,102 @@ async def upload_sgy_with_id(
                     "upload_date": datetime.now().isoformat(),
                     "file_type": file_extension.upper()
                 }
-                
+
                 result_files.append(file_info)
                 print(f"Successfully saved file: {original_filename} to {file_path} with ID: {file_id}")
-                
+
             except Exception as file_error:
                 print(f"Error processing file {sgy_file.filename} with ID {file_id}: {str(file_error)}")
                 # Continue with other files
-        
+
         if not result_files:
             raise HTTPException(status_code=400, detail="No files were successfully uploaded")
-        
+
         return {
             "status": "success",
             "message": f"{len(result_files)} file(s) uploaded successfully",
             "file_infos": result_files
         }
-        
+
     except Exception as e:
         print(f"Error in upload_sgy_with_id: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error uploading files: {str(e)}")
 
+
 @app.delete("/delete-sgy/{file_id}")
-async def delete_sgy_file(file_id: str):
+async def delete_sgy_file(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    check_permissions(current_user, 1)
     try:
         # Search for the file in the global directory
         file_path = os.path.join(GLOBAL_SGY_FILES_DIR, f"{file_id}.*")
         matching_files = glob.glob(file_path)
-        
+
         if not matching_files:
             raise HTTPException(status_code=404, detail=f"File with ID {file_id} not found")
-        
+
         # Delete the first matching file
         os.remove(matching_files[0])
         print(f"Successfully deleted file: {matching_files[0]}")
-        
+
         return {
             "status": "success",
             "message": f"File with ID {file_id} deleted successfully"
         }
-        
+
     except Exception as e:
         print(f"Error deleting file with ID {file_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
 
+
 @app.get("/file-info/{file_id}")
-async def get_file_info(file_id: str):
+async def get_file_info(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    check_permissions(current_user, 1)
     try:
         # Find the file path using the ID
         file_path_pattern = os.path.join(GLOBAL_SGY_FILES_DIR, f"{file_id}.*")
         matching_files = glob.glob(file_path_pattern)
-        
+
         if not matching_files:
             raise HTTPException(status_code=404, detail=f"File with ID {file_id} not found")
-        
+
         file_path = matching_files[0]
         file_name = os.path.basename(file_path)
         file_extension = os.path.splitext(file_name)[1][1:]  # Remove the dot
-        
+
         # Get file info
         file_size = os.path.getsize(file_path)
         file_modified = os.path.getmtime(file_path)
-        
+
         return {
             "id": file_id,
             "original_name": file_name.replace(f"{file_id}.", ""),  # Try to extract original name
             "path": file_path,
             "size": file_size,
-            "upload_date": datetime.datetime.fromtimestamp(file_modified).isoformat(),
+            "upload_date": datetime.fromtimestamp(file_modified).isoformat(),
             "file_type": file_extension.upper()
         }
-        
+
     except Exception as e:
         print(f"Error getting file info for ID {file_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting file info: {str(e)}")
+
+
+@app.get("/project/{project_id}/project-data")
+async def get_project_data(
+    project_id: str,
+    db: Session = db_dependency,
+    current_user: User = Depends(get_current_user),
+):
+    check_permissions(current_user, 1)
+    try:
+        project = init_project(project_id=project_id, db=db)
+        return project
+    except Exception as e:
+        print(f"Error getting project info for ID {project_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting file info: {str(e)}")

@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+//@ts-nocheck
 import axios from 'axios';
 
 import {GeometryItem} from '../types/geometry';
@@ -9,6 +11,9 @@ const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000/';
 
 const api = axios.create({
     baseURL: API_URL,
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
+    }
 });
 
 export const processGrids = async (
@@ -84,11 +89,11 @@ export const saveDisperSettings = async (projectId: string, disperData: any) => 
 export const getDisperSettings = async (projectId: string) => {
     try {
         // TODO: Convert this to use api.get
-        const response = await fetch(`${API_URL}project/${projectId}/disper-settings`);
-        if (!response.ok) {
+        const response = await api.get(`/project/${projectId}/disper-settings`);
+        if (response.status !== 200) {
             throw new Error(`Failed to fetch disper settings: ${response.statusText}`);
         }
-        return await response.json();
+        return response.data;
     } catch (error) {
         console.error('Error fetching disper settings:', error);
         throw error;
@@ -124,11 +129,6 @@ export const savePicks = async (projectId: string | undefined, picks: PickData[]
 
 export const getPicks = async (projectId: string) => {
     return api.get(`/project/${projectId}/picks`);
-};
-
-//grids
-export const getGrids = async (projectId: string) => {
-    return api.get(`/project/${projectId}/grids`);
 };
 
 export const uploadSgyFilesWithIds = async (uploadFiles: RecordUploadFile[]) => {

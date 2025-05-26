@@ -17,7 +17,6 @@ import {updateDataLimits} from "../slices/plotSlice";
 import {
   getOptions,
   getPicks,
-  getGrids,
   processGrids,
   savePicks,
   saveOptions
@@ -113,68 +112,6 @@ export const processGridsForPreview = createAsyncThunk(
   }
 );
 
-export const fetchGridsByProjectId = createAsyncThunk(
-  "cache/processGridsForPreview",
-  async (
-    projectId: string,
-    {dispatch}
-  ) => {
-    try {
-      dispatch(setIsLoading(true));
-
-      const response = await getGrids(projectId)
-
-      const {grids, freq, slow} = response.data.data;
-
-      if (freq) {
-        dispatch(setPreviewFreqData(freq.data));
-      }
-
-      if (slow) {
-        dispatch(setPreviewSlowData(slow.data));
-      }
-
-      const recordDataArray = grids.map((grid: any) => {
-        const {data, shape, name} = grid;
-        const flatData = data.flat();
-        const rotated = rotateClockwise(data);
-        const transformed = flipVertical(rotated);
-        const transformedShape = getMatrixShape(transformed);
-        return {
-          id: name,
-          data: {
-            data: transformed,
-            dimensions: {
-              width: transformedShape[1],
-              height: transformedShape[0],
-            },
-            shape: shape,
-            min: Math.min(...flatData),
-            max: Math.max(...flatData),
-          }
-        }
-      });
-
-      dispatch(setRecords(recordDataArray))
-      dispatch(addToast({
-        message: "Record Data updated successfully 160",
-        type: "success"
-      }));
-
-      return recordDataArray;
-    } catch (error) {
-      console.error("Error processing grids:", error);
-      dispatch(addToast({
-        message: "Error processing files. Please try again.",
-        type: "error",
-        duration: 7000
-      }));
-      throw error;
-    } finally {
-      dispatch(setIsLoading(false));
-    }
-  }
-);
 
 export const fetchOptionsByProjectId = createAsyncThunk(
   "cache/fetchOptionsByProjectId",

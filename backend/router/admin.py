@@ -13,8 +13,10 @@ admin_router = APIRouter(prefix="/admin", tags=["Admin"])
 # Dependency
 db_dependency = Depends(get_db)
 
+
 class DisableUserRequest(BaseModel):
     disabled: bool
+
 
 # Get all users
 @admin_router.get("/users", response_model=List[UserOut])

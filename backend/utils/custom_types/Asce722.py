@@ -1,6 +1,6 @@
 from enum import Enum
 from fastapi import HTTPException
-from utils.utils import _RE_COMBINE_WHITESPACE
+from tereancore.utils import RE_COMBINE_WHITESPACE
 from LengthUnit import LengthUnit
 
 
@@ -57,7 +57,7 @@ class Asce722(str, Enum):
     @staticmethod
     def from_str(s: str) -> 'Asce722':
         # Trim all whitespace, convert to uppercase.
-        s = _RE_COMBINE_WHITESPACE.sub("", s).upper()
+        s = RE_COMBINE_WHITESPACE.sub("", s).upper()
         try:
             return Asce722(s)
         except ValueError:

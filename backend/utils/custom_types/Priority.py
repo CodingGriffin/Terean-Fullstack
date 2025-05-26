@@ -2,7 +2,7 @@ from enum import Enum
 
 from fastapi import HTTPException
 
-from utils.utils import _RE_COMBINE_WHITESPACE
+from tereancore.utils import RE_COMBINE_WHITESPACE
 
 
 class Priority(str, Enum):
@@ -23,7 +23,7 @@ class Priority(str, Enum):
     @staticmethod
     def from_str(s: str) -> 'Priority':
         # Trim outer whitespace, replace inner spaces with _, and convert to lowercase
-        s = _RE_COMBINE_WHITESPACE.sub(" ", s).strip().replace(" ", "_").lower()
+        s = RE_COMBINE_WHITESPACE.sub(" ", s).strip().replace(" ", "_").lower()
         try:
             return Priority(s)
         except ValueError:

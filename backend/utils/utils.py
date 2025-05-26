@@ -54,7 +54,7 @@ async def cache_multi_segy(upload_files, background_tasks: BackgroundTasks):
     temp_file_paths = []
     for file in upload_files:
         logger.debug("before_get_locally")
-        local_result = await get_fastapi_file_locally(background_tasks=background_tasks, file_data=file,
+        local_result = await get_fastapi_file_locally(background_tasks=None, file_data=file,
                                                       extension=".sgy")
         logger.debug("local_result:", local_result)
         if local_result is Exception:
