@@ -129,6 +129,13 @@ def authenticate_user(username: str, password: str, db: Session):
         return False
     return user
 
+#Check auth level for admin and users for routes
+def require_auth_level(required_auth_level: int):
+    def permission_dependency(current_user: UserSchema = Depends(get_current_user)) -> UserSchema:
+        if current_user.auth_level < required_auth_level:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        return current_user
+    return permission_dependency
 
 # Create access token
 def create_access_token(data: dict, expires_delta: timedelta | None = None):

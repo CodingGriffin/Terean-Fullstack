@@ -36,10 +36,11 @@ from tereancore.vspect import vspect_stream
 from backend.database import engine, Base
 from backend.router.authentication import authentication_router
 from backend.router.admin import admin_router
-from backend.utils.authentication import oauth2_scheme
+from backend.utils.authentication import oauth2_scheme, check_permissions, require_auth_level
 from backend.utils.consumer_utils import get_user_info
 from backend.utils.email_utils import generate_vs_surf_results, send_email_gmail
 from backend.utils.utils import CHUNK_SIZE, get_fastapi_file_locally
+from backend.schemas.user_schema import User as UserSchema
 
 load_dotenv("/settings/.env", override=True)
 logging.basicConfig(
@@ -185,6 +186,7 @@ async def upload_test_three(
 async def process2dP(
         geoct_model_file: Annotated[UploadFile, File(...)],
         background_tasks: BackgroundTasks,
+        current_user: UserSchema = Depends(require_auth_level(2)),
         travel_time_file: Annotated[UploadFile, File(...)] = None,
         title: Annotated[str, Form(...)] = None,
         x_min: Annotated[float, Form(...)] = None,
@@ -223,7 +225,7 @@ async def process2dP(
         ticklabel_bottom: Annotated[bool, Form(...)] = False,
         x_axis_label_pos: Annotated[str, Form(...)] = "top",
         y_axis_label_pos: Annotated[str, Form(...)] = "left",
-        test_mode: Annotated[bool, Form(...)] = False,
+        test_mode: Annotated[bool, Form(...)] = True,
 ):
     if test_mode is not None and test_mode:
         return FileResponse("backend/Terean-logo.png")
@@ -307,6 +309,7 @@ async def process2dP(
 async def process2dS(
         velocity_models: Annotated[list[UploadFile], File(...)],
         background_tasks: BackgroundTasks,
+        current_user: UserSchema = Depends(require_auth_level(1)),
         title: Annotated[str, Form(...)] = None,
         elevation_data: Annotated[UploadFile, File(...)] = None,
         min_depth: Annotated[float, Form(...)] = None,

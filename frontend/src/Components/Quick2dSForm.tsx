@@ -577,6 +577,7 @@ const Quick2dSForm = () => {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    const token = localStorage.getItem("token");
     setIsFormSubmitting(true);
 
     console.log("Form Files before submission:", formFiles);
@@ -585,10 +586,9 @@ const Quick2dSForm = () => {
       headers: {
         Accept: "application/json",
         "Content-Type": "multipart/form-data",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,PUT,POST,DELETE,PATCH,OPTIONS",
-        "Access-Control-Allow-Headers": "X-Requested-With",
+        Authorization: `Bearer ${token}`,
       },
+      responseType: "arraybuffer",
     };
     const formData = new FormData();
 
@@ -654,12 +654,7 @@ const Quick2dSForm = () => {
     try {
       console.log(formData);
       axios
-        .post(
-          `${backendUrl}process2dS`,
-          formData,
-          { responseType: "arraybuffer" }, //may need this for response binary of png
-          config
-        )
+        .post(`${backendUrl}process2dS`, formData, config)
         .catch((error) => {
           console.log("Error occurred on form post.");
           console.log(error);
@@ -729,10 +724,9 @@ const Quick2dSForm = () => {
         </div>
       </div>
 
-       {/* form content */}
+      {/* form content */}
       <form className="px-4 pb-4" onSubmit={handleFormSubmit}>
         <div className="container p-4">
-
           {/* title, velocity, and elevation section */}
           <div className="mb-4">
             <div className="bg-white rounded-1 border border-1 p-2">
@@ -798,7 +792,9 @@ const Quick2dSForm = () => {
                           }
                         }}
                       >
-                        {formFiles.length > 0 ? "View/Edit Files" : "Choose Files"}
+                        {formFiles.length > 0
+                          ? "View/Edit Files"
+                          : "Choose Files"}
                       </label>
 
                       <input
@@ -816,7 +812,9 @@ const Quick2dSForm = () => {
                       />
 
                       {errors.velocity_files && (
-                        <span className="text-danger">{errors.velocity_files}</span>
+                        <span className="text-danger">
+                          {errors.velocity_files}
+                        </span>
                       )}
 
                       <Dialog
@@ -831,7 +829,10 @@ const Quick2dSForm = () => {
                           {formFiles.map((file, index) => (
                             <li key={index} className="m-1">
                               <span className="me-1">{file.name}</span>
-                              <Button type="button" className="btn btn-secondary m-1">
+                              <Button
+                                type="button"
+                                className="btn btn-secondary m-1"
+                              >
                                 Edit
                               </Button>
                               <Button
@@ -1003,8 +1004,9 @@ const Quick2dSForm = () => {
                     >
                       <div className="card">
                         <p>
-                          Max depth to plot to - uses units parsed from the velocity
-                          model, or from unit override if it's provided.
+                          Max depth to plot to - uses units parsed from the
+                          velocity model, or from unit override if it's
+                          provided.
                         </p>
                       </div>
                     </Dialog>
@@ -1046,8 +1048,8 @@ const Quick2dSForm = () => {
                     >
                       <div className="card">
                         <p>
-                          The number of units/pixel, e.g, if 0.1 is chosen and the
-                          units are feet there will be 10 pixels/foot
+                          The number of units/pixel, e.g, if 0.1 is chosen and
+                          the units are feet there will be 10 pixels/foot
                         </p>
                       </div>
                     </Dialog>
@@ -1237,9 +1239,9 @@ const Quick2dSForm = () => {
                   <div className="card">
                     <p>
                       Please enter either <span className="bold">none</span>, a
-                      single integer greater than zero, or a list of float numbers
-                      all greater than zero separated by commas. To enter a single,
-                      specific contour use a decimal.
+                      single integer greater than zero, or a list of float
+                      numbers all greater than zero separated by commas. To
+                      enter a single, specific contour use a decimal.
                     </p>
                     <p>
                       eg: 1750.0 will generate a single contour at 1750, however
@@ -1247,12 +1249,12 @@ const Quick2dSForm = () => {
                     </p>
                   </div>
                 </Dialog>
+              </div>
             </div>
           </div>
-        </div>
-            
-        <div className="container col-3 pt-4">
-          <button
+
+          <div className="container col-3 pt-4">
+            <button
               className="btn btn-primary w-100 px-5 py-3 fw-bold"
               type="submit"
             >

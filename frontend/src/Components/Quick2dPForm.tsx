@@ -272,6 +272,7 @@ const Quick2dPForm = () => {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    const token = localStorage.getItem("token");
     setIsFormSubmitting(true);
 
     if (geoCtModelFile == null) {
@@ -289,10 +290,9 @@ const Quick2dPForm = () => {
       headers: {
         Accept: "application/json",
         "Content-Type": "multipart/form-data",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,PUT,POST,DELETE,PATCH,OPTIONS",
-        "Access-Control-Allow-Headers": "X-Requested-With",
+        Authorization: `Bearer ${token}`,
       },
+      responseType: "arraybuffer",
     };
     const formData = new FormData();
 
@@ -354,12 +354,7 @@ const Quick2dPForm = () => {
     try {
       console.log(formData);
       axios
-        .post(
-          `${backendUrl}process2dP`,
-          formData,
-          { responseType: "arraybuffer" }, //may need this for response binary of png
-          config
-        )
+        .post(`${backendUrl}process2dP`, formData, config)
         .catch((error) => {
           console.log("Error occurred on form post.");
           console.log(error);

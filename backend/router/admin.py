@@ -5,8 +5,8 @@ from typing import List
 
 from backend.database import get_db
 from backend.models.user_model import UserDBModel
-from backend.schemas.user_schema import UserCreate, UserUpdate, UserOut
-from backend.utils.authentication import hash_password
+from backend.schemas.user_schema import UserCreate,User as UserSchema, UserUpdate, UserOut
+from backend.utils.authentication import hash_password, require_auth_level
 
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -18,13 +18,21 @@ class DisableUserRequest(BaseModel):
 
 # Get all users
 @admin_router.get("/users", response_model=List[UserOut])
-def get_all_users(db: Session = db_dependency):
+def get_all_users(
+    db: Session = db_dependency,
+    current_user: UserSchema = Depends(require_auth_level(3))
+):
     return db.query(UserDBModel).all()
 
 
 # Get one user by username
 @admin_router.get("/users/{username}", response_model=UserOut)
-def get_user(username: str, db: Session = db_dependency):
+def get_user(
+    username: str, 
+    db: Session = db_dependency,
+    current_user: UserSchema = Depends(require_auth_level(3))
+):
+
     user = db.query(UserDBModel).filter(UserDBModel.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -33,13 +41,17 @@ def get_user(username: str, db: Session = db_dependency):
 
 # Create a new user
 @admin_router.post("/register_user", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def create_user(user: UserCreate, db: Session = db_dependency):
+def create_user(
+    user: UserCreate, 
+    db: Session = db_dependency,
+    current_user: UserSchema = Depends(require_auth_level(3))
+):
    
     db_user = db.query(UserDBModel).filter(UserDBModel.username == user.username).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Username already exists")
 
-   
+
     new_user = UserDBModel(
         username=user.username,
         hashed_password=hash_password(user.password),
@@ -60,7 +72,12 @@ def create_user(user: UserCreate, db: Session = db_dependency):
 
 # Update an existing user
 @admin_router.put("/users/{username}", response_model=UserOut)
-def update_user(username: str, updates: UserUpdate, db: Session = db_dependency):
+def update_user(
+    username: str, 
+    updates: UserUpdate, 
+    db: Session = db_dependency,
+    current_user : UserSchema = Depends(require_auth_level(3))
+):
     user = db.query(UserDBModel).filter(UserDBModel.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -75,7 +92,12 @@ def update_user(username: str, updates: UserUpdate, db: Session = db_dependency)
 
 # Toggle user's disabled status
 @admin_router.patch("/disable_user/{username}", status_code=status.HTTP_200_OK)
-def update_user_disabled_status(username: str, payload: DisableUserRequest, db: Session = db_dependency):
+def update_user_disabled_status(
+    username: str, 
+    payload: DisableUserRequest, 
+    db: Session = db_dependency,
+    current_user: UserSchema = Depends(require_auth_level(3))
+):
     user = db.query(UserDBModel).filter(UserDBModel.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

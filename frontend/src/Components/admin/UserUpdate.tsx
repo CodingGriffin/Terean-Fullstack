@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "../../Contexts/authContext";
 import { useNavigate, useParams } from "react-router-dom";
 import { backendUrl } from "../../utils/utils";
 
 export default function UpdateUser() {
   const { userId } = useParams();
+  const { userData } = useAuth();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -14,11 +16,18 @@ export default function UpdateUser() {
 
   useEffect(() => {
     const fetchUser = async () => {
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.log("No token found");
+        return;
+      }
+
       const response = await fetch(`${backendUrl}/admin/get_user/${userId}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -33,7 +42,7 @@ export default function UpdateUser() {
     };
 
     fetchUser();
-  }, [userId]);
+  }, [userId, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
