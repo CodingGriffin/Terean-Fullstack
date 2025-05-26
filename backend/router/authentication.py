@@ -93,14 +93,8 @@ async def refresh_access_token(
 ):
     try:
         # Parse request body
-        logger.info("Refreshing token: Start")
-        logger.info(f"Refreshing token: Request: {request}")
-        request_body = await request.body()
-        logger.info(f"Refreshing token: Request body: {request_body}")
         data = await request.json()
-        logger.info(f"Refreshing token: Got data")
         token = data.get("token")
-        logger.info(f"Refreshing token: {token}")
 
         # Read the token data
         try:
