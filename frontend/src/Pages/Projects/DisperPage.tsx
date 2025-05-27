@@ -33,7 +33,7 @@ const DisperPageContent = () => {
             <Navbar />
             <div className="w-full">
                 <Toast />
-                <div className="container-fluid py-4">
+                <div className="container-fluid">
                     <div className="row mb-4">
                         <div className="col-12">
                             <SectionHeader title="Dispersion Analysis">

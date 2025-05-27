@@ -572,10 +572,12 @@ export const DisperModelManager = () => {
       
       if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
         const rect = plotContainerRef.current.getBoundingClientRect();
+        const windowRect = window.innerHeight;
         const newDimensions = {
           width: rect.width,
           // height: rect.height,
-          height: rect.width *0.75,
+          height: windowRect - rect.y - 48 - 16
+          // height: rect.width *0.75,
         };
         handleDimensionChange(newDimensions);
       }
@@ -597,156 +599,158 @@ export const DisperModelManager = () => {
     }, [plotContainerRef]);
 
   return (
-    <div className="card p-0 shadow-sm">
+    <div className="card p-0 shadow-sm" style={{height:'calc(100vh - 70px - 42px - 2.5rem)'}}>
       <SectionHeader title="Dispersion Model"/>
-      <div className="card-body">
-        <div className="row g-4 mb-2">
-          <div className="col d-flex gap-5">
-            {/* <FileControls
-              onFileSelect={handleFileSelect}
-              onDownload={handleDownloadLayers}
-            /> */}
-            <button 
-              className="btn btn-outline-secondary btn-sm"
-              onClick={handleUploadLayers}
-            >
-              Upload Layers
-            </button>
-            <button 
-              className="btn btn-outline-secondary btn-sm"
-              onClick={handleDownloadLayers}
-            >
-              Download Layers
-            </button>
-          </div>
-        </div>
-        <div className="row mb-4">
-          <div className="col-md-6">
-            <div className="mb-2 d-flex">
-              <label className="form-label w-50">
-                Max Depth:
-              </label>
-              <input
-                type="number"
-                value={
-                  displayUnits === "ft"
-                    ? ToFeet(modelAxisLimits.ymax)
-                    : modelAxisLimits.ymax
-                }
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  if (value < 0) return;
-                  const valueInMeters =
-                    displayUnits === "ft" ? ToMeter(value) : value;
-                  setModelAxisLimits({
-                    ...modelAxisLimits,
-                    ymax: valueInMeters,
-                  });
-                }}
-                className="form-control form-control-sm w-50"
-                step={displayUnits === "ft" ? "0.5" : "0.1"}
-              />
-            </div>
-            <div className="mb-3 d-flex">
-              <label className="form-label w-50">
-                Min Depth:
-              </label>
-              <input
-                type="number"
-                value={
-                  displayUnits === "ft"
-                    ? ToFeet(modelAxisLimits.ymin)
-                    : modelAxisLimits.ymin
-                }
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  if (value < 0) return;
-                  const valueInMeters =
-                    displayUnits === "ft" ? ToMeter(value) : value;
-                  setModelAxisLimits({
-                    ...modelAxisLimits,
-                    ymin: valueInMeters,
-                  });
-                }}
-                className="form-control form-control-sm w-50"
-                step={displayUnits === "ft" ? "0.5" : "0.1"}
-              />
-            </div>
-          </div>
-          <div className="col-md-6">
-            <div className="mb-3 d-flex">
-              <label className="form-label w-50">
-                Max Velocity:
-              </label>
-              <input
-                type="number"
-                value={
-                  displayUnits === "ft"
-                    ? ToFeet(modelAxisLimits.xmax)
-                    : modelAxisLimits.xmax
-                }
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  if (value < 0) return;
-                  const valueInMeters =
-                    displayUnits === "ft" ? ToMeter(value) : value;
-                  setModelAxisLimits({
-                    ...modelAxisLimits,
-                    xmax: valueInMeters,
-                  });
-                }}
-                className="form-control form-control-sm w-50"
-                step={displayUnits === "ft" ? "1.0" : "0.5"}
-              />
-            </div>
-            <div className="mb-3 d-flex">
-              <label className="form-label w-50">
-                Min Velocity:
-              </label>
-              <input
-                type="number"
-                value={
-                  displayUnits === "ft"
-                    ? ToFeet(modelAxisLimits.xmin)
-                    : modelAxisLimits.xmin
-                }
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  if (value < 0) return;
-                  const valueInMeters =
-                    displayUnits === "ft" ? ToMeter(value) : value;
-                  setModelAxisLimits({
-                    ...modelAxisLimits,
-                    xmin: valueInMeters,
-                  });
-                }}
-                className="form-control form-control-sm w-50"
-                min="0"
-                step={displayUnits === "ft" ? "1.0" : "0.5"}
-              />
-            </div>
-          </div>
-        </div>
-        <div className="row mb-4"></div>
-        <div className="row">
-          <div className="col">
-            <div className="d-flex align-items-center">
-              <label className="form-label m-0 w-50">
-                ASCE Version:
-              </label>
-              <select
-                value={asceVersion}
-                onChange={(e) => setAsceVersion(e.target.value)}
-                className="w-30 px-2 text-sm border rounded shadow-sm"
+      <div className="card-body d-flex flex-column justify-content-space-between" >
+        <div className="w-full" style={{minHeight:'250px'}}>
+          <div className="row g-4 mb-2">
+            <div className="col d-flex gap-5">
+              {/* <FileControls
+                onFileSelect={handleFileSelect}
+                onDownload={handleDownloadLayers}
+              /> */}
+              <button 
+                className="btn btn-outline-secondary btn-sm"
+                onClick={handleUploadLayers}
               >
-                <option value="ASCE 7-22">ASCE 7-22</option>
-                <option value="ASCE 7-16">ASCE 7-16</option>
-              </select>
+                Upload Layers
+              </button>
+              <button 
+                className="btn btn-outline-secondary btn-sm"
+                onClick={handleDownloadLayers}
+              >
+                Download Layers
+              </button>
             </div>
           </div>
-        </div>
+          <div className="row mb-4">
+            <div className="col-md-6">
+              <div className="mb-2 d-flex">
+                <label className="form-label w-50">
+                  Max Depth:
+                </label>
+                <input
+                  type="number"
+                  value={
+                    displayUnits === "ft"
+                      ? ToFeet(modelAxisLimits.ymax)
+                      : modelAxisLimits.ymax
+                  }
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    if (value < 0) return;
+                    const valueInMeters =
+                      displayUnits === "ft" ? ToMeter(value) : value;
+                    setModelAxisLimits({
+                      ...modelAxisLimits,
+                      ymax: valueInMeters,
+                    });
+                  }}
+                  className="form-control form-control-sm w-50"
+                  step={displayUnits === "ft" ? "0.5" : "0.1"}
+                />
+              </div>
+              <div className="mb-3 d-flex">
+                <label className="form-label w-50">
+                  Min Depth:
+                </label>
+                <input
+                  type="number"
+                  value={
+                    displayUnits === "ft"
+                      ? ToFeet(modelAxisLimits.ymin)
+                      : modelAxisLimits.ymin
+                  }
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    if (value < 0) return;
+                    const valueInMeters =
+                      displayUnits === "ft" ? ToMeter(value) : value;
+                    setModelAxisLimits({
+                      ...modelAxisLimits,
+                      ymin: valueInMeters,
+                    });
+                  }}
+                  className="form-control form-control-sm w-50"
+                  step={displayUnits === "ft" ? "0.5" : "0.1"}
+                />
+              </div>
+            </div>
+            <div className="col-md-6">
+              <div className="mb-3 d-flex">
+                <label className="form-label w-50">
+                  Max Velocity:
+                </label>
+                <input
+                  type="number"
+                  value={
+                    displayUnits === "ft"
+                      ? ToFeet(modelAxisLimits.xmax)
+                      : modelAxisLimits.xmax
+                  }
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    if (value < 0) return;
+                    const valueInMeters =
+                      displayUnits === "ft" ? ToMeter(value) : value;
+                    setModelAxisLimits({
+                      ...modelAxisLimits,
+                      xmax: valueInMeters,
+                    });
+                  }}
+                  className="form-control form-control-sm w-50"
+                  step={displayUnits === "ft" ? "1.0" : "0.5"}
+                />
+              </div>
+              <div className="mb-3 d-flex">
+                <label className="form-label w-50">
+                  Min Velocity:
+                </label>
+                <input
+                  type="number"
+                  value={
+                    displayUnits === "ft"
+                      ? ToFeet(modelAxisLimits.xmin)
+                      : modelAxisLimits.xmin
+                  }
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    if (value < 0) return;
+                    const valueInMeters =
+                      displayUnits === "ft" ? ToMeter(value) : value;
+                    setModelAxisLimits({
+                      ...modelAxisLimits,
+                      xmin: valueInMeters,
+                    });
+                  }}
+                  className="form-control form-control-sm w-50"
+                  min="0"
+                  step={displayUnits === "ft" ? "1.0" : "0.5"}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="row mb-4"></div>
+          <div className="row">
+            <div className="col">
+              <div className="d-flex align-items-center">
+                <label className="form-label m-0 w-50">
+                  ASCE Version:
+                </label>
+                <select
+                  value={asceVersion}
+                  onChange={(e) => setAsceVersion(e.target.value)}
+                  className="w-30 px-2 text-sm border rounded shadow-sm"
+                >
+                  <option value="ASCE 7-22">ASCE 7-22</option>
+                  <option value="ASCE 7-16">ASCE 7-16</option>
+                </select>
+              </div>
+            </div>
+          </div>
 
-        <div className="position-relative m-5" ref={plotContainerRef}>
+        </div>
+        <div className="flex-1 position-relative" ref={plotContainerRef} style={{margin: '40px'}}>
           <BasePlot
             xLabel={`Velocity (${displayUnits}/s)`}
             yLabel={`Depth (${displayUnits})`}
