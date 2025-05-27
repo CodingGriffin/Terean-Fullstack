@@ -40,13 +40,25 @@ from backend.crud.user_crud import get_user_by_username, create_user
 from backend.database import engine, Base, get_db, SessionLocal
 from backend.router.authentication import authentication_router
 from backend.router.admin import admin_router
-from backend.utils.authentication import require_auth_level, check_permissions, get_current_user
 from backend.router.sgy_file_router import sgy_file_router
+from backend.router.project_router import project_router
+from backend.utils.authentication import require_auth_level, check_permissions, get_current_user
 from backend.schemas.project_schema import Project, ProjectCreate
 from backend.schemas.user_schema import UserCreate, User
+from backend.schemas.additional_models import (
+    GeometryItem,
+    PlotLimits,
+    Layer,
+    DisperSettingsModel,
+    RecordOption,
+    PickData,
+    Grid,
+    OptionsModel
+)
 from backend.utils.authentication import oauth2_scheme
 from backend.utils.consumer_utils import get_user_info
 from backend.utils.email_utils import generate_vs_surf_results, send_email_gmail
+from backend.utils.project_utils import init_project
 from backend.utils.utils import CHUNK_SIZE, get_fastapi_file_locally
 from backend.schemas.user_schema import User as UserSchema
 
@@ -107,6 +119,7 @@ security = HTTPBearer()
 app.include_router(authentication_router)
 app.include_router(admin_router)
 app.include_router(sgy_file_router)
+app.include_router(project_router)
 
 origins = [
     "http://localhost:3000",
@@ -602,172 +615,6 @@ async def results_email_form(
 
 # region 1dS Endpoints
 # Initialize the project data structure if it doesn't exist
-def init_project(project_id: str, db: Session) -> Project:
-    # See if project exists in db
-    logger.info(f"Checking Project ID: {project_id}")
-    db_project = get_project(db, project_id)
-    logger.info(f"DB Project: {db_project}")
-
-    # No project yet
-    if db_project is None:
-        # Create a default
-        ret_project = create_default_project(db=db, project_id=project_id)
-    else:
-        ret_project = Project.from_db(db_project)
-    logger.info(f"Returning Project: {ret_project}")
-    return ret_project
-
-
-# data models
-class GeometryItem(BaseModel):
-    x: float
-    y: float
-    z: float
-    index: Union[str, int]  # Accept either string or integer
-
-    def __json__(self):
-        return {
-            'x': self.x,
-            'y': self.y,
-            'z': self.z,
-            'index': self.index,
-        }
-
-
-class PlotLimits(BaseModel):
-    numFreq: int
-    maxFreq: float
-    numSlow: int
-    maxSlow: float
-
-    def __json__(self):
-        return {
-            'numFreq': self.numFreq,
-            'maxFreq': self.maxFreq,
-            'numSlow': self.numSlow,
-            'maxSlow': self.maxSlow,
-        }
-
-
-class Layer(BaseModel):
-    startDepth: float
-    endDepth: float
-    velocity: float
-    density: float
-    ignore: int
-
-    def __json__(self):
-        return {
-            'startDepth': self.startDepth,
-            'endDepth': self.endDepth,
-            'velocity': self.velocity,
-            'density': self.density,
-            'ignore': self.ignore,
-        }
-
-
-class DisperSettingsModel(BaseModel):
-    displayUnits: str
-    # model settings
-    layers: List[Layer]
-    asceVersion: str
-    modelAxisLimits: dict = {
-        "xmin": float,
-        "xmax": float,
-        "ymin": float,
-        "ymax": float
-    }
-    # curve settings
-    curveAxisLimits: dict = {
-        "xmin": float,
-        "xmax": float,
-        "ymin": float,
-        "ymax": float
-    }
-    numPoints: int
-    velocityUnit: str
-    periodUnit: str
-    velocityReversed: bool
-    periodReversed: bool
-    axesSwapped: bool
-
-    def __json__(self):
-        return {
-            'displayUnits': self.displayUnits,
-            'layers': [layer.__json__() for layer in self.layers],
-            'asceVersion': self.asceVersion,
-            'modelAxisLimits': self.modelAxisLimits,
-            'curveAxisLimits': self.curveAxisLimits,
-            'numPoints': self.numPoints,
-            'velocityUnit': self.velocityUnit,
-            'periodUnit': self.periodUnit,
-            'velocityReversed': self.velocityReversed,
-            'periodReversed': self.periodReversed,
-            'axesSwapped': self.axesSwapped,
-        }
-
-
-class RecordOption(BaseModel):
-    id: str
-    enabled: bool
-    weight: float
-    fileName: str
-
-    def __json__(self):
-        return {
-            'id': self.id,
-            'enabled': self.enabled,
-            'weight': self.weight,
-            'fileName': self.fileName,
-        }
-
-
-class PickData(BaseModel):
-    d1: float
-    d2: float
-    frequency: float
-    d3: float
-    slowness: float
-    d4: float
-    d5: float
-
-    def __json__(self):
-        return {
-            'd1': self.d1,
-            'd2': self.d2,
-            'frequency': self.frequency,
-            'd3': self.d3,
-            'slowness': self.slowness,
-            'd4': self.d4,
-            'd5': self.d5,
-        }
-
-
-class Grid(BaseModel):
-    name: str
-    data: list
-    shape: list
-
-    def __json__(self):
-        return {
-            'name': self.name,
-            'data': self.data,
-            'shape': self.shape,
-        }
-
-
-class OptionsModel(BaseModel):
-    geometry: List[GeometryItem]
-    records: List[RecordOption]
-    plotLimits: PlotLimits
-
-    def __json__(self):
-        return {
-            'geometry': [geom.__json__() for geom in self.geometry],
-            'records': [record.__json__() for record in self.records],
-            'plotLimits': self.plotLimits.__json__(),
-        }
-
 
 # Create a global directory for storing SGY files
 GLOBAL_DATA_DIR = os.getenv("MQ_SAVE_DIR", "data")
@@ -1099,7 +946,18 @@ async def get_project_data(
     check_permissions(current_user, 1)
     try:
         project = init_project(project_id=project_id, db=db)
-        return project
+        return {
+            "id": project.id,
+            "name": project.name,
+            "description": project.description,
+            "created_at": project.created_at,
+            "updated_at": project.updated_at,
+            "disper_settings": json.loads(project.disper_settings),
+            "geometry": json.loads(project.geometry),
+            "record_options": json.loads(project.record_options),
+            "plot_limits": json.loads(project.plot_limits),
+            "picks": json.loads(project.picks)
+        }
     except Exception as e:
-        print(f"Error getting project info for ID {project_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error getting file info: {str(e)}")
+        logger.error(f"Error getting project data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting project data: {str(e)}")
