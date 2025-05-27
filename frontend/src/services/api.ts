@@ -11,9 +11,11 @@ const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000/';
 
 const api = axios.create({
     baseURL: API_URL,
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('token')}`,
-    }
+});
+
+api.interceptors.request.use(function (config) {
+  config.headers["Authorization"] = `Bearer ${localStorage.getItem('token')}`;
+  return config;
 });
 
 export const processGrids = async (
