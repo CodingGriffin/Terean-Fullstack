@@ -3,14 +3,16 @@ import os
 import sys
 import traceback
 import pika
+import tempfile
+import shutil
 from dotenv import load_dotenv
 
 from backend.utils.consumer_utils import write_zip_bytes, extract_zip_data, make_for_processor_file, \
-    make_for_processor_zip, get_user_info
+    make_for_processor_zip, get_user_info, extract_project_name
 from backend.utils.email_utils import generate_request_received, send_email_gmail, generate_data_received_email
 from backend.utils.token_manager import TokenManager
 
-logger = logging.getLogger("ReMi1dConsumer")
+logger = logging.getLogger("consumer_dev_test")
 
 
 def main():
@@ -67,39 +69,57 @@ def main():
                 logger.info(f"Method is {method} of type {type(method)}")
                 logger.info(f"Properties is {properties} of type {type(properties)}")
                 
-                # Save and extract zip file to temporary directory
-                zip_path, zip_uuid = write_zip_bytes(body, save_dir + "Zips/")
-                extracted_dir = extract_zip_data(zip_path, save_dir + "Extracted/")
-                
-                
-                
-                
-                make_for_processor_file(extracted_dir)
-                processor_zip_path = make_for_processor_zip(extracted_dir, os.path.join(save_dir + "ProcessorReady/"))
-                user_name, user_phone, user_email = get_user_info(extracted_dir)
+                # Create temporary directory for this message
+                temp_dir = tempfile.mkdtemp()
+                try:
+                    # Create subdirectories in temp directory
+                    zip_dir = os.path.join(temp_dir, "Zips")
+                    extracted_dir = os.path.join(temp_dir, "Extracted")
+                    processor_dir = os.path.join(temp_dir, "ProcessorReady")
+                    os.makedirs(zip_dir, exist_ok=True)
+                    os.makedirs(extracted_dir, exist_ok=True)
+                    
+                    # Save and extract zip file to temporary directory
+                    zip_path, zip_uuid = write_zip_bytes(body, zip_dir)
+                    extracted_dir = extract_zip_data(zip_path, extracted_dir)
+                    
+                    # Get user info and project name
+                    user_name, user_phone, user_email = get_user_info(extracted_dir)
+                    project_name = extract_project_name(extracted_dir)
+                    
+                    
+                    make_for_processor_file(extracted_dir)
+                    processor_zip_path = make_for_processor_zip(extracted_dir, processor_dir)
 
-                plain_text, html_text = generate_request_received(user_name)
-                send_email_gmail(
-                    subject="Request Received - 1dS Model Processing",
-                    body_plain=plain_text,
-                    body_html=html_text,
-                    recipients=[user_email, ],  # ["dbarnes@terean.com", "astarr@terean.com"],
-                )
+                    plain_text, html_text = generate_request_received(user_name)
+                    send_email_gmail(
+                        subject="Request Received - 1dS Model Processing",
+                        body_plain=plain_text,
+                        body_html=html_text,
+                        recipients=[user_email, ],
+                    )
 
-                # Send data to processors (AKA Alison)
-                plain_text, html_text = generate_data_received_email(
-                    user_name=user_name,
-                    user_email=user_email,
-                    zip_uuid=zip_uuid,
-                    base_url=download_base_url,
-                )
-                send_email_gmail(
-                    subject="Data Received for user " + user_name,
-                    body_plain=None,
-                    body_html=html_text,
-                    recipients=["dbarnes@terean.com", "astarr@terean.com", "apancha@terean.com",
-                                "arosenbergmain@terean.com", "jlouie@terean.com", "dscofield@terean.com"],
-                )
+                    # Send data to processors
+                    plain_text, html_text = generate_data_received_email(
+                        user_name=user_name,
+                        user_email=user_email,
+                        zip_uuid=zip_uuid,
+                        base_url=download_base_url,
+                    )
+                    send_email_gmail(
+                        subject="Data Received for user " + user_name,
+                        body_plain=None,
+                        body_html=html_text,
+                        recipients=["dbarnes@terean.com", "astarr@terean.com", "apancha@terean.com",
+                                    "arosenbergmain@terean.com", "jlouie@terean.com", "dscofield@terean.com"],
+                    )
+                finally:
+                    # Clean up temporary directory for this message
+                    try:
+                        shutil.rmtree(temp_dir)
+                        logger.info(f"Cleaned up temporary directory: {temp_dir}")
+                    except Exception as e:
+                        logger.error(f"Failed to clean up temporary directory: {e}")
 
             channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
             channel.start_consuming()
