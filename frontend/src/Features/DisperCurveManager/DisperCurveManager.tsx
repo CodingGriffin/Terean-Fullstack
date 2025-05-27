@@ -13,6 +13,8 @@ import { useAppDispatch } from "../../hooks/useAppDispatch";
 import { addToast } from "../../store/slices/toastSlice";
 import { useParams } from "react-router-dom";
 import { savePicksByProjectId } from "../../store/thunks/cacheThunks";
+import ConfirmationModal from "../../Components/ConfirmationModal/ConfirmationModal";
+import { setPoints } from "../../store/slices/plotSlice";
 
 extend({ Graphics, Container });
 
@@ -44,7 +46,7 @@ export const DisperCurveManager = () => {
      },
     ToMeter,
     ToFeet,
-    setPickData,
+    // setPickData,
     setCurveAxisLimits,
     setNumPoints,
     setRmseVel,
@@ -56,12 +58,14 @@ export const DisperCurveManager = () => {
     setPeriodReversed,
     setAxesSwapped
   } = useDisper();
+
   const { projectId } = useParams();
   const dispatch = useAppDispatch();
   const [curvePoints, setCurvePoints] = useState<Point[]>([]);
   const [pickPoints, setPickPoints] = useState<Point[]>([]);
   const [tooltipContent, setTooltipContent] = useState<string>("");
-
+  const [showUploadConfirmation, setShowUploadConfirmation] = useState<boolean>(false);
+  const [pendingNewPoints, setPendingNewPoints] = useState<PickData[]>([]);
   const plotContainerRef = useRef<HTMLDivElement>(null);
 
   const [hoveredPoint, setHoveredPoint] = useState<Point | undefined>(
@@ -250,85 +254,59 @@ export const DisperCurveManager = () => {
         }));
         return;
       }
-      setPickData(newPoints)
-      dispatch(addToast({
-        message: `Successfully loaded ${newPoints.length} points`,
-        type: "success",
-        duration: 5000
-      }));
-      
-    } catch (err) {
-      console.error("Error uploading file:", err);
-      
-      if ((err as Error).name !== 'AbortError') {
+
+      if (pickData.length > 0) {
+        setPendingNewPoints(newPoints);
+        setShowUploadConfirmation(true);
+      } else {
+        // setPickData(newPoints);
+        dispatch(setPoints(newPoints));
         dispatch(addToast({
-          message: "Failed to upload file. Please try again.",
-          type: "error",
+          message: `Successfully loaded ${newPoints.length} points`,
+          type: "success",
           duration: 5000
         }));
       }
+      // setPickData(newPoints)
+      // dispatch(addToast({
+      //   message: `Successfully loaded ${newPoints.length} points`,
+      //   type: "success",
+      //   duration: 5000
+      // }));
       
-      try {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.pck';
-        
-        input.onchange = async (e) => {
-          const target = e.target as HTMLInputElement;
-          if (!target.files || target.files.length === 0) return;
-          
-          const file = target.files[0];
-          const reader = new FileReader();
-          
-          reader.onload = (event) => {
-            const content = event.target?.result as string;
-            const lines = content.trim().split('\n');
-            const newPoints: PickData[] = [];
-            
-            for (const line of lines) {
-              const values = line.split(',').map(val => parseFloat(val.trim()));
-              
-              if (values.length >= 7) {
-                const point: PickData = {
-                  d1: values[0],
-                  d2: values[1],
-                  frequency: values[2],
-                  d3: values[3],
-                  slowness: values[4],
-                  d4: values[5],
-                  d5: values[6]
-                };
-                newPoints.push(point);
-              }
-            }
-            
-            if (newPoints.length === 0) {
-              dispatch(addToast({
-                message: "No valid points found in file",
-                type: "warning",
-                duration: 5000
-              }));
-              return;
-            }
-            
-            setPickData(newPoints)
-            dispatch(addToast({
-              message: `Successfully loaded ${newPoints.length} points`,
-              type: "success",
-              duration: 5000
-            }));
-          };
-          
-          reader.readAsText(file);
-        };
-        
-        input.click();
-      } catch (fallbackErr) {
-        console.error("Fallback upload method failed:", fallbackErr);
-      }
+    } catch (err) {
+      console.error("Error uploading file:", err);
     }
   }, [dispatch]);
   
+  const handleMergePoints = useCallback(() => {
+    if (pendingNewPoints.length > 0) {
+      const mergedPoints = [...pickData, ...pendingNewPoints];
+      // setPickData(mergedPoints);
+      dispatch(setPoints(mergedPoints));
+      dispatch(addToast({
+        message: `Added ${pendingNewPoints.length} points to existing ${pickData.length} points`,
+        type: "success",
+        duration: 5000
+      }));
+      setPendingNewPoints([]);
+      setShowUploadConfirmation(false);
+    }
+  }, [dispatch, pickData, pendingNewPoints]);
+
+  const handleReplacePoints = useCallback(() => {
+    if (pendingNewPoints.length > 0) {
+      // setPickData(pendingNewPoints);
+      dispatch(setPoints(pendingNewPoints));
+      dispatch(addToast({
+        message: `Replaced existing points with ${pendingNewPoints.length} new points`,
+        type: "success",
+        duration: 5000
+      }));
+      setPendingNewPoints([]);
+      setShowUploadConfirmation(false);
+    }
+  }, [dispatch, pendingNewPoints]);
 
   const handleUnitChange = (type: "velocity" | "period", newUnit: string) => {
     const currentUnit = type === "velocity" ? velocityUnit : periodUnit;
@@ -1087,6 +1065,17 @@ export const DisperCurveManager = () => {
           </BasePlot>
         </div>
       </div>
+      <ConfirmationModal
+        isOpen={showUploadConfirmation}
+        title="Upload Picks"
+        message={`You have ${pickPoints.length} existing points. Do you want to add the ${pendingNewPoints.length} new points to them or replace them?`}
+        onConfirm={handleMergePoints}
+        onCancel={() => setShowUploadConfirmation(false)}
+        onAlternative={handleReplacePoints}
+        confirmText="Add to Existing"
+        cancelText="Cancel"
+        alternativeText="Replace Existing"
+      />
     </div>
   );
 };
