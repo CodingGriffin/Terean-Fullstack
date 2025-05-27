@@ -11,6 +11,7 @@ from backend.database import Base
 if TYPE_CHECKING:
     from backend.models.client_model import ClientDBModel
     from backend.models.sgy_file_model import SgyFileDBModel
+    from backend.models.file_model import FileDBModel
 
 class ProjectDBModel(Base):
     __tablename__ = 'projects'
@@ -30,3 +31,4 @@ class ProjectDBModel(Base):
     disper_settings: Mapped[str | None] = mapped_column(String, index=False)
     client: Mapped["ClientDBModel"] = relationship("ClientDBModel", back_populates="project")
     records: Mapped[list["SgyFileDBModel"]] = relationship("SgyFileDBModel", back_populates="project")
+    additional_files: Mapped[list["FileDBModel"]] = relationship("FileDBModel", back_populates="project")
