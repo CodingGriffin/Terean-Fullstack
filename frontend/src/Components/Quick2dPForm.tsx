@@ -807,8 +807,9 @@ const Quick2dPForm = () => {
             type="submit"
           >
             Submit
-          </button>
-          <div className="row">
+          </button> 
+        </div>
+        <div className="row align-items-center justify-content-center">
             {imageSrc && (
               <div style={{ marginTop: "20px" }}>
                 <img
@@ -819,7 +820,6 @@ const Quick2dPForm = () => {
               </div>
             )}
           </div>
-        </div>
       </form>
       {isFormSubmitting && (
         <div
