@@ -208,6 +208,108 @@ export const DisperCurveManager = () => {
   //     });
   //   setPickData(rawData);
   // };
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDrop = (e:any) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    readFiles(droppedFiles);
+  };
+
+  const handleDragOver = (e:any) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragEnter = (e:any) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e:any) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const readFiles = (files:any[]) => {
+    for (const file of files) {
+      if (!file.name.includes('.pck')) {
+        dispatch(addToast({
+          message: "Only .pck files are allowed",
+          type: "warning",
+          duration: 5000
+        }));
+        return;
+      }
+    }
+    
+    const fileReadPromises = files.map((file) => {
+      return new Promise<PickData[]>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event:any) => {
+          const content = event.target?.result as string;
+          const lines = content.trim().split('\n');
+          const filePoints: PickData[] = [];
+          
+          for (const line of lines) {
+            const values = line.split(' ').map((val:any) => parseFloat(val.trim()));
+            
+            if (values.length >= 7) {
+              const point: PickData = {
+                d1: values[0],
+                d2: values[1],
+                frequency: values[2],
+                d3: values[3],
+                slowness: values[4],
+                d4: values[5],
+                d5: values[6]
+              };
+              filePoints.push(point);
+            }
+          }
+          
+          resolve(filePoints);
+        };
+        reader.onerror = (error) => reject(error);
+        reader.readAsText(file);
+      });
+    });
+
+    Promise.all(fileReadPromises)
+      .then((pointsArrays) => {
+        const allNewPoints = pointsArrays.flat();
+        
+        if (allNewPoints.length === 0) {
+          dispatch(addToast({
+            message: "No valid points found in files",
+            type: "warning",
+            duration: 5000
+          }));
+          return;
+        }
+        
+        if (pickData.length > 0) {
+          setPendingNewPoints(allNewPoints);
+          setShowUploadConfirmation(true);
+        } else {
+          dispatch(setPoints(allNewPoints));
+          dispatch(addToast({
+            message: `Successfully loaded ${allNewPoints.length} points from ${files.length} file(s)`,
+            type: "success",
+            duration: 5000
+          }));
+        }
+      })
+      .catch((error) => {
+        console.error("Error reading files:", error);
+        dispatch(addToast({
+          message: "Failed to read files. Please try again.",
+          type: "error",
+          duration: 5000
+        }));
+      });
+  };
 
   const handleUploadPoints = useCallback(async () => {
     try {
@@ -754,7 +856,45 @@ export const DisperCurveManager = () => {
   }, [plotContainerRef]);
 
   return (
-    <div className="card p-0 shadow-sm" style={{height:'calc(100vh - 70px - 42px  - 2.5rem)'}}>
+    <div 
+      className={`card p-0 shadow-sm ${isDragging ? 'border border-primary' : ''}`} 
+      style={{
+        height:'calc(100vh - 70px - 42px  - 2.5rem)',
+        position: 'relative'
+      }} 
+      onDrop={handleDrop} 
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+    >
+      {isDragging && (
+        <div 
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 10,
+            pointerEvents: 'none'
+          }}
+        >
+          <div 
+            style={{
+              padding: '20px',
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+            }}
+          >
+            Drop .pck file to upload points
+          </div>
+        </div>
+      )}
       <SectionHeader title="Dispersion Curve" />
       <div className="card-body d-flex flex-column justify-content-space-between">
         <div className="w-full" style={{minHeight:'250px'}}>
