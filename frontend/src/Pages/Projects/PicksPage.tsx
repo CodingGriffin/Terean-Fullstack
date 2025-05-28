@@ -8,9 +8,13 @@ import PicksSettingsSave from "../../Features/PicksSettingsSave/PicksSettingsSav
 import Navbar from "../../Components/navbar/Navbar";
 import { Toast } from "../../Components/Toast/Toast";
 import { PicksProvider, usePicks } from "../../Contexts/PicksContext";
+import { useNavigate, useParams } from "react-router-dom";
 const PicksPageContent: React.FC = () => {
   const { state: { isLoading } } = usePicks();
   const [showOptions, setShowOptions] = useState(true);
+
+  const navigate = useNavigate();
+  const {projectId} = useParams();
 
   if (isLoading) {
     return (
@@ -46,6 +50,12 @@ const PicksPageContent: React.FC = () => {
                   {showOptions ? "Hide Options" : "Show Options"}
                 </button>
                 <PicksSettingsSave />
+                <button 
+                  className="btn btn-sm btn-outline-info"
+                  onClick={() => navigate(`/projects/${projectId}/disper`)}
+                >
+                  Go to Disper
+                </button>
               </div>
             </SectionHeader>
           </div>

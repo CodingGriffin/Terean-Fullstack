@@ -6,9 +6,13 @@ import SectionHeader from '../../Components/SectionHeader/SectionHeader';
 import DisperSettingsSave from '../../Features/DisperSettingsSave/DisperSettingsSave';
 import { Toast } from '../../Components/Toast/Toast';
 import Navbar from '../../Components/navbar/Navbar';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const DisperPageContent = () => {
     const { state: { isLoading } } = useDisper();
+
+    const navigate = useNavigate();
+    const { projectId } = useParams();
 
     if (isLoading) {
         return (
@@ -33,13 +37,19 @@ const DisperPageContent = () => {
             <Navbar />
             <div className="w-full">
                 <Toast />
-                <div className="container-fluid py-4">
+                <div className="container-fluid">
                     <div className="row mb-4">
                         <div className="col-12">
                             <SectionHeader title="Dispersion Analysis">
                                 <div className='d-flex gap-2'>
                                     <UnitsSelector />
                                     <DisperSettingsSave />
+                                    <button 
+                                    className="btn btn-sm btn-outline-info"
+                                    onClick={() => navigate(`/projects/${projectId}/picks`)}
+                                    >
+                                        Go to Picks
+                                    </button>
                                 </div>
                             </SectionHeader>
                         </div>
