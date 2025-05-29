@@ -60,7 +60,28 @@ def get_projects(db: Session, skip: int = 0, limit: int = 100) -> list[Type[Proj
 
 
 def create_project(db: Session, project: ProjectCreate | Project) -> ProjectDBModel:
-    db_project = ProjectDBModel(**project.model_dump())
+    # Convert to dict and replace None values with defaults
+    project_data = project.model_dump()
+    
+    # Apply defaults for None values
+    if project_data.get("name") is None:
+        project_data["name"] = DEFAULT_PROJECT_NAME
+    if project_data.get("geometry") is None:
+        project_data["geometry"] = json.dumps(DEFAULT_GEOMETRY)
+    if project_data.get("record_options") is None:
+        project_data["record_options"] = json.dumps(DEFAULT_RECORD_OPTIONS)
+    if project_data.get("plot_limits") is None:
+        project_data["plot_limits"] = json.dumps(DEFAULT_PLOT_LIMITS)
+    if project_data.get("freq") is None:
+        project_data["freq"] = json.dumps(DEFAULT_FREQ)
+    if project_data.get("slow") is None:
+        project_data["slow"] = json.dumps(DEFAULT_SLOW)
+    if project_data.get("picks") is None:
+        project_data["picks"] = json.dumps(DEFAULT_PICKS)
+    if project_data.get("disper_settings") is None:
+        project_data["disper_settings"] = json.dumps(DEFAULT_DISPER_SETTINGS)
+    
+    db_project = ProjectDBModel(**project_data)
     db.add(db_project)
     db.commit()
     db.refresh(db_project)
