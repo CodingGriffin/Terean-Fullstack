@@ -9,7 +9,7 @@ from enum import Enum
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc
+from sqlalchemy import desc, asc, not_
 
 from backend.crud.project_crud import update_project, create_project, create_default_project, get_project, get_projects
 from backend.crud.file_crud import create_file_info, get_files_info_by_project, delete_file_info, get_file_info
@@ -419,8 +419,10 @@ class SortField(str, Enum):
 async def get_all_projects(
     skip: int = 0,
     limit: int = 100,
-    status: Optional[ProjectStatus] = None,
-    priority: Optional[Priority] = None,
+    status: Optional[List[ProjectStatus]] = Query(None, description="Filter by project status(es)"),
+    not_status: Optional[List[ProjectStatus]] = Query(None, description="Filter out projects with these status(es)"),
+    priority: Optional[List[Priority]] = Query(None, description="Filter by project priority(ies)"),
+    not_priority: Optional[List[Priority]] = Query(None, description="Filter out projects with these priority(ies)"),
     name_search: Optional[str] = None,
     sort_by: SortField = SortField.NAME,
     sort_order: SortOrder = SortOrder.ASC,
@@ -434,8 +436,10 @@ async def get_all_projects(
     Parameters:
     - skip: Number of records to skip (for pagination)
     - limit: Maximum number of records to return
-    - status: Filter by project status
-    - priority: Filter by project priority
+    - status: Filter by project status(es) (can provide multiple)
+    - not_status: Filter out projects with these status(es) (can provide multiple)
+    - priority: Filter by project priority(ies) (can provide multiple)
+    - not_priority: Filter out projects with these priority(ies) (can provide multiple)
     - name_search: Search in project names (case-insensitive partial match)
     - sort_by: Field to sort by (name, status, priority, survey_date, received_date)
     - sort_order: Sort order (asc or desc)
@@ -446,11 +450,19 @@ async def get_all_projects(
         # Start with base query
         query = db.query(ProjectDBModel)
         
-        # Apply filters
-        if status is not None:
-            query = query.filter(ProjectDBModel.status == status)
-        if priority is not None:
-            query = query.filter(ProjectDBModel.priority == priority)
+        # Apply status filters
+        if status:
+            query = query.filter(ProjectDBModel.status.in_(status))
+        if not_status:
+            query = query.filter(not_(ProjectDBModel.status.in_(not_status)))
+            
+        # Apply priority filters
+        if priority:
+            query = query.filter(ProjectDBModel.priority.in_(priority))
+        if not_priority:
+            query = query.filter(not_(ProjectDBModel.priority.in_(not_priority)))
+            
+        # Apply name search
         if name_search:
             query = query.filter(ProjectDBModel.name.ilike(f"%{name_search}%"))
             
