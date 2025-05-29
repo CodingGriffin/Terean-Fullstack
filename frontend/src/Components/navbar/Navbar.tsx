@@ -97,14 +97,8 @@ export default function Navbar() {
             userData={userData}
           />
           <NavbarItem
-            url={"/projects/1/picks"}
-            name={"Picks"}
-            authRequired={2}
-            userData={userData}
-          />
-          <NavbarItem
-            url={"/projects/1/disper"}
-            name={"Disper"}
+            url={"/projects"}
+            name={"Projects"}
             authRequired={2}
             userData={userData}
           />
