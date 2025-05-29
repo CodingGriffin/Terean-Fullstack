@@ -182,3 +182,74 @@ export const getFileInfo = async (fileId: string) => {
         throw error;
     }
 };
+
+export const getAllProjects = async (params: {
+  skip?: number;
+  limit?: number;
+  status?: string[];
+  not_status?: string[];
+  priority?: string[];
+  not_priority?: string[];
+  name_search?: string;
+  survey_date_start?: string;
+  survey_date_end?: string;
+  received_date_start?: string;
+  received_date_end?: string;
+  sort_by?: 'name' | 'status' | 'priority' | 'survey_date' | 'received_date';
+  sort_order?: 'asc' | 'desc';
+} = {}) => {
+  try {
+    const defaultParams = {
+      skip: 0,
+      limit: 100,
+      sort_by: 'name' as const,
+      sort_order: 'asc' as const
+    };
+
+    const queryParams = { ...defaultParams, ...params };
+    
+    const cleanParams: Record<string, any> = {};
+    
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if ((key.includes('date') && value === '') || 
+          (Array.isArray(value) && value.length === 0)) {
+        return;
+      }
+      
+      cleanParams[key] = value;
+    });
+    
+    const response = await api.get('/project', {
+      params: cleanParams,
+      paramsSerializer: {
+        indexes: null 
+      }
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    throw error;
+  }
+};
+
+export const getProjectById = async (projectId: string) => {
+  try {
+    const response = await api.get(`/project/${projectId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching project ${projectId}:`, error);
+    throw error;
+  }
+};
+
+export const createProject = async (projectData: ProjectCreate, projectId?: string) => {
+  try {
+    const queryParams = projectId ? `?project_id=${projectId}` : '';
+    const response = await api.post(`/project/create${queryParams}`, projectData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating project:', error);
+    throw error;
+  }
+};

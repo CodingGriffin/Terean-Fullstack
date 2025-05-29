@@ -18,7 +18,12 @@ const ProjectPage: React.FC = () => {
             <div className="col-12">
               <SectionHeader title={`Project: ${projectId}`}>
                 <div className="d-flex gap-2">
-                  {/* Add any project-level actions here */}
+                  <button 
+                    className="btn btn-outline-secondary btn-sm"
+                    onClick={() => navigate('/projects')}
+                  >
+                    View All Projects
+                  </button>
                 </div>
               </SectionHeader>
             </div>
