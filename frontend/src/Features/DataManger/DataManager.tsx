@@ -13,7 +13,7 @@ import { addTransformation } from "../../store/slices/plotSlice";
 import { Matrix } from "../../types/record";
 import { PickData } from "../../types/data";
 
-export const DataManager = () => {
+export const DataManager = ({ projectId }: { projectId?: string }) => {
   const dispatch = useAppDispatch();
 
   const { 
@@ -48,8 +48,16 @@ export const DataManager = () => {
     setShowDataManager(false);
   };
 
-  const handleApply = () => {
-    handleApplyChanges();
+  const handleApply = async () => {
+    if (projectId) {
+      try {
+        await handleApplyChanges();
+      } catch (error) {
+        console.error("Error applying changes:", error);
+      }
+    } else {
+      handleApplyChanges();
+    }
     setShowDataManager(false);
   };
 
