@@ -58,6 +58,22 @@ def get_user_info(
     logger.info(f"Parsed user name: {user_name}, phone: {user_phone}, email: {user_email}")
     return user_name, user_phone, user_email
 
+def extract_project_name(
+    unzipped_dir: str | PathLike,
+):
+    run_config_path = os.path.join(unzipped_dir, "QaData", "run_config.ini")
+    config_parser = configparser.ConfigParser(allow_unnamed_section=True, strict=False)
+    config_parser.read(run_config_path)
+    
+    # Read the record output dir from run_config.ini
+    record_output_dir = config_parser.get(configparser.UNNAMED_SECTION, "record_output_dir", fallback=None)
+    if record_output_dir is None:
+        raise ValueError("record_output_dir not found in run_config.ini")
+    
+    # Extract the project name from record_output_dir
+    project_name = os.path.split(os.path.split(record_output_dir)[0])[-1]
+    
+    return project_name
 
 def make_for_processor_file(
         unzipped_dir: str | PathLike,
