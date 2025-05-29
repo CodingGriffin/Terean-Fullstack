@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import timedelta
 from typing import Annotated
@@ -20,13 +21,14 @@ from backend.utils.authentication import decode_jwt, oauth2_scheme, authenticate
     get_current_user, check_permissions, SECRET_KEY, ALGORITHM, verify_password, hash_password
 from backend.models.user_model import UserDBModel
 
+logger = logging.getLogger(__name__)
 
 authentication_router = APIRouter()
 
 
 @authentication_router.get("/users/me")
 async def read_users_me(
-        current_user: Annotated[User, Depends(get_current_user)]
+    current_user: Annotated[User, Depends(get_current_user)]
 ) -> User:
     return current_user
 
@@ -174,11 +176,13 @@ async def refresh_access_token(
             }
         )
     except Exception as e:
+        logger.warning(f"Error refreshing token: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
+
 
 @authentication_router.get("/protected-resource")
 async def protected_resource(
@@ -187,6 +191,7 @@ async def protected_resource(
     required_auth_level = 2
     check_permissions(current_user, required_auth_level)
     return {"message": "You have access to this protected resource!"}
+
 
 @authentication_router.put("/change-password")
 async def change_password(

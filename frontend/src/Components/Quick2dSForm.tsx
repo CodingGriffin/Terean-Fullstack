@@ -1260,7 +1260,8 @@ const Quick2dSForm = () => {
             >
               Submit
             </button>
-            <div className="row">
+          </div>
+          <div className="row">
               {imageSrc && (
                 <div style={{ marginTop: "20px" }}>
                   <img
@@ -1271,7 +1272,6 @@ const Quick2dSForm = () => {
                 </div>
               )}
             </div>
-          </div>
         </div>
       </form>
       {isFormSubmitting && (
