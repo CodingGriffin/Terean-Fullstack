@@ -18,6 +18,6 @@ class FileCreate(FileBase):
     pass
 
 
-class File(FileBase):
+class FileSchema(FileBase):
     class Config:
         from_attributes = True 
