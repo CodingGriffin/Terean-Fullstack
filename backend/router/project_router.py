@@ -4,10 +4,12 @@ import os
 import aiofiles
 from typing import List, Optional
 from datetime import datetime
+from enum import Enum
 
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import desc, asc
 
 from backend.crud.project_crud import update_project, create_project, create_default_project, get_project, get_projects
 from backend.crud.file_crud import create_file_info, get_files_info_by_project, delete_file_info, get_file_info
@@ -25,6 +27,8 @@ from backend.schemas.additional_models import (
     OptionsModel,
     PickData
 )
+from backend.utils.custom_types.ProjectStatus import ProjectStatus
+from backend.utils.custom_types.Priority import Priority
 
 logger = logging.getLogger(__name__)
 project_router = APIRouter(prefix="/project", tags=["Project"])
@@ -400,22 +404,70 @@ async def get_project_by_id(
         raise HTTPException(status_code=500, detail=f"Error getting project: {str(e)}")
 
 
+class SortOrder(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+class SortField(str, Enum):
+    NAME = "name"
+    STATUS = "status"
+    PRIORITY = "priority"
+    SURVEY_DATE = "survey_date"
+    RECEIVED_DATE = "received_date"
+
 @project_router.get("/", response_model=List[Project])
 async def get_all_projects(
     skip: int = 0,
     limit: int = 100,
+    status: Optional[ProjectStatus] = None,
+    priority: Optional[Priority] = None,
+    name_search: Optional[str] = None,
+    sort_by: SortField = SortField.NAME,
+    sort_order: SortOrder = SortOrder.ASC,
     db: Session = db_dependency,
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get a list of all projects with pagination.
+    Get a list of all projects with pagination, filtering, and sorting.
     Requires authentication.
+    
+    Parameters:
+    - skip: Number of records to skip (for pagination)
+    - limit: Maximum number of records to return
+    - status: Filter by project status
+    - priority: Filter by project priority
+    - name_search: Search in project names (case-insensitive partial match)
+    - sort_by: Field to sort by (name, status, priority, survey_date, received_date)
+    - sort_order: Sort order (asc or desc)
     """
     check_permissions(current_user, 1)
     
     try:
-        projects = get_projects(db, skip=skip, limit=limit)
+        # Start with base query
+        query = db.query(ProjectDBModel)
+        
+        # Apply filters
+        if status is not None:
+            query = query.filter(ProjectDBModel.status == status)
+        if priority is not None:
+            query = query.filter(ProjectDBModel.priority == priority)
+        if name_search:
+            query = query.filter(ProjectDBModel.name.ilike(f"%{name_search}%"))
+            
+        # Apply sorting
+        sort_column = getattr(ProjectDBModel, sort_by.value)
+        if sort_order == SortOrder.DESC:
+            query = query.order_by(desc(sort_column))
+        else:
+            query = query.order_by(asc(sort_column))
+            
+        # Apply pagination
+        query = query.offset(skip).limit(limit)
+        
+        # Execute query
+        projects = query.all()
         return [Project.from_db(project) for project in projects]
+        
     except Exception as e:
         logger.error(f"Error getting projects: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting projects: {str(e)}")
