@@ -2,18 +2,18 @@ import json
 import logging
 import os
 import aiofiles
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from backend.crud.project_crud import update_project
+from backend.crud.project_crud import update_project, create_project, create_default_project, get_project, get_projects
 from backend.crud.file_crud import create_file_info, get_files_info_by_project, delete_file_info, get_file_info
 from backend.database import get_db
 from backend.models.project_model import ProjectDBModel
-from backend.schemas.project_schema import ProjectCreate
+from backend.schemas.project_schema import ProjectCreate, Project
 from backend.schemas.file_schema import FileCreate, FileSchema
 from backend.schemas.user_schema import User
 from backend.utils.authentication import get_current_user, check_permissions
@@ -369,5 +369,100 @@ async def download_project_file(
     except Exception as e:
         logger.error(f"Error downloading project file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error downloading project file: {str(e)}")
+
+# endregion
+
+# region project management endpoints
+@project_router.get("/{project_id}", response_model=Project)
+async def get_project_by_id(
+    project_id: str,
+    db: Session = db_dependency,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get a single project by ID.
+    Requires authentication.
+    """
+    check_permissions(current_user, 1)
+    
+    try:
+        project = get_project(db, project_id)
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Project with ID {project_id} not found"
+            )
+        return Project.from_db(project)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting project: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting project: {str(e)}")
+
+
+@project_router.get("/", response_model=List[Project])
+async def get_all_projects(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = db_dependency,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get a list of all projects with pagination.
+    Requires authentication.
+    """
+    check_permissions(current_user, 1)
+    
+    try:
+        projects = get_projects(db, skip=skip, limit=limit)
+        return [Project.from_db(project) for project in projects]
+    except Exception as e:
+        logger.error(f"Error getting projects: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting projects: {str(e)}")
+
+
+@project_router.post("/create", response_model=Project, status_code=status.HTTP_201_CREATED)
+async def create_new_project(
+    project: ProjectCreate,
+    project_id: Optional[str] = None,
+    db: Session = db_dependency,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Create a new project with optional project ID.
+    If project_id is not provided, one will be generated.
+    Requires authentication.
+    """
+    check_permissions(current_user, 1)
+    
+    try:
+        # Generate project ID if not provided
+        if not project_id:
+            project_id = generate_time_based_uid()
+            
+        # Check if project with this ID already exists
+        existing_project = get_project(db, project_id)
+        if existing_project:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Project with ID {project_id} already exists"
+            )
+            
+        # Create project directory
+        project_dir = os.path.join(GLOBAL_PROJECT_FILES_DIR, project_id)
+        os.makedirs(project_dir, exist_ok=True)
+        
+        # Create project in database
+        project_data = project.model_dump()
+        project_data["id"] = project_id
+        db_project = create_project(db=db, project=ProjectCreate(**project_data))
+        
+        return Project.from_db(db_project)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating project: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating project: {str(e)}")
 
 # endregion
