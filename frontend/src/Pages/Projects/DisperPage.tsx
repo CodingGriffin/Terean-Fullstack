@@ -50,6 +50,12 @@ const DisperPageContent = () => {
                                     >
                                         Go to Picks
                                     </button>
+                                    <button 
+                                    className="btn btn-sm btn-outline-secondary"
+                                    onClick={() => navigate(`/projects/${projectId}`)}
+                                    >
+                                        Back to Project
+                                    </button>
                                 </div>
                             </SectionHeader>
                         </div>
