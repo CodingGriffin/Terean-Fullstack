@@ -70,7 +70,7 @@ def get_projects(db: Session, skip: int = 0, limit: int = 100) -> list[Type[Proj
 def create_project(db: Session, project: ProjectCreate | Project) -> ProjectDBModel:
     # Convert to dict and replace None values with defaults
     project_data = project.model_dump()
-    logger.warning(project_data)
+    logger.info(f"Received initial project data:\n{project_data}")
     
     # Apply defaults for None values
     if project_data.get("name") is None:
@@ -96,7 +96,9 @@ def create_project(db: Session, project: ProjectCreate | Project) -> ProjectDBMo
     if project_data.get("disper_settings") is None:
         project_data["disper_settings"] = json.dumps(DEFAULT_DISPER_SETTINGS)
     
+    logger.info(f"Replaced all none's with default, project data is now:\n{project_data}")
     db_project = ProjectDBModel(**project_data)
+    logger.info(f"Created ProjectDBModel:\n{db_project}")
     db.add(db_project)
     db.commit()
     db.refresh(db_project)

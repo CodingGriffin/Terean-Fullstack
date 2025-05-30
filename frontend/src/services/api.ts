@@ -246,10 +246,28 @@ export const getProjectById = async (projectId: string) => {
 export const createProject = async (projectData: ProjectCreate, projectId?: string) => {
   try {
     const queryParams = projectId ? `?project_id=${projectId}` : '';
-    const response = await api.post(`/project/create${queryParams}`, projectData);
+    // Temporarily use create-json endpoint for testing
+    const requestUrl = `/project/create-json${queryParams}`;
+    
+    // Log the request details
+    console.log('=== CREATE PROJECT REQUEST ===');
+    console.log('URL:', requestUrl);
+    console.log('Request Body:', JSON.stringify(projectData, null, 2));
+    
+    const response = await api.post(requestUrl, projectData);
+    
+    console.log('=== CREATE PROJECT RESPONSE ===');
+    console.log('Response Status:', response.status);
+    console.log('Response Data:', response.data);
+    
     return response.data;
   } catch (error) {
-    console.error('Error creating project:', error);
+    console.error('=== CREATE PROJECT ERROR ===');
+    console.error('Error details:', error);
+    if (error.response) {
+      console.error('Error response:', error.response.data);
+      console.error('Error status:', error.response.status);
+    }
     throw error;
   }
 };

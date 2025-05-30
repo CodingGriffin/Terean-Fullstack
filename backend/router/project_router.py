@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel
 
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Query
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc, not_, func
@@ -527,10 +527,69 @@ async def get_all_projects(
         raise HTTPException(status_code=500, detail=f"Error getting projects: {str(e)}")
 
 
+@project_router.post("/create-json", response_model=Project, status_code=status.HTTP_201_CREATED)
+async def create_new_project_json(
+    project: ProjectCreate,
+    project_id: Optional[str] = Query(None),
+    db: Session = db_dependency,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Create a new project without file uploads.
+    This endpoint accepts JSON data.
+    
+    Parameters:
+    - project: Project creation data
+    - project_id: Optional project ID (will be generated if not provided)
+    """
+    check_permissions(current_user, 1)
+    
+    logger.info("=== CREATE PROJECT JSON ENDPOINT ===")
+    logger.info(f"Received project data: {project.model_dump()}")
+    logger.info(f"Query param project_id: {project_id}")
+    
+    try:
+        # Generate project ID if not provided
+        if not project_id:
+            project_id = generate_time_based_uid()
+            logger.info(f"Generated project ID: {project_id}")
+            
+        # Check if project with this ID already exists
+        existing_project = get_project(db, project_id)
+        if existing_project:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Project with ID {project_id} already exists"
+            )
+            
+        # Create project directory
+        logger.info("Making project directory")
+        project_dir = os.path.join(GLOBAL_PROJECT_FILES_DIR, project_id)
+        os.makedirs(project_dir, exist_ok=True)
+        logger.info("Successfully made project directory.")
+        
+        # Create project in database - pass ProjectCreate with the ID set
+        logger.info("Creating in DB")
+        project_data = project.model_dump()
+        project_data["id"] = project_id
+        project_with_id = ProjectCreate(**project_data)
+        logger.info(f"Calling create_project with object \"project_with_id\":\n{project_with_id}")
+        db_project = create_project(db=db, project=project_with_id)
+        
+        return Project.from_db(db_project)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating project: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating project: {str(e)}")
+
+
 @project_router.post("/create", response_model=Project, status_code=status.HTTP_201_CREATED)
 async def create_new_project(
+    request: Request,
     project: ProjectCreate,
-    project_id: Optional[str] = None,
+    project_id: Optional[str] = Query(None),
     sgy_files: List[UploadFile] = File(None),
     additional_files: List[UploadFile] = File(None),
     db: Session = db_dependency,
@@ -548,6 +607,33 @@ async def create_new_project(
     - additional_files: Optional list of additional files to upload
     """
     check_permissions(current_user, 1)
+    
+    # Add detailed logging
+    logger.info("=== CREATE PROJECT ENDPOINT ===")
+    logger.info(f"Request URL: {request.url}")
+    logger.info(f"Request method: {request.method}")
+    logger.info(f"Request headers: {dict(request.headers)}")
+    logger.info(f"Query params - project_id: {project_id}")
+    logger.info(f"Content-Type header: {request.headers.get('content-type', 'Not found')}")
+    
+    # Try to get the raw body
+    try:
+        body = await request.body()
+        logger.info(f"Raw request body: {body.decode('utf-8') if body else 'Empty body'}")
+    except Exception as e:
+        logger.error(f"Error reading request body: {e}")
+    
+    # Log the received project data
+    try:
+        logger.info(f"Received project data: {project.model_dump()}")
+        logger.info(f"Project type: {type(project)}")
+        logger.info(f"Project name: {project.name if hasattr(project, 'name') else 'NO NAME ATTRIBUTE'}")
+    except Exception as log_error:
+        logger.error(f"Error logging project data: {log_error}")
+    
+    # Log file info
+    logger.info(f"Number of sgy_files: {len(sgy_files) if sgy_files else 0}")
+    logger.info(f"Number of additional_files: {len(additional_files) if additional_files else 0}")
     
     try:
         # Generate project ID if not provided
@@ -567,11 +653,11 @@ async def create_new_project(
         project_dir = os.path.join(GLOBAL_PROJECT_FILES_DIR, project_id)
         os.makedirs(project_dir, exist_ok=True)
         
-        # Create project in database
+        # Create project in database - pass ProjectCreate with the ID set
         project_data = project.model_dump()
         project_data["id"] = project_id
-        project_create = Project(**project_data)
-        db_project = create_project(db=db, project=project_create)
+        project_with_id = ProjectCreate(**project_data)
+        db_project = create_project(db=db, project=project_with_id)
         
         # Handle SEG-Y file uploads
         if sgy_files:

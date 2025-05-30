@@ -40,6 +40,7 @@ class Project(ProjectBase):
 
 
 class ProjectCreate(ProjectBase):
+    id: Optional[str] = None
     pass
 
 
