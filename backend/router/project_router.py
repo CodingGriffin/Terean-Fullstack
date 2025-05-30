@@ -14,10 +14,12 @@ from sqlalchemy import desc, asc, not_, func
 
 from backend.crud.project_crud import update_project, create_project, create_default_project, get_project, get_projects
 from backend.crud.file_crud import create_file_info, get_files_info_by_project, delete_file_info, get_file_info
+from backend.crud.sgy_file_crud import create_sgy_file_info
 from backend.database import get_db
 from backend.models.project_model import ProjectDBModel
 from backend.schemas.project_schema import ProjectCreate, Project
 from backend.schemas.file_schema import FileCreate, FileSchema
+from backend.schemas.sgy_file_schema import SgyFileCreate
 from backend.schemas.user_schema import User
 from backend.utils.authentication import get_current_user, check_permissions
 from backend.utils.project_utils import init_project
@@ -529,13 +531,21 @@ async def get_all_projects(
 async def create_new_project(
     project: ProjectCreate,
     project_id: Optional[str] = None,
+    sgy_files: List[UploadFile] = File(None),
+    additional_files: List[UploadFile] = File(None),
     db: Session = db_dependency,
     current_user: User = Depends(get_current_user)
 ):
     """
-    Create a new project with optional project ID.
+    Create a new project with optional project ID and file uploads.
     If project_id is not provided, one will be generated.
     Requires authentication.
+    
+    Parameters:
+    - project: Project creation data
+    - project_id: Optional project ID (will be generated if not provided)
+    - sgy_files: Optional list of SEG-Y files to upload
+    - additional_files: Optional list of additional files to upload
     """
     check_permissions(current_user, 1)
     
@@ -559,12 +569,91 @@ async def create_new_project(
         
         # Create project in database
         project_data = project.model_dump()
-        logger.warning(project_data)
         project_data["id"] = project_id
-        logger.warning(project_data)
         project_create = Project(**project_data)
-        logger.warning(project_create)
         db_project = create_project(db=db, project=project_create)
+        
+        # Handle SEG-Y file uploads
+        if sgy_files:
+            for file in sgy_files:
+                try:
+                    # Get original filename
+                    original_filename = file.filename
+                    if not original_filename:
+                        continue
+
+                    # Generate unique filename
+                    file_id = generate_time_based_uid()
+                    file_extension = original_filename.split('.')[-1] if '.' in original_filename else ''
+                    unique_filename = f"{file_id}.{file_extension}"
+                    file_path = os.path.join(project_dir, unique_filename)
+
+                    # Save the file
+                    async with aiofiles.open(file_path, 'wb') as f:
+                        while chunk := await file.read(CHUNK_SIZE):
+                            await f.write(chunk)
+
+                    # Create SgyFileCreate object
+                    sgy_file_create = SgyFileCreate(
+                        id=file_id,
+                        original_name=original_filename,
+                        path=file_path,
+                        size=os.path.getsize(file_path),
+                        type="sgy",
+                        project_id=project_id,
+                        upload_date=datetime.now()
+                    )
+
+                    # Add it to the DB
+                    create_sgy_file_info(db=db, file=sgy_file_create)
+                    logger.info(f"Successfully saved SEG-Y file: {original_filename} to {file_path} with ID: {file_id}")
+
+                except Exception as file_error:
+                    logger.error(f"Error processing SEG-Y file {file.filename}: {str(file_error)}")
+                    continue
+
+        # Handle additional file uploads
+        if additional_files:
+            for file in additional_files:
+                try:
+                    # Get original filename
+                    original_filename = file.filename
+                    if not original_filename:
+                        continue
+
+                    # Get file extension and mime type
+                    file_extension = original_filename.split('.')[-1] if '.' in original_filename else ''
+                    mime_type = file.content_type or 'application/octet-stream'
+
+                    # Generate unique filename
+                    file_id = generate_time_based_uid()
+                    unique_filename = f"{file_id}.{file_extension}"
+                    file_path = os.path.join(project_dir, unique_filename)
+
+                    # Save the file
+                    async with aiofiles.open(file_path, 'wb') as f:
+                        while chunk := await file.read(CHUNK_SIZE):
+                            await f.write(chunk)
+
+                    # Create FileCreate object
+                    file_create = FileCreate(
+                        id=file_id,
+                        original_name=original_filename,
+                        path=file_path,
+                        size=os.path.getsize(file_path),
+                        mime_type=mime_type,
+                        file_extension=file_extension,
+                        project_id=project_id,
+                        upload_date=datetime.now()
+                    )
+
+                    # Add it to the DB
+                    create_file_info(db=db, file=file_create)
+                    logger.info(f"Successfully saved additional file: {original_filename} to {file_path} with ID: {file_id}")
+
+                except Exception as file_error:
+                    logger.error(f"Error processing additional file {file.filename}: {str(file_error)}")
+                    continue
         
         return Project.from_db(db_project)
         

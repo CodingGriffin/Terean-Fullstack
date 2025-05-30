@@ -44,4 +44,5 @@ class ProjectCreate(ProjectBase):
 
 
 class ProjectCreateWithFiles(ProjectBase):
-    pass
+    sgy_files: Optional[List[str]] = None  # List of SgyFile IDs
+    additional_files: Optional[List[str]] = None  # List of File IDs
