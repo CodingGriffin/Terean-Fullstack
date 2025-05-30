@@ -1,10 +1,13 @@
 import datetime
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel
 
 from backend.utils.custom_types.Priority import Priority
 from backend.utils.custom_types.ProjectStatus import ProjectStatus
+from backend.schemas.client_schema import Client
+from backend.schemas.sgy_file_schema import SgyFileBase
+from backend.schemas.file_schema import FileBase
 
 
 class ProjectBase(BaseModel):
@@ -24,6 +27,9 @@ class ProjectBase(BaseModel):
 
 class Project(ProjectBase):
     id: str
+    client: Optional[Client] = None
+    records: Optional[List[SgyFileBase]] = None
+    additional_files: Optional[List[FileBase]] = None
 
     class Config:
         from_attributes = True
@@ -32,5 +38,10 @@ class Project(ProjectBase):
     def from_db(cls, db_project):
         return cls(**db_project.__dict__)
 
+
 class ProjectCreate(ProjectBase):
+    pass
+
+
+class ProjectCreateWithFiles(ProjectBase):
     pass
