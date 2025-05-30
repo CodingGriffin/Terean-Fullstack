@@ -103,18 +103,63 @@ These endpoints appear to have no frontend usage:
 
 These API functions exist in `frontend/src/services/api.ts` but have NO corresponding backend endpoints:
 
-1. **`processFrequencyWithSgy`** (api.ts:44)
-   - POST to `/process/frequency_with_sgy`
-   - Backend endpoint does not exist
+1. **`processFrequencyWithSgy`** (`frontend/src/services/api.ts:44-56`)
+   ```typescript
+   export const processFrequencyWithSgy = async (
+       sgyFile: File,
+       maxFrequency: number,
+       numFreqPoints: number
+   ) => {
+       const formData = new FormData();
+       formData.append('sgy_file', sgyFile);
+       formData.append('max_frequency', maxFrequency.toString());
+       formData.append('num_freq_points', numFreqPoints.toString());
+       return api.post('/process/frequency_with_sgy', formData);
+   };
+   ```
+   - **Endpoint Called**: `POST /process/frequency_with_sgy`
+   - **Backend Status**: ❌ DOES NOT EXIST
+   - **Current Usage**: Not imported or used anywhere (yet)
+   - **Impact**: Will cause 404 error if called
 
-2. **`processFrequencyWithParams`** (api.ts:58)
-   - POST to `/process/frequency_with_params`
-   - Backend endpoint does not exist
+2. **`processFrequencyWithParams`** (`frontend/src/services/api.ts:58-72`)
+   ```typescript
+   export const processFrequencyWithParams = async (
+       nSamples: number,
+       sampleRate: number,
+       maxFrequency: number,
+       numFreqPoints: number
+   ) => {
+       const formData = new FormData();
+       formData.append('n_samples', nSamples.toString());
+       formData.append('sample_rate', sampleRate.toString());
+       formData.append('max_frequency', maxFrequency.toString());
+       formData.append('num_freq_points', numFreqPoints.toString());
+       return api.post('/process/frequency_with_params', formData);
+   };
+   ```
+   - **Endpoint Called**: `POST /process/frequency_with_params`
+   - **Backend Status**: ❌ DOES NOT EXIST
+   - **Current Usage**: Not imported or used anywhere (yet)
+   - **Impact**: Will cause 404 error if called
 
-3. **`processSlownessWithParams`** (api.ts:74)
-   - POST to `/process/frequency_with_params` (wrong endpoint!)
-   - Should probably be `/process/slowness_with_params`
-   - Neither endpoint exists in backend
+3. **`processSlownessWithParams`** (`frontend/src/services/api.ts:74-84`)
+   ```typescript
+   export const processSlownessWithParams = async (
+       maxSlow: number,
+       numSlowPoints: number
+   ) => {
+       const formData = new FormData();
+       formData.append('max_slow', maxSlow.toString());
+       formData.append('num_slow_points', numSlowPoints.toString());
+       return api.post('/process/frequency_with_params', formData); // WRONG ENDPOINT!
+   };
+   ```
+   - **Endpoint Called**: `POST /process/frequency_with_params` ⚠️ (Copy-paste error!)
+   - **Backend Status**: ❌ DOES NOT EXIST
+   - **Should Call**: `/process/slowness_with_params` (also doesn't exist)
+   - **Current Usage**: Not imported or used anywhere (yet)
+   - **Impact**: Will cause 404 error if called, wrong endpoint name suggests copy-paste error
 
 ### Missing Processing Endpoints from Documentation
 
@@ -545,4 +590,58 @@ All require auth_level 3 (admin) but have no admin interface in the React app.
 5. **Development Environment**
    - Docker-compose for local development
    - Seed data scripts
-   - Hot reloading for both frontend/backend 
+   - Hot reloading for both frontend/backend
+
+### Additional Problematic Endpoint
+
+4. **`getFileInfo`** (`frontend/src/services/api.ts:196-204`)
+   ```typescript
+   export const getFileInfo = async (fileId: string) => {
+       try {
+           const response = await api.get(`/file-info/${fileId}`);
+           return response.data;
+       } catch (error) {
+           console.error("Error in getFileInfo:", error);
+           throw error;
+       }
+   };
+   ```
+   - **Endpoint Called**: `GET /file-info/{fileId}`
+   - **Backend Status**: ✅ EXISTS in `main.py:847`
+   - **Current Usage**: Defined but never imported/used
+   - **Issue**: Backend endpoint exists but is listed as unused/should be removed
+
+### Why This Is Critical
+
+1. **Dead Code Confusion**: Developers might try to use these functions thinking they work
+2. **Maintenance Burden**: Dead code that references non-existent endpoints
+3. **Copy-Paste Error**: `processSlownessWithParams` calls the wrong endpoint entirely
+4. **Future Bug Risk**: If someone imports and uses these functions, the app will break at runtime
+
+### Immediate Action Required
+
+1. **Option A**: Remove these unused functions from `api.ts`
+2. **Option B**: Implement the missing backend endpoints if they're needed
+3. **Fix**: Correct the endpoint URL in `processSlownessWithParams` if keeping it
+4. **Audit**: Check if any components plan to use these functions in the future
+
+### Missing Processing Endpoints from Documentation
+
+PROJECT_CONTEXT.md mentions these endpoints but they don't exist:
+- `POST /process/slownesses`
+- `POST /process/frequencies`
+
+PROJECT_CONTEXT.md mentions these endpoints but they don't exist:
+- `POST /process/slownesses`
+- `POST /process/frequencies`
+
+### Admin Endpoints Without Frontend
+
+The admin router (`/admin/*`) has these endpoints with no frontend UI:
+- `GET /admin/users` - Get all users
+- `GET /admin/users/{username}` - Get specific user
+- `POST /admin/register_user` - Create new user
+- `PUT /admin/users/{username}` - Update user
+- `PATCH /admin/disable_user/{username}` - Toggle user disabled status
+
+All require auth_level 3 (admin) but have no admin interface in the React app. 
