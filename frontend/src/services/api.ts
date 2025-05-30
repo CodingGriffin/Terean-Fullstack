@@ -133,10 +133,10 @@ export const getPicks = async (projectId: string) => {
     return api.get(`/project/${projectId}/picks`);
 };
 
-export const uploadSgyFilesWithIds = async (uploadFiles: RecordUploadFile[]) => {
-    if (!uploadFiles || uploadFiles.length === 0) {
-        throw new Error("No files provided for upload");
-    }
+export const uploadSgyFilesToProject = async (files: File[], projectId: string) => {
+  if (!uploadFiles || uploadFiles.length === 0) {
+    throw new Error("No files provided for upload");
+  }
 
     const validUploads = uploadFiles.filter(upload => upload.file !== null);
 
@@ -144,33 +144,34 @@ export const uploadSgyFilesWithIds = async (uploadFiles: RecordUploadFile[]) => 
         throw new Error("No valid files to upload");
     }
 
-    const formData = new FormData();
+  const formData = new FormData();
 
-    console.log("Uploading files with IDs:", validUploads.map(u => ({id: u.id, name: u.file?.name})));
-
-    validUploads.forEach(upload => {
-        if (upload.file) {
-            formData.append('files', upload.file);
-        }
-    });
-
-    validUploads.forEach(upload => {
-        formData.append('file_ids', upload.id);
-    });
-
-    try {
-        const response = await api.post('/upload-sgy-with-id', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        });
-
-        console.log("Upload with IDs response:", response.data);
-        return response;
-    } catch (error) {
-        console.error("Error in uploadSgyFilesWithIds:", error);
-        throw error;
+  console.log("Uploading files:", validUploads.map(u => ({name: u.file?.name})));
+  
+  validUploads.forEach(upload => {
+    if (upload.file) {
+      formData.append('files', upload.file);
     }
+  });
+
+  validUploads.forEach(upload => {
+    formData.append('file_ids', upload.id);
+  });
+
+  console.log("Uploading files to project:", projectId);
+  try {
+    const response = await api.post(`/sgy-files/project/${projectId}/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    console.log("Upload with IDs response:", response.data);
+    return response;
+  } catch (error) {
+    console.error("Error uploading SEG-Y files:", error);
+    throw error;
+  }
 };
 
 export const getFileInfo = async (fileId: string) => {

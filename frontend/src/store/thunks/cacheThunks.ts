@@ -19,9 +19,9 @@ import {
   getPicks,
   processGrids,
   savePicks,
-  saveOptions
+  saveOptions,
+  uploadSgyFilesToProject
 } from "../../services/api";
-import { uploadSgyFilesWithIds } from "../../services/api";
 
 export const processGridsForPreview = createAsyncThunk(
   "cache/processGridsForPreview",
@@ -282,21 +282,23 @@ export const saveOptionsByProjectId = createAsyncThunk(
   }
 );
 
-export const uploadSgyFilesWithIdsThunk = createAsyncThunk(
-  "cache/uploadSgyFilesWithIds",
+export const uploadSgyFilesToProjectThunk = createAsyncThunk(
+  "cache/uploadSgyFilesToProject",
   async (
-    uploadFiles: { [key: string]: File | null },
+    { uploadFiles, projectId }: { uploadFiles: File[], projectId: string },
     {dispatch}
   ) => {
     try {
       dispatch(setIsLoading(true));
 
-      const recordUploadFiles = Object.entries(uploadFiles).map(([id, file]) => ({
-        id,
-        file
-      }));
-      const response = await uploadSgyFilesWithIds(recordUploadFiles);
+      const response = await uploadSgyFilesToProject(uploadFiles, projectId);
       const fileInfos = response.data.file_infos;
+
+      // Convert file infos to RecordUploadFile format
+      const recordUploadFiles = fileInfos.map((fileInfo: any) => ({
+        id: fileInfo.id,
+        file: null // File is now stored on the backend
+      }));
 
       dispatch(addToast({
         message: "Files uploaded successfully",
@@ -304,7 +306,7 @@ export const uploadSgyFilesWithIdsThunk = createAsyncThunk(
         duration: 3000
       }));
 
-      return fileInfos;
+      return recordUploadFiles;
     } catch (error) {
       console.error("Error uploading files:", error);
       dispatch(addToast({
