@@ -60,7 +60,10 @@ export const processGridsForPreview = createAsyncThunk(
         returnFreqAndSlow
       );
 
-      const {grids, freq, slow} = response.data.data;
+      console.log('=== Process Grids Response ===');
+      console.log('Full response:', response.data);
+
+      const {grids, freq, slow} = response.data;
 
       if (freq) {
         dispatch(setPreviewFreqData(freq.data));

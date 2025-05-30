@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../../Components/navbar/Navbar";
 import { Toast } from "../../Components/Toast/Toast";
 import SectionHeader from "../../Components/SectionHeader/SectionHeader";
-import { getAllProjects, createProject} from "../../services/api";
+import { getAllProjects, createProject, createProjectWithFiles } from "../../services/api";
 import { addToast } from "../../store/slices/toastSlice";
 import { useAppDispatch } from "../../hooks/useAppDispatch";
 import { DataManager } from "../../Features/DataManger/DataManager";
@@ -11,6 +11,7 @@ import { GeometryManager } from "../../Features/DataManger/GeometryManager/Geome
 import RecordManager from "../../Features/DataManger/RecordManager/RecordManger";
 import { FreqSlowManger } from "../../Features/DataManger/FreqSlowManager/FreqSlowManager";
 import Pagination from "../../Components/Pagination/Pagination";
+import { RecordUploadFile } from "../../types/record";
 
 interface Project {
   id: string;
@@ -195,16 +196,25 @@ const ProjectsPage: React.FC = () => {
     }
   };
 
-  const handleUploadFiles = async (files: File[]) => {
-    if (!files.length) return;
+  const handleUploadFiles = async (files: RecordUploadFile[] | null) => {
+    if (!files || files.length === 0) return;
+    
+    console.log('=== handleUploadFiles ===');
+    console.log('Received RecordUploadFile[]:', files);
     
     try {
-      setUploadFiles(Array.from(files).map(file => ({
-        file,
-        name: file.name,
-        size: file.size,
-        type: file.type
-      })));
+      // Convert RecordUploadFile[] to the format expected by uploadFiles state
+      const fileObjs = files
+        .filter(f => f.file !== null)
+        .map(f => ({
+          file: f.file!,
+          name: f.file!.name,
+          size: f.file!.size,
+          type: f.file!.type
+        }));
+      
+      console.log('Converted to file objects:', fileObjs);
+      setUploadFiles(fileObjs);
     } catch (error) {
       console.error("Error handling files:", error);
       dispatch(addToast({
@@ -255,37 +265,42 @@ const ProjectsPage: React.FC = () => {
       
       const projectId = useCustomId && customProjectId.trim() ? customProjectId.trim() : undefined;
       
-      const createdProject = await createProject(projectToCreate, projectId);
+      console.log('=== Creating Project ===');
+      console.log('Upload files available:', uploadFiles.length);
+      console.log('Upload files:', uploadFiles);
       
+      let createdProject;
+      
+      // If we have files to upload, use createProjectWithFiles
       if (uploadFiles.length > 0) {
-        try {
-          const formData = new FormData();
-          uploadFiles.forEach(fileObj => {
-            formData.append('files', fileObj.file);
-          });
-          await fetch(`${process.env.REACT_APP_API_URL || ''}/project/${createdProject.id}/upload-files`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: formData
-          });
-          
-          dispatch(addToast({
-            message: `${uploadFiles.length} files uploaded successfully`,
-            type: "success",
-            duration: 5000
-          }));
-        } catch (error) {
-          console.error("Error uploading files:", error);
-          dispatch(addToast({
-            message: "Failed to upload files, but project was created",
-            type: "warning",
-            duration: 5000
-          }));
-        }
+        console.log('Creating project with files...');
+        // Extract the File objects from the uploadFiles array
+        const sgyFiles = uploadFiles.map(fileObj => fileObj.file).filter(file => file !== null) as File[];
+        console.log('SGY files to upload:', sgyFiles);
+        
+        createdProject = await createProjectWithFiles(
+          projectToCreate,
+          projectId,
+          sgyFiles
+        );
+        
+        dispatch(addToast({
+          message: `Project "${projectToCreate.name}" created with ${sgyFiles.length} files`,
+          type: "success",
+          duration: 5000
+        }));
+      } else {
+        console.log('Creating project without files...');
+        createdProject = await createProject(projectToCreate, projectId);
+        
+        dispatch(addToast({
+          message: `Project "${projectToCreate.name}" created successfully`,
+          type: "success",
+          duration: 5000
+        }));
       }
       
+      // Reset form
       setNewProject({
         name: '',
         status: 'not_started',
@@ -337,12 +352,6 @@ const ProjectsPage: React.FC = () => {
       setSavedFreqSettings({ numFreq: 50, maxFreq: 50 });
       setSavedSlowSettings({ numSlow: 50, maxSlow: 0.015 });
       setShowNewProjectModal(false);
-      
-      dispatch(addToast({
-        message: `Project "${projectToCreate.name}" created successfully`,
-        type: "success",
-        duration: 5000
-      }));
       
       fetchProjects();
       
@@ -733,10 +742,22 @@ const ProjectsPage: React.FC = () => {
                         </div>
                         <div className="col border m-3 p-3">
                           <RecordManager
-                            onUploadFiles={(files) => files && handleUploadFiles(files.map(f => f.file).filter(Boolean) as File[])}
-                            onFilesChange={(data) => setUploadFiles(Object.values(data).filter(Boolean) as File[])}
+                            onUploadFiles={handleUploadFiles}
+                            onFilesChange={(data) => {
+                              console.log('=== onFilesChange ===');
+                              console.log('File data:', data);
+                              const fileObjs = Object.values(data)
+                                .filter(file => file !== null)
+                                .map(file => ({
+                                  file: file!,
+                                  name: file!.name,
+                                  size: file!.size,
+                                  type: file!.type
+                                }));
+                              setUploadFiles(fileObjs);
+                            }}
                             recordOptions={savedRecordOptions}
-                            recordUploadFiles={Object.fromEntries(uploadFiles.map((file, index) => [`file-${index}`, file]))}
+                            recordUploadFiles={Object.fromEntries(uploadFiles.map((file, index) => [`file-${index}`, file.file]))}
                             onRecordOptionsChange={(recordOptions) => setSavedRecordOptions(recordOptions)}
                           />
                         </div>

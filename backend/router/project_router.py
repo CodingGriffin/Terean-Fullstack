@@ -660,6 +660,15 @@ async def create_new_project(
         
         # Handle SEG-Y file uploads
         if sgy_files:
+            # Create SGY files directory for the project
+            sgy_project_dir = os.path.join(os.getenv("MQ_SAVE_DIR", "data"), "SGYFiles", project_id)
+            os.makedirs(sgy_project_dir, exist_ok=True)
+            
+            # Parse existing record_options from the project
+            record_options = json.loads(project.record_options) if project.record_options else []
+            updated_record_options = []
+            file_index = 0
+            
             for file in sgy_files:
                 try:
                     # Get original filename
@@ -669,9 +678,9 @@ async def create_new_project(
 
                     # Generate unique filename
                     file_id = generate_time_based_uid()
-                    file_extension = original_filename.split('.')[-1] if '.' in original_filename else ''
+                    file_extension = original_filename.split('.')[-1] if '.' in original_filename else 'sgy'
                     unique_filename = f"{file_id}.{file_extension}"
-                    file_path = os.path.join(project_dir, unique_filename)
+                    file_path = os.path.join(sgy_project_dir, unique_filename)
 
                     # Save the file
                     async with aiofiles.open(file_path, 'wb') as f:
@@ -684,18 +693,43 @@ async def create_new_project(
                         original_name=original_filename,
                         path=file_path,
                         size=os.path.getsize(file_path),
-                        type="sgy",
+                        type=file_extension.upper(),
                         project_id=project_id,
                         upload_date=datetime.now()
                     )
 
                     # Add it to the DB
-                    create_sgy_file_info(db=db, file=sgy_file_create)
+                    create_sgy_file_info(db=db, sgy_file=sgy_file_create)
                     logger.info(f"Successfully saved SEG-Y file: {original_filename} to {file_path} with ID: {file_id}")
+                    
+                    # Update record_options with the generated ID
+                    if file_index < len(record_options):
+                        # Update existing record option with the generated ID
+                        record_option = record_options[file_index]
+                        record_option['id'] = file_id
+                        updated_record_options.append(record_option)
+                    else:
+                        # Create new record option if not provided in initial data
+                        updated_record_options.append({
+                            'id': file_id,
+                            'enabled': False,
+                            'weight': 100,
+                            'fileName': original_filename
+                        })
+                    
+                    file_index += 1
 
                 except Exception as file_error:
                     logger.error(f"Error processing SEG-Y file {file.filename}: {str(file_error)}")
                     continue
+            
+            # Update the project's record_options with the file IDs
+            if updated_record_options:
+                logger.info(f"Updating project record_options with file IDs: {updated_record_options}")
+                db_project.record_options = json.dumps(updated_record_options)
+                db.commit()
+                db.refresh(db_project)
+                logger.info("Successfully updated project record_options with file IDs")
 
         # Handle additional file uploads
         if additional_files:
@@ -740,12 +774,15 @@ async def create_new_project(
                     logger.error(f"Error processing additional file {file.filename}: {str(file_error)}")
                     continue
         
-        return Project.from_db(db_project)
+        logger.info("Getting return data from db")
+        ret_project = Project.from_db(db_project)
+        logger.info(f"Return data:\n{ret_project}")
+        return ret_project
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error creating project: {str(e)}")
+        logger.error(f"Error creating project: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error creating project: {str(e)}")
 
 # endregion

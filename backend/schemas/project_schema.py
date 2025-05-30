@@ -36,7 +36,39 @@ class Project(ProjectBase):
     
     @classmethod
     def from_db(cls, db_project):
-        return cls(**db_project.__dict__)
+        # Extract only the relevant fields, excluding SQLAlchemy internal attributes
+        project_data = {}
+        
+        # Add all fields from ProjectBase
+        for field in ['name', 'status', 'priority', 'survey_date', 'received_date', 
+                      'geometry', 'record_options', 'plot_limits', 'freq', 'slow', 
+                      'picks', 'disper_settings']:
+            if hasattr(db_project, field):
+                project_data[field] = getattr(db_project, field)
+        
+        # Add id
+        project_data['id'] = db_project.id
+        
+        # Handle relationships - convert SQLAlchemy models to Pydantic models
+        if hasattr(db_project, 'client') and db_project.client:
+            # Client expects a Client schema instance
+            project_data['client'] = Client.model_validate(db_project.client, from_attributes=True)
+        
+        if hasattr(db_project, 'records') and db_project.records:
+            # Convert each SgyFileDBModel to SgyFileBase
+            project_data['records'] = [
+                SgyFileBase.model_validate(record, from_attributes=True) 
+                for record in db_project.records
+            ]
+            
+        if hasattr(db_project, 'additional_files') and db_project.additional_files:
+            # Convert each FileDBModel to FileBase
+            project_data['additional_files'] = [
+                FileBase.model_validate(file, from_attributes=True) 
+                for file in db_project.additional_files
+            ]
+        
+        return cls(**project_data)
 
 
 class ProjectCreate(ProjectBase):

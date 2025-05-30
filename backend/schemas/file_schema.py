@@ -12,6 +12,9 @@ class FileBase(BaseModel):
     mime_type: str
     file_extension: str
     project_id: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
 
 
 class FileCreate(FileBase):

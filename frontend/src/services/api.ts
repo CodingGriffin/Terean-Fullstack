@@ -19,7 +19,7 @@ api.interceptors.request.use(function (config) {
 });
 
 export const processGrids = async (
-    _projectId: string,
+    projectId: string,
     recordOptions: string,
     geometryData: string,
     maxSlowness: number,
@@ -37,6 +37,7 @@ export const processGrids = async (
     formData.append('num_slow_points', numSlowPoints.toString());
     formData.append('num_freq_points', numFreqPoints.toString());
     formData.append('return_freq_and_slow', returnFreqAndSlow.toString());
+    formData.append('project_id', projectId);
 
     return api.post(`/process/grids`, formData);
 };

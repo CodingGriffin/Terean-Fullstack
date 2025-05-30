@@ -11,6 +11,9 @@ class SgyFileBase(BaseModel):
     upload_date: datetime = None
     type: str
     project_id: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
 
 
 class SgyFileCreate(SgyFileBase):

@@ -632,28 +632,36 @@ async def process_grids_from_input(
     num_slow_points: Annotated[int, Form(...)],
     num_freq_points: Annotated[int, Form(...)],
     return_freq_and_slow: Annotated[bool, Form(...)] = True,
+    project_id: Annotated[str, Form(...)] = None,  # Add project_id parameter
     current_user: User = Depends(get_current_user)
 ):
     check_permissions(current_user, 1)
     logger.info("=== Process Grids START ===")
+    logger.info(f"Project ID: {project_id}")
     logger.info(f"Record options: {record_options}")
     logger.info(f"Max slowness: {max_slowness}, Max frequency: {max_frequency}")
     logger.info(f"Num slow points: {num_slow_points}, Num freq points: {num_freq_points}")
     
     # Set default response data
-    response_data = {
-        "data": {
-            "grids": []
-        }
-    }
+    response_data = {}
+    response_data["grids"] = []
+    response_data["freq"] = None
+    response_data["slow"] = None
 
-    # Parse geometry data to get geophone spacing as an average
-    geometry_data = ast.literal_eval(geometry_data)
-    record_options_list = json.loads(record_options)
-    logger.info(f"Number of record options: {len(record_options_list)}")
-    logger.info(f"Number of geometry points: {len(geometry_data)}")
-    
-    geom_list = [np.array([x['x'], x['y'], x['z']]) for x in geometry_data]
+    # Parse JSON
+    try:
+        logger.info("Parsing record options JSON...")
+        record_options_list = json.loads(record_options)
+        logger.info(f"Parsed record options: {record_options_list}")
+        
+        logger.info("Parsing geometry data JSON...")
+        geometry_list = json.loads(geometry_data)
+        logger.info(f"Parsed geometry data: {geometry_list}")
+    except Exception as e:
+        logger.error(f"Failed to parse JSON: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid JSON data: {str(e)}")
+
+    geom_list = [np.array([x['x'], x['y'], x['z']]) for x in geometry_list]
     if len(record_options_list) <= 0 or len(geom_list) <= 0:
         logger.warning("No record options or geometry data provided")
         return response_data
@@ -670,12 +678,24 @@ async def process_grids_from_input(
         file_id = option["id"]
         logger.info(f"Processing file {i + 1}/{len(record_options_list)}, ID: {file_id}")
         
-        file_path_pattern = os.path.join(GLOBAL_SGY_FILES_DIR, f"{file_id}.*")
-        matching_files = glob.glob(file_path_pattern)
-        logger.info(f"Searching for files matching pattern: {file_path_pattern}")
+        # Look for files in both project-specific directory and global directory
+        if project_id:
+            # First try project-specific directory
+            project_dir = os.path.join(GLOBAL_SGY_FILES_DIR, project_id)
+            file_path_pattern = os.path.join(project_dir, f"{file_id}.*")
+            matching_files = glob.glob(file_path_pattern)
+            logger.info(f"Searching in project directory: {file_path_pattern}")
+        else:
+            matching_files = []
+        
+        # If not found in project directory, try global directory (for backward compatibility)
+        if not matching_files:
+            file_path_pattern = os.path.join(GLOBAL_SGY_FILES_DIR, f"{file_id}.*")
+            matching_files = glob.glob(file_path_pattern)
+            logger.info(f"Searching in global directory: {file_path_pattern}")
 
         if not matching_files:
-            logger.error(f"File with ID {file_id} not found")
+            logger.error(f"File with ID {file_id} not found in project {project_id}")
             continue
 
         file_path = matching_files[0]
@@ -702,7 +722,7 @@ async def process_grids_from_input(
         logger.info(f"Processing complete for {file_name}")
         logger.debug("LenFreq: ", freq_values.shape)
         logger.debug("LenSlow: ", p_values.shape)
-        response_data["data"]["grids"].append({
+        response_data["grids"].append({
             "name": file_name,
             "data": combined_grid.tolist(),
             "shape": combined_grid.shape,
@@ -710,17 +730,17 @@ async def process_grids_from_input(
 
         # Add frequency and slowness data if requested
         if return_freq_and_slow and not provided_freq_slow:
-            response_data["data"]["freq"] = {
+            response_data["freq"] = {
                 "data": freq_values.tolist(),
             }
-            response_data["data"]["slow"] = {
+            response_data["slow"] = {
                 "data": p_values.tolist(),
             }
             provided_freq_slow = True
             logger.info("Added frequency and slowness data to response")
             
     logger.info(f"=== Process Grids Complete ===")
-    logger.info(f"Processed {len(response_data['data']['grids'])} grids successfully")
+    logger.info(f"Processed {len(response_data['grids'])} grids successfully")
     return response_data
 
 # endregion
