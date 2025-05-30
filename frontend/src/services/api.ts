@@ -246,15 +246,23 @@ export const getProjectById = async (projectId: string) => {
 export const createProject = async (projectData: ProjectCreate, projectId?: string) => {
   try {
     const queryParams = projectId ? `?project_id=${projectId}` : '';
-    // Temporarily use create-json endpoint for testing
-    const requestUrl = `/project/create-json${queryParams}`;
+    const requestUrl = `/project/create${queryParams}`;
+    
+    // Create FormData and add project data as JSON string
+    const formData = new FormData();
+    formData.append('project_data', JSON.stringify(projectData));
     
     // Log the request details
     console.log('=== CREATE PROJECT REQUEST ===');
     console.log('URL:', requestUrl);
-    console.log('Request Body:', JSON.stringify(projectData, null, 2));
+    console.log('Project Data being sent:', JSON.stringify(projectData, null, 2));
+    console.log('Sending as FormData with project_data field');
     
-    const response = await api.post(requestUrl, projectData);
+    const response = await api.post(requestUrl, formData, {
+      headers: {
+        // Let axios set the Content-Type with boundary for multipart/form-data
+      }
+    });
     
     console.log('=== CREATE PROJECT RESPONSE ===');
     console.log('Response Status:', response.status);
@@ -263,6 +271,62 @@ export const createProject = async (projectData: ProjectCreate, projectId?: stri
     return response.data;
   } catch (error) {
     console.error('=== CREATE PROJECT ERROR ===');
+    console.error('Error details:', error);
+    if (error.response) {
+      console.error('Error response:', error.response.data);
+      console.error('Error status:', error.response.status);
+    }
+    throw error;
+  }
+};
+
+export const createProjectWithFiles = async (
+  projectData: ProjectCreate, 
+  projectId?: string,
+  sgyFiles?: File[],
+  additionalFiles?: File[]
+) => {
+  try {
+    const queryParams = projectId ? `?project_id=${projectId}` : '';
+    const requestUrl = `/project/create${queryParams}`;
+    
+    // Create FormData and add project data as JSON string
+    const formData = new FormData();
+    formData.append('project_data', JSON.stringify(projectData));
+    
+    // Add SGY files if provided
+    if (sgyFiles && sgyFiles.length > 0) {
+      sgyFiles.forEach((file) => {
+        formData.append('sgy_files', file);
+      });
+    }
+    
+    // Add additional files if provided
+    if (additionalFiles && additionalFiles.length > 0) {
+      additionalFiles.forEach((file) => {
+        formData.append('additional_files', file);
+      });
+    }
+    
+    console.log('=== CREATE PROJECT WITH FILES REQUEST ===');
+    console.log('URL:', requestUrl);
+    console.log('Project Data:', JSON.stringify(projectData, null, 2));
+    console.log('Number of SGY files:', sgyFiles?.length || 0);
+    console.log('Number of additional files:', additionalFiles?.length || 0);
+    
+    const response = await api.post(requestUrl, formData, {
+      headers: {
+        // Let axios set the Content-Type with boundary for multipart/form-data
+      }
+    });
+    
+    console.log('=== CREATE PROJECT WITH FILES RESPONSE ===');
+    console.log('Response Status:', response.status);
+    console.log('Response Data:', response.data);
+    
+    return response.data;
+  } catch (error) {
+    console.error('=== CREATE PROJECT WITH FILES ERROR ===');
     console.error('Error details:', error);
     if (error.response) {
       console.error('Error response:', error.response.data);

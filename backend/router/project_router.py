@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel
 
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Query, Request, Form
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc, not_, func
@@ -588,7 +588,7 @@ async def create_new_project_json(
 @project_router.post("/create", response_model=Project, status_code=status.HTTP_201_CREATED)
 async def create_new_project(
     request: Request,
-    project: ProjectCreate,
+    project_data: str = Form(...),  # Project data as JSON string in form data
     project_id: Optional[str] = Query(None),
     sgy_files: List[UploadFile] = File(None),
     additional_files: List[UploadFile] = File(None),
@@ -601,7 +601,7 @@ async def create_new_project(
     Requires authentication.
     
     Parameters:
-    - project: Project creation data
+    - project_data: Project creation data as JSON string
     - project_id: Optional project ID (will be generated if not provided)
     - sgy_files: Optional list of SEG-Y files to upload
     - additional_files: Optional list of additional files to upload
@@ -612,24 +612,23 @@ async def create_new_project(
     logger.info("=== CREATE PROJECT ENDPOINT ===")
     logger.info(f"Request URL: {request.url}")
     logger.info(f"Request method: {request.method}")
-    logger.info(f"Request headers: {dict(request.headers)}")
-    logger.info(f"Query params - project_id: {project_id}")
     logger.info(f"Content-Type header: {request.headers.get('content-type', 'Not found')}")
+    logger.info(f"Query params - project_id: {project_id}")
     
-    # Try to get the raw body
+    # Parse the project data from JSON string
     try:
-        body = await request.body()
-        logger.info(f"Raw request body: {body.decode('utf-8') if body else 'Empty body'}")
+        project_dict = json.loads(project_data)
+        logger.info(f"Parsed project data: {project_dict}")
+        project = ProjectCreate(**project_dict)
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in project_data: {e}")
+        raise HTTPException(status_code=400, detail="Invalid JSON in project_data")
     except Exception as e:
-        logger.error(f"Error reading request body: {e}")
+        logger.error(f"Error creating ProjectCreate from data: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid project data: {str(e)}")
     
     # Log the received project data
-    try:
-        logger.info(f"Received project data: {project.model_dump()}")
-        logger.info(f"Project type: {type(project)}")
-        logger.info(f"Project name: {project.name if hasattr(project, 'name') else 'NO NAME ATTRIBUTE'}")
-    except Exception as log_error:
-        logger.error(f"Error logging project data: {log_error}")
+    logger.info(f"Created ProjectCreate object: {project.model_dump()}")
     
     # Log file info
     logger.info(f"Number of sgy_files: {len(sgy_files) if sgy_files else 0}")
