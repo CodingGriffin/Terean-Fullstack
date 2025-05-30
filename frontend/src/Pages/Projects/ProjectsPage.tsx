@@ -34,7 +34,6 @@ interface ProjectCreate {
   priority?: string;
   survey_date?: string;
   received_date?: string;
-  client?: string;
   geometry?: string;
   record_options?: string;
   plot_limits?: string;
@@ -82,7 +81,6 @@ const ProjectsPage: React.FC = () => {
     name: '',
     status: 'not_started',
     priority: 'medium',
-    client: '',
     geometry: '[]',
     record_options: '[]',
     plot_limits: JSON.stringify({
@@ -234,7 +232,6 @@ const ProjectsPage: React.FC = () => {
       
       if (newProject.status) projectToCreate.status = newProject.status;
       if (newProject.priority) projectToCreate.priority = newProject.priority;
-      if (newProject.client) projectToCreate.client = newProject.client;
       if (newProject.survey_date) projectToCreate.survey_date = newProject.survey_date;
       if (newProject.received_date) projectToCreate.received_date = newProject.received_date;
       
@@ -293,7 +290,6 @@ const ProjectsPage: React.FC = () => {
         name: '',
         status: 'not_started',
         priority: 'medium',
-        client: '',
         geometry: '[]',
         record_options: '[]',
         plot_limits: JSON.stringify({
@@ -643,18 +639,6 @@ const ProjectsPage: React.FC = () => {
                     </div>
                     
                     <div className="mb-3">
-                      <label htmlFor="projectClient" className="form-label">Client</label>
-                      <input 
-                        type="text" 
-                        className="form-control" 
-                        id="projectClient" 
-                        value={newProject.client || ''}
-                        onChange={(e) => setNewProject({...newProject, client: e.target.value})}
-                        placeholder="Enter client name"
-                      />
-                    </div>
-                    
-                    <div className="mb-3">
                       <label htmlFor="projectStatus" className="form-label">Status</label>
                       <select 
                         className="form-select" 
@@ -684,6 +668,7 @@ const ProjectsPage: React.FC = () => {
                         <option value="very_high">Very High</option>
                       </select>
                     </div>
+
                     <div className="mb-3">
                       <div className="form-check">
                         <input
@@ -698,6 +683,7 @@ const ProjectsPage: React.FC = () => {
                         </label>
                       </div>
                     </div>
+                    
                     {useCustomId && (
                       <div className="mb-3">
                         <label htmlFor="customProjectId" className="form-label">Custom Project ID</label>
@@ -714,6 +700,7 @@ const ProjectsPage: React.FC = () => {
                         </small>
                       </div>
                     )}
+                    
                     <div className="mb-3">
                       <label htmlFor="surveyDate" className="form-label">Survey Date</label>
                       <input 
