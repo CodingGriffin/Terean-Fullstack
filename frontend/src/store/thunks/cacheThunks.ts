@@ -288,26 +288,42 @@ export const uploadSgyFilesToProjectThunk = createAsyncThunk(
     { uploadFiles, projectId }: { uploadFiles: File[], projectId: string },
     {dispatch}
   ) => {
+    console.log('=== uploadSgyFilesToProjectThunk START ===');
+    console.log('Upload files:', uploadFiles);
+    console.log('Project ID:', projectId);
+    
     try {
       dispatch(setIsLoading(true));
 
       const response = await uploadSgyFilesToProject(uploadFiles, projectId);
       const fileInfos = response.data.file_infos;
 
-      // Convert file infos to RecordUploadFile format
-      const recordUploadFiles = fileInfos.map((fileInfo: any) => ({
-        id: fileInfo.id,
-        file: null // File is now stored on the backend
+      console.log('=== File Upload Thunk Response ===');
+      console.log('File infos received:', fileInfos);
+
+      // Convert file infos to RecordOption format with backend-generated IDs
+      const recordOptions = fileInfos.map((fileInfo: any) => ({
+        id: fileInfo.id, // Use backend-generated ID
+        enabled: false,
+        weight: 100,
+        fileName: fileInfo.original_name
       }));
 
+      console.log('Converted record options:', recordOptions);
+
       dispatch(addToast({
-        message: "Files uploaded successfully",
+        message: `${fileInfos.length} files uploaded successfully`,
         type: "success",
         duration: 3000
       }));
 
-      return recordUploadFiles;
+      // Return both file infos and record options for flexibility
+      return {
+        fileInfos,
+        recordOptions
+      };
     } catch (error) {
+      console.error("=== Upload Thunk Error ===");
       console.error("Error uploading files:", error);
       dispatch(addToast({
         message: `Error uploading files: ${error instanceof Error ? error.message : 'Unknown error'}`,

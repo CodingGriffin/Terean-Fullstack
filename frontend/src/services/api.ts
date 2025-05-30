@@ -134,31 +134,41 @@ export const getPicks = async (projectId: string) => {
 };
 
 export const uploadSgyFilesToProject = async (files: File[], projectId: string) => {
-  if (!uploadFiles || uploadFiles.length === 0) {
+  console.log('=== uploadSgyFilesToProject START ===');
+  console.log('Files received:', files);
+  console.log('Project ID:', projectId);
+  
+  if (!files || files.length === 0) {
+    console.error('No files provided for upload');
     throw new Error("No files provided for upload");
   }
 
-    const validUploads = uploadFiles.filter(upload => upload.file !== null);
+  // Filter out any null or undefined files
+  const validFiles = files.filter(file => file !== null && file !== undefined);
+  console.log('Valid files after filtering:', validFiles);
 
-    if (validUploads.length === 0) {
-        throw new Error("No valid files to upload");
-    }
+  if (validFiles.length === 0) {
+    console.error('No valid files to upload after filtering');
+    throw new Error("No valid files to upload");
+  }
 
   const formData = new FormData();
 
-  console.log("Uploading files:", validUploads.map(u => ({name: u.file?.name})));
+  console.log("Preparing to upload files:", validFiles.map(f => ({
+    name: f.name,
+    size: f.size,
+    type: f.type
+  })));
   
-  validUploads.forEach(upload => {
-    if (upload.file) {
-      formData.append('files', upload.file);
-    }
-  });
-
-  validUploads.forEach(upload => {
-    formData.append('file_ids', upload.id);
+  // Only append the actual files, not IDs since backend generates them
+  validFiles.forEach((file, index) => {
+    console.log(`Appending file ${index}:`, file.name);
+    formData.append('files', file);
   });
 
   console.log("Uploading files to project:", projectId);
+  console.log("FormData prepared with", validFiles.length, "files");
+  
   try {
     const response = await api.post(`/sgy-files/project/${projectId}/upload`, formData, {
       headers: {
@@ -166,10 +176,19 @@ export const uploadSgyFilesToProject = async (files: File[], projectId: string) 
       },
     });
 
-    console.log("Upload with IDs response:", response.data);
+    console.log("=== Upload Response ===");
+    console.log("Status:", response.status);
+    console.log("Response data:", response.data);
+    console.log("File infos returned:", response.data.file_infos);
+    
     return response;
   } catch (error) {
+    console.error("=== Upload Error ===");
     console.error("Error uploading SEG-Y files:", error);
+    if (error.response) {
+      console.error("Error response data:", error.response.data);
+      console.error("Error status:", error.response.status);
+    }
     throw error;
   }
 };

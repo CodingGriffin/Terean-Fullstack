@@ -3,7 +3,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { addToast } from '../store/slices/toastSlice';
 import { useParams } from 'react-router-dom';
 import { PickData } from '../types/data';
-import { savePicksByProjectId, fetchPicksByProjectId, processGridsForPreview, uploadSgyFilesWithIdsThunk, fetchOptionsByProjectId } from '../store/thunks/cacheThunks';
+import { savePicksByProjectId, fetchPicksByProjectId, processGridsForPreview, uploadSgyFilesToProjectThunk, fetchOptionsByProjectId } from '../store/thunks/cacheThunks';
 import { GeometryItem } from '../types/geometry';
 import { RecordOption, RecordUploadFile } from '../types/record';
 import { setGeometrySlice } from '../store/slices/geometrySlice';
@@ -604,10 +604,32 @@ export function PicksProvider({ children }: { children: ReactNode }) {
     }, [projectId, loadSettings]);
 
     useEffect(() => {
-        if (Object.values(state.uploadFiles).length > 0) {
-            reduxDispatch(uploadSgyFilesWithIdsThunk(state.uploadFiles));
+        console.log('=== PicksContext Upload Files Effect ===');
+        console.log('state.uploadFiles:', state.uploadFiles);
+        console.log('projectId:', projectId);
+        
+        const uploadFilesArray = Object.values(state.uploadFiles).filter(file => file !== null) as File[];
+        
+        if (uploadFilesArray.length > 0 && projectId) {
+            console.log('Dispatching upload with files:', uploadFilesArray);
+            reduxDispatch(uploadSgyFilesToProjectThunk({
+                uploadFiles: uploadFilesArray,
+                projectId: projectId
+            })).then((result: any) => {
+                console.log('Upload thunk result:', result);
+                if (result.meta.requestStatus === 'fulfilled' && result.payload) {
+                    // Update saved record options with backend-generated IDs
+                    const newRecordOptions = result.payload.recordOptions;
+                    console.log('Setting new record options from backend:', newRecordOptions);
+                    setSavedRecordOptions(newRecordOptions);
+                    // Clear upload files since they're now on the backend
+                    setUploadFiles({});
+                }
+            }).catch((error) => {
+                console.error('Upload thunk error:', error);
+            });
         }
-    }, [state.uploadFiles, reduxDispatch]);
+    }, [state.uploadFiles, projectId, reduxDispatch, setSavedRecordOptions, setUploadFiles]);
 
     return (
         <PicksContext.Provider

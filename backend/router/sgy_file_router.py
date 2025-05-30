@@ -101,11 +101,18 @@ async def upload_sgy_files_to_project_endpoint(
     """
     check_permissions(current_user, 1)
 
+    logger.info(f"=== SGY File Upload START ===")
+    logger.info(f"Project ID: {project_id}")
+    logger.info(f"Number of files: {len(files)}")
+    logger.info(f"User: {current_user.username}")
+
     # Get the dir to write to (Adding project ID)
     write_dir = os.path.join(GLOBAL_SGY_FILES_DIR, project_id)
 
     # Ensure the directory exists
     os.makedirs(write_dir, exist_ok=True)
+    logger.info(f"Write directory: {write_dir}")
+    
     try:
         result_files = []
 
@@ -113,27 +120,36 @@ async def upload_sgy_files_to_project_endpoint(
             try:
                 # Get original filename
                 original_filename = sgy_file.filename
+                logger.info(f"Processing file {i}: {original_filename}")
+                
                 if not original_filename:
+                    logger.warning(f"File {i} has no name, skipping")
                     continue  # Skip files with no name
 
                 # Assign the file a unique id
                 file_id = generate_time_based_uid()
+                logger.info(f"Generated file ID: {file_id}")
 
                 file_extension = original_filename.split('.')[-1] if '.' in original_filename else 'sgy'
                 unique_filename = f"{file_id}.{file_extension}"
                 file_path = os.path.join(write_dir, unique_filename)
+
+                logger.info(f"Saving file to: {file_path}")
 
                 # Save the file
                 async with aiofiles.open(file_path, 'wb') as f:
                     while chunk := await sgy_file.read(CHUNK_SIZE):
                         await f.write(chunk)
 
+                file_size = os.path.getsize(file_path)
+                logger.info(f"File saved successfully. Size: {file_size} bytes")
+
                 # Create SgyFileCreate object
                 sgy_file_create = SgyFileCreate(
                     id=file_id,
                     original_name=original_filename,
                     path=file_path,
-                    size=os.path.getsize(file_path),
+                    size=file_size,
                     type=file_extension.upper(),
                     project_id=project_id,
                     upload_date=datetime.now(),
@@ -141,6 +157,7 @@ async def upload_sgy_files_to_project_endpoint(
 
                 # Add it to the DB
                 db_sgy_file = create_sgy_file_info(db=db, sgy_file=sgy_file_create)
+                logger.info(f"File info saved to database with ID: {file_id}")
 
                 result_files.append({
                     "id": sgy_file_create.id,
@@ -150,21 +167,27 @@ async def upload_sgy_files_to_project_endpoint(
                     "upload_date": sgy_file_create.upload_date.isoformat(),
                     "file_type": sgy_file_create.type
                 })
-                print(f"Successfully saved file: {original_filename} to {file_path} with ID: {file_id}")
+                logger.info(f"Successfully processed file: {original_filename} with ID: {file_id}")
 
             except Exception as file_error:
-                print(f"Error processing file {sgy_file.filename}: {str(file_error)}")
+                logger.error(f"Error processing file {sgy_file.filename}: {str(file_error)}")
                 # Continue with other files
+                
         if not result_files:
+            logger.error("No files were successfully uploaded")
             raise HTTPException(status_code=400, detail="No files were successfully uploaded")
 
+        logger.info(f"=== Upload Complete ===")
+        logger.info(f"Successfully uploaded {len(result_files)} files")
+        
         return {
             "status": "success",
             "message": f"{len(result_files)} file(s) uploaded successfully",
             "file_infos": result_files
         }
     except Exception as e:
-        print(f"Error in upload_sgy_files_to_project: {str(e)}")
+        logger.error(f"=== Upload Error ===")
+        logger.error(f"Error in upload_sgy_files_to_project: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error uploading files: {str(e)}")
 
 

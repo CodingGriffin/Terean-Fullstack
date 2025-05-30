@@ -635,6 +635,11 @@ async def process_grids_from_input(
     current_user: User = Depends(get_current_user)
 ):
     check_permissions(current_user, 1)
+    logger.info("=== Process Grids START ===")
+    logger.info(f"Record options: {record_options}")
+    logger.info(f"Max slowness: {max_slowness}, Max frequency: {max_frequency}")
+    logger.info(f"Num slow points: {num_slow_points}, Num freq points: {num_freq_points}")
+    
     # Set default response data
     response_data = {
         "data": {
@@ -645,8 +650,12 @@ async def process_grids_from_input(
     # Parse geometry data to get geophone spacing as an average
     geometry_data = ast.literal_eval(geometry_data)
     record_options_list = json.loads(record_options)
+    logger.info(f"Number of record options: {len(record_options_list)}")
+    logger.info(f"Number of geometry points: {len(geometry_data)}")
+    
     geom_list = [np.array([x['x'], x['y'], x['z']]) for x in geometry_data]
     if len(record_options_list) <= 0 or len(geom_list) <= 0:
+        logger.warning("No record options or geometry data provided")
         return response_data
     distances = []
     for idx in range(len(geom_list) - 1):
@@ -654,19 +663,25 @@ async def process_grids_from_input(
 
     # TODO: Convert between feet and meters.
     geophone_spacing = float(np.average(distances))
+    logger.info(f"Calculated geophone spacing: {geophone_spacing}")
+    
     provided_freq_slow = False
-    for option in record_options_list:
+    for i, option in enumerate(record_options_list):
         file_id = option["id"]
+        logger.info(f"Processing file {i + 1}/{len(record_options_list)}, ID: {file_id}")
+        
         file_path_pattern = os.path.join(GLOBAL_SGY_FILES_DIR, f"{file_id}.*")
         matching_files = glob.glob(file_path_pattern)
+        logger.info(f"Searching for files matching pattern: {file_path_pattern}")
 
         if not matching_files:
-            print(f"File with ID {file_id} not found")
+            logger.error(f"File with ID {file_id} not found")
             continue
 
         file_path = matching_files[0]
         # file_name = os.path.basename(file_path)
         file_name = option["fileName"]
+        logger.info(f"Found file: {file_path}, using name: {file_name}")
 
         logger.debug(f"Temp file is {file_path}")
         stream_data = load_segy_segyio([file_path, ])
@@ -684,6 +699,7 @@ async def process_grids_from_input(
                 ratio_grids=True,
                 normalize_grids=True,
             ))
+        logger.info(f"Processing complete for {file_name}")
         logger.debug("LenFreq: ", freq_values.shape)
         logger.debug("LenSlow: ", p_values.shape)
         response_data["data"]["grids"].append({
@@ -701,6 +717,10 @@ async def process_grids_from_input(
                 "data": p_values.tolist(),
             }
             provided_freq_slow = True
+            logger.info("Added frequency and slowness data to response")
+            
+    logger.info(f"=== Process Grids Complete ===")
+    logger.info(f"Processed {len(response_data['data']['grids'])} grids successfully")
     return response_data
 
 # endregion

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, ChangeEvent } from "react";
 import { RecordOption, RecordUploadFile } from "../../../../types/record";
 import { Button } from "../../../../Components/Button/Button";
-import { generateRecordId } from "../../../../utils/record-util";
 import { FileControls } from "../../../../Components/FileControls/FileControls";
 
 interface AddRecordOptionsProps {
@@ -22,6 +21,7 @@ const AddRecordOptions: React.FC<AddRecordOptionsProps> = ({
 
   const [previewData, setPreviewData] = useState<RecordOption[]>([]);
   const [uploadfiles, setUploadFiles] = useState<RecordUploadFile[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   useEffect(() => {
     if (selectedRecord) {
@@ -32,24 +32,30 @@ const AddRecordOptions: React.FC<AddRecordOptionsProps> = ({
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
-    console.log("Files:", files)
-    console.log("File Attributes:", files[0])
-    let newRecordOptions:any = [];
-    let newUploadFiles:any = [];
-    Array.from(files).forEach(file => {
-      const id = mode === "edit" && selectedRecord ? selectedRecord.id : generateRecordId();
-      newRecordOptions.push({
-        id,
-        enabled: false,
-        weight: 100,
-        fileName:file.name,
-      })
-      newUploadFiles.push({
-        id,
-        file
-      })
-    });
+    
+    console.log('=== AddRecordOptions File Upload ===');
+    console.log("Files selected:", files);
+    console.log("File Attributes:", files[0]);
+    
+    const filesArray = Array.from(files);
+    setSelectedFiles(filesArray);
+    
+    // Create preview data without IDs (will be added by backend)
+    const newRecordOptions = filesArray.map(file => ({
+      id: '', // Temporary empty ID, will be filled by backend
+      enabled: false,
+      weight: 100,
+      fileName: file.name,
+    }));
+    
+    console.log('Preview record options:', newRecordOptions);
     setPreviewData(newRecordOptions);
+    
+    // Store files for upload
+    const newUploadFiles = filesArray.map(file => ({
+      id: '', // Temporary empty ID
+      file
+    }));
     setUploadFiles(newUploadFiles);
   };
 
@@ -98,9 +104,15 @@ const AddRecordOptions: React.FC<AddRecordOptionsProps> = ({
           Cancel
         </Button>
         <Button variant="primary" onClick={() => {
+          console.log('=== AddRecordOptions Submit ===');
+          console.log('Upload files:', uploadfiles);
+          console.log('Selected files:', selectedFiles);
+          
+          // Pass the actual files for upload
           onUploadFiles(uploadfiles);
-          onAddRecordOptions(previewData)
-          onClose()
+          // Pass empty record options that will be populated with backend IDs
+          onAddRecordOptions(previewData);
+          onClose();
         }}>
           {mode === "add" ? "Add" : "Save Changes"}
         </Button>
