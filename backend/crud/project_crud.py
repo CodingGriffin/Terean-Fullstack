@@ -1,4 +1,6 @@
+import datetime
 import json
+import logging
 
 from sqlalchemy.orm import Session
 from typing import List, Optional, Any, Type
@@ -8,9 +10,15 @@ from tereancore.utils import generate_time_based_uid
 from backend.models import SgyFileDBModel
 from backend.models.project_model import ProjectDBModel
 from backend.schemas.project_schema import ProjectCreate, Project
+from backend.utils.custom_types.Priority import Priority
+from backend.utils.custom_types.ProjectStatus import ProjectStatus
+
+logger = logging.getLogger(__name__)
 
 # Default values for project fields
 DEFAULT_PROJECT_NAME = "Untitled Project"
+DEFAULT_PROJECT_STATUS = ProjectStatus.not_started
+DEFAULT_PRIORITY = Priority.medium
 DEFAULT_GEOMETRY = []
 DEFAULT_RECORD_OPTIONS = []
 DEFAULT_PLOT_LIMITS = {
@@ -62,10 +70,17 @@ def get_projects(db: Session, skip: int = 0, limit: int = 100) -> list[Type[Proj
 def create_project(db: Session, project: ProjectCreate | Project) -> ProjectDBModel:
     # Convert to dict and replace None values with defaults
     project_data = project.model_dump()
+    logger.warning(project_data)
     
     # Apply defaults for None values
     if project_data.get("name") is None:
         project_data["name"] = DEFAULT_PROJECT_NAME
+    if project_data.get("status") is None:
+        project_data["status"] = DEFAULT_PROJECT_STATUS
+    if project_data.get("priority") is None:
+        project_data["priority"] = DEFAULT_PRIORITY
+    if project_data.get("received_date") is None:
+        project_data["received_date"] = datetime.datetime.now()
     if project_data.get("geometry") is None:
         project_data["geometry"] = json.dumps(DEFAULT_GEOMETRY)
     if project_data.get("record_options") is None:

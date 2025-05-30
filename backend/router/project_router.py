@@ -5,11 +5,12 @@ import aiofiles
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
+from pydantic import BaseModel
 
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc, not_
+from sqlalchemy import desc, asc, not_, func
 
 from backend.crud.project_crud import update_project, create_project, create_default_project, get_project, get_projects
 from backend.crud.file_crud import create_file_info, get_files_info_by_project, delete_file_info, get_file_info
@@ -415,7 +416,14 @@ class SortField(str, Enum):
     SURVEY_DATE = "survey_date"
     RECEIVED_DATE = "received_date"
 
-@project_router.get("/", response_model=List[Project])
+class ProjectListResponse(BaseModel):
+    items: List[Project]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+@project_router.get("/", response_model=ProjectListResponse)
 async def get_all_projects(
     skip: int = 0,
     limit: int = 100,
@@ -424,6 +432,10 @@ async def get_all_projects(
     priority: Optional[List[Priority]] = Query(None, description="Filter by project priority(ies)"),
     not_priority: Optional[List[Priority]] = Query(None, description="Filter out projects with these priority(ies)"),
     name_search: Optional[str] = None,
+    survey_date_start: Optional[datetime] = Query(None, description="Filter by survey date (inclusive)"),
+    survey_date_end: Optional[datetime] = Query(None, description="Filter by survey date (inclusive)"),
+    received_date_start: Optional[datetime] = Query(None, description="Filter by received date (inclusive)"),
+    received_date_end: Optional[datetime] = Query(None, description="Filter by received date (inclusive)"),
     sort_by: SortField = SortField.NAME,
     sort_order: SortOrder = SortOrder.ASC,
     db: Session = db_dependency,
@@ -441,6 +453,10 @@ async def get_all_projects(
     - priority: Filter by project priority(ies) (can provide multiple)
     - not_priority: Filter out projects with these priority(ies) (can provide multiple)
     - name_search: Search in project names (case-insensitive partial match)
+    - survey_date_start: Filter by survey date (inclusive)
+    - survey_date_end: Filter by survey date (inclusive)
+    - received_date_start: Filter by received date (inclusive)
+    - received_date_end: Filter by received date (inclusive)
     - sort_by: Field to sort by (name, status, priority, survey_date, received_date)
     - sort_order: Sort order (asc or desc)
     """
@@ -466,6 +482,19 @@ async def get_all_projects(
         if name_search:
             query = query.filter(ProjectDBModel.name.ilike(f"%{name_search}%"))
             
+        # Apply date range filters
+        if survey_date_start:
+            query = query.filter(ProjectDBModel.survey_date >= survey_date_start)
+        if survey_date_end:
+            query = query.filter(ProjectDBModel.survey_date <= survey_date_end)
+        if received_date_start:
+            query = query.filter(ProjectDBModel.received_date >= received_date_start)
+        if received_date_end:
+            query = query.filter(ProjectDBModel.received_date <= received_date_end)
+            
+        # Get total count before pagination
+        total = query.count()
+        
         # Apply sorting
         sort_column = getattr(ProjectDBModel, sort_by.value)
         if sort_order == SortOrder.DESC:
@@ -478,7 +507,18 @@ async def get_all_projects(
         
         # Execute query
         projects = query.all()
-        return [Project.from_db(project) for project in projects]
+        
+        # Calculate pagination info
+        page = (skip // limit) + 1
+        pages = (total + limit - 1) // limit  # Ceiling division
+        
+        return ProjectListResponse(
+            items=[Project.from_db(project) for project in projects],
+            total=total,
+            page=page,
+            size=limit,
+            pages=pages
+        )
         
     except Exception as e:
         logger.error(f"Error getting projects: {str(e)}")
@@ -503,6 +543,7 @@ async def create_new_project(
         # Generate project ID if not provided
         if not project_id:
             project_id = generate_time_based_uid()
+            logger.warning(f"Generated project ID: {project_id}")
             
         # Check if project with this ID already exists
         existing_project = get_project(db, project_id)
@@ -518,8 +559,12 @@ async def create_new_project(
         
         # Create project in database
         project_data = project.model_dump()
+        logger.warning(project_data)
         project_data["id"] = project_id
-        db_project = create_project(db=db, project=ProjectCreate(**project_data))
+        logger.warning(project_data)
+        project_create = Project(**project_data)
+        logger.warning(project_create)
+        db_project = create_project(db=db, project=project_create)
         
         return Project.from_db(db_project)
         
