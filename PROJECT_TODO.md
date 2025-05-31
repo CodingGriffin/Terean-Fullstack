@@ -213,19 +213,7 @@ These endpoints appear to have no frontend usage:
    - Orphaned files never cleaned up
    - Need periodic cleanup task
 
-2. **User Management UI**
-   - No frontend for user administration
-   - Currently requires direct DB access
-
-3. **Project Templates**
-   - No way to save/load project configurations
-   - Would improve user workflow
-
-4. **Batch Operations**
-   - No bulk delete/update for projects
-   - Inefficient for large datasets
-
-5. **Audit Trail**
+2. **Audit Trail**
    - No tracking of who changed what
    - Important for compliance
 
@@ -235,32 +223,14 @@ These endpoints appear to have no frontend usage:
    - HTML email hardcoded in Python
    - Should use template engine
 
-2. **File Preview**
-   - No way to preview SGY files before processing
-   - Would reduce user errors
-
-3. **Export Formats**
-   - Only PNG export for plots
-   - Users might want SVG, PDF
-
 ## 7. Refactoring Recommendations
 
 ### Immediate Actions
 
-1. **Remove Unused Code**
-   - Delete unused endpoints
-   - Remove commented code
-   - Clean up imports
-
-2. **Fix Security Issues**
-   - Validate all file paths
+1. **Fix Security Issues**
    - Restrict CORS
    - Add rate limiting
 
-3. **Standardize Error Handling**
-   - Create error middleware
-   - Use consistent logging
-   - Return proper error codes
 
 ### Short Term (1-2 weeks)
 
