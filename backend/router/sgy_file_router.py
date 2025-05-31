@@ -25,6 +25,7 @@ from backend.schemas.sgy_file_schema import SgyFile, SgyFileCreate
 from backend.schemas.user_schema import User
 from backend.utils.authentication import get_current_user, check_permissions
 from backend.utils.utils import CHUNK_SIZE, validate_id
+from backend.utils.streaming_utils import create_streaming_zip_response
 
 logger = logging.getLogger(__name__)
 sgy_file_router = APIRouter(prefix="/sgy-files", tags=["SEG-Y Files"])
@@ -263,6 +264,7 @@ async def download_sgy_files_for_project_endpoint(
     """
     Download all SEG-Y files for a specific project as a zip archive.
     Requires authentication and auth_level >= 1.
+    Uses streaming to handle large files efficiently.
     """
     check_permissions(current_user, 1)
 
@@ -274,29 +276,18 @@ async def download_sgy_files_for_project_endpoint(
         raise HTTPException(status_code=404, detail=err_string)
     logger.info(f"Found {len(sgy_files)} files for project {project_id}")
 
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
-
-    try:
-        with zipfile.ZipFile(temp_file, 'w') as zipf:
-            for sgy_file in sgy_files:
-                logger.info(f"Adding sgy file {sgy_file.path} to archive.")
-                if os.path.exists(sgy_file.path):
-                    zipf.write(sgy_file.path, arcname=sgy_file.original_name)
-
-        # Return the zip file as streaming response
-        return StreamingResponse(
-            open(temp_file.name, 'rb'),
-            media_type='application/zip',
-            headers={
-                'Content-Disposition': f'attachment; filename="project_{project_id}_records.zip"'
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error creating zip file: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error creating zip file: {str(e)}")
-    finally:
-        # Clean up the temporary file
-        try:
-            os.unlink(temp_file.name)
-        except Exception as e:
-            logger.error(f"Error cleaning up temporary file: {str(e)}")
+    # Prepare files for streaming zip
+    files_to_zip = []
+    for sgy_file in sgy_files:
+        if os.path.exists(sgy_file.path):
+            files_to_zip.append((sgy_file.path, sgy_file.original_name))
+        else:
+            logger.warning(f"File not found on disk: {sgy_file.path}")
+    
+    if not files_to_zip:
+        raise HTTPException(status_code=404, detail="No files found on disk")
+    
+    return await create_streaming_zip_response(
+        files_to_zip=files_to_zip,
+        filename=f"project_{project_id}_records.zip"
+    )

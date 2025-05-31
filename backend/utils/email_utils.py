@@ -7,6 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from os import PathLike
+from backend.utils.streaming_utils import create_email_attachment_stream
 
 logger = logging.getLogger("backend.utils.email_utils")
 
@@ -20,6 +21,7 @@ def send_email_gmail(
         body_html: str | None = None,
         attachments: list[str | PathLike] | None = None,
         from_name: str | None = None,
+        use_streaming: bool = True,
 ) -> None:
     """
     Sends an email with the specified subject, plain text body, HTML body, recipients, and optional attachments.
@@ -33,6 +35,7 @@ def send_email_gmail(
     :param bcc_recipients: List of BCC recipient email addresses (default is None).
     :param attachments: List of file paths to attach to the email (default is None).
     :param from_name: Name to use in the "From" field (default is None).
+    :param use_streaming: Whether to use streaming for large attachments (default is True).
     """
     smtpserver = smtplib.SMTP_SSL('smtp.gmail.com', 465)
     smtpserver.ehlo()
@@ -50,11 +53,19 @@ def send_email_gmail(
     if attachments:
         for file_path in attachments:
             if os.path.exists(file_path):
-                part = MIMEBase('application', 'octet-stream')
-                with open(file_path, 'rb') as attachment:
-                    part.set_payload(attachment.read())
-                encoders.encode_base64(part)
-                part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(file_path)}')
+                # Check file size to decide whether to use streaming
+                file_size = os.path.getsize(file_path)
+                # Use streaming for files larger than 10MB
+                if use_streaming and file_size > 10 * 1024 * 1024:
+                    logger.info(f"Using streaming for large attachment: {file_path} ({file_size} bytes)")
+                    part = create_email_attachment_stream(file_path)
+                else:
+                    # Original implementation for smaller files
+                    part = MIMEBase('application', 'octet-stream')
+                    with open(file_path, 'rb') as attachment:
+                        part.set_payload(attachment.read())
+                    encoders.encode_base64(part)
+                    part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(file_path)}')
                 msg.attach(part)
             else:
                 logger.warning(f"Attachment {file_path} not found and will be skipped.")
