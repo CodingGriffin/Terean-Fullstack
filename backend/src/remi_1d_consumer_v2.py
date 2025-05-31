@@ -110,6 +110,10 @@ def main():
                     user_name, user_phone, user_email = get_user_info(extracted_dir)
                     project_name = extract_project_name(extracted_dir)
                     max_freq, min_vel, spacing = make_for_processor_file(extracted_dir, return_limits=True)
+                    
+                    # Ensure spacing is a float
+                    if type(spacing) is not float:
+                        spacing = float(spacing)
 
                     # Get number of channels from one of the sgy files
                     save_dir = os.path.join(extracted_dir, "Save")
@@ -128,10 +132,13 @@ def main():
                         # Check if loaded spacing matches provided spacing
                         if sgy_data.geophone_spacing == spacing:
                             geometry = get_json_geometry_from_custom_stream(sgy_data)
+                            logger.info("Got geometry from sgy directly.")
                         else:
                             geometry = get_json_geometry_from_spacing_and_num_channels(
                                 spacing=spacing, num_channels=sgy_data.num_channels,
                             )
+                            logger.info("Got geometry from spacing and num_channels")
+                    logger.info(f"Using geometry:\n{geometry}")
 
                     # Handle numeric conversions with defaults
                     try:
@@ -148,12 +155,6 @@ def main():
                             f"Could not convert min_vel '{min_vel}' to float or calculate max_slow, using default 0.015")
                         max_slow = 0.015
 
-                    try:
-                        spacing_float = float(spacing)
-                    except (ValueError, TypeError):
-                        logger.warning(f"Could not convert spacing '{spacing}' to float, using default 4.5")
-                        spacing_float = 4.5
-
                     processor_zip_path = make_for_processor_zip(extracted_dir, processor_dir)
 
                     # Create project in backend
@@ -167,24 +168,21 @@ def main():
                             "name": project_name,
                             "status": ProjectStatus.not_started.value,
                             "priority": Priority.medium.value,
-                            # "received_date": datetime.now().isoformat(),
-                            # "plot_limits": json.dumps({
-                            #     "numFreq": 50,
-                            #     "maxFreq": max_freq_float,
-                            #     "numSlow": 50,
-                            #     "maxSlow": max_slow
-                            # }),
-                            # "geometry": geometry,
+                            "received_date": datetime.now().isoformat(),
+                            "plot_limits": json.dumps({
+                                "numFreq": 50,
+                                "maxFreq": max_freq_float,
+                                "numSlow": 50,
+                                "maxSlow": max_slow
+                            }),
+                            "geometry": geometry,
                         }
-
-                        # Prepare form data for multipart upload
-                        form_data = {
-                            'project_data': (None, json.dumps(project_data), 'application/json')
-                        }
-
-                        # Prepare files to upload
-                        files_to_upload = []
-
+                        
+                        # Prepare files to upload - start with project_data as a form field
+                        files_to_upload = [
+                            ('project_data', (None, json.dumps(project_data), 'text/plain'))
+                        ]
+                        
                         # Add SGY files from Save directory
                         save_dir = os.path.join(extracted_dir, "Save")
                         if os.path.exists(save_dir):
@@ -245,7 +243,6 @@ def main():
                             response = requests.post(
                                 create_url,
                                 headers=headers,
-                                data=form_data,
                                 files=files_to_upload,
                                 timeout=120  # 2 minute timeout for large file uploads
                             )
