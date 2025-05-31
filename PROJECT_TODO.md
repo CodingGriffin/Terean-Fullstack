@@ -6,9 +6,7 @@ This document contains findings from a comprehensive code review of the Terean f
 
 ### 🔴 Critical Issues (Immediate Action Required)
 1. **Security Vulnerabilities**
-   - Path traversal vulnerability in file handling
    - CORS set to allow all origins (`*`)
-   - No input validation on file paths
    - JWT tokens stored in localStorage (XSS vulnerable)
 
 2. **Data Loss Risk**
@@ -28,13 +26,11 @@ This document contains findings from a comprehensive code review of the Terean f
    - 700+ line component files
 
 3. **Missing Core Features**
-   - No admin UI despite admin endpoints
    - No test coverage
    - No proper logging/monitoring
 
 ### 🟢 Medium Priority (Address Within 1 Month)
 1. **Technical Debt**
-   - 9+ unused endpoints consuming maintenance effort
    - Duplicate code across file upload endpoints
    - Inconsistent error handling
 
@@ -44,7 +40,6 @@ This document contains findings from a comprehensive code review of the Terean f
    - Mixed coding patterns
 
 ### Quick Wins
-- Remove 9 unused endpoints
 - Enable TypeScript checking
 - Add rate limiting middleware
 - Extract file upload logic to shared utility
@@ -57,25 +52,25 @@ This document contains findings from a comprehensive code review of the Terean f
 ### Potentially Unused Endpoints
 These endpoints appear to have no frontend usage:
 
-2. **`GET /projects/{file_id}/sgy`** (`main.py:462`)
+1. **`GET /projects/{file_id}/sgy`** (`main.py:462`)
    - Downloads SGY files as zip
    - No frontend reference found
    - Path naming is confusing (uses `projects/` but parameter is `file_id`)
 
-3. **`GET /projects/{file_id}/raw_data`** (`main.py:491`)
+2. **`GET /projects/{file_id}/raw_data`** (`main.py:491`)
    - Downloads raw data zip
    - No frontend reference found
    - Same path confusion as above
 
-4. **`GET /projects/{file_id}/processor_zip`** (`main.py:504`)
+3. **`GET /projects/{file_id}/processor_zip`** (`main.py:504`)
    - Downloads processor-ready zip
    - No frontend reference found
 
-5. **`POST /generateResultsEmail`** (`main.py:519`)
+4. **`POST /generateResultsEmail`** (`main.py:519`)
    - Generates and sends email with velocity model results
    - Only used via the HTML form endpoint below
 
-6. **`GET /projects/{file_id}/results_email_form`** (`main.py:570`)
+5. **`GET /projects/{file_id}/results_email_form`** (`main.py:570`)
    - Returns raw HTML form for email generation
    - Not integrated with React frontend
 
@@ -92,11 +87,7 @@ These endpoints appear to have no frontend usage:
    - Should consistently use logger
    - Generic error messages hide actual problems
 
-3. **Missing Input Validation**
-   - `process2dS` endpoint accepts elevation Excel files without proper validation
-   - `contours` parameter validated but error not properly handled
-
-4. **Resource Leaks**
+3. **Resource Leaks**
    - Temporary files created but not always cleaned up (e.g., `main.py:217`)
    - Background tasks used inconsistently for cleanup
 
@@ -158,23 +149,19 @@ These endpoints appear to have no frontend usage:
 
 ## 4. Security Concerns
 
-1. **Path Traversal Vulnerability**
-   - No validation on file IDs before path construction
-   - Could allow access to arbitrary files
-
-2. **SQL Injection Risk**
+1. **SQL Injection Risk**
    - Raw string interpolation in some queries
    - Though SQLAlchemy provides some protection
 
-3. **Missing Rate Limiting**
+2. **Missing Rate Limiting**
    - No rate limiting on file uploads or processing endpoints
    - Could lead to DoS
 
-4. **Token Storage**
+3. **Token Storage**
    - JWT tokens stored in localStorage (XSS vulnerable)
    - Should consider httpOnly cookies
 
-5. **CORS Too Permissive**
+4. **CORS Too Permissive**
    - `allow_origins=["*"]` in production is dangerous
    - Should restrict to specific domains
 

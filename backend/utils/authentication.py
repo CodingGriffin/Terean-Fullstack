@@ -21,6 +21,7 @@ from backend.database import get_db
 from backend.models.user_model import UserDBModel
 from backend.schemas.user_schema import User as UserSchema
 
+logger = logging.getLogger(__name__)
 
 load_dotenv("backend/settings/.env", override=True)
 
@@ -28,7 +29,7 @@ load_dotenv("backend/settings/.env", override=True)
 SECRET_KEY = os.environ.get("SECRET_KEY")
 # SECRET_KEY = "M3wYVjqjYnJlrHcEDBnR5RunLQ_b7xsMrePSWwiccFQ"
 ALGORITHM = "HS256"
-print(f"Environ ACCESS_TOKEN_EXPIRE_MINUTES = {os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES")}")
+logger.info(f"Environ ACCESS_TOKEN_EXPIRE_MINUTES = {os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES')}")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES")) #240 # 4 hours
 REFRESH_TOKEN_EXPIRE_MINUTES = int(os.environ.get("REFRESH_TOKEN_EXPIRE_MINUTES")) #43200 # 30 days
 # TODO: Password salt needs to be moved to a .env file

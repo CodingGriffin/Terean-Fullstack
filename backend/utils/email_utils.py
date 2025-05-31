@@ -57,7 +57,7 @@ def send_email_gmail(
                 part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(file_path)}')
                 msg.attach(part)
             else:
-                print(f"Attachment {file_path} not found and will be skipped.")
+                logger.warning(f"Attachment {file_path} not found and will be skipped.")
 
     # Attach both plain text and HTML versions of the body
     # if body_plain:
@@ -65,7 +65,7 @@ def send_email_gmail(
     if body_html:
         msg.attach(MIMEText(body_html, 'html'))
     if not body_plain and not body_html:
-        print("No email body provided. Skipping.")
+        logger.warning("No email body provided. Skipping.")
         return
 
     if bcc_recipients is not None:
@@ -171,16 +171,6 @@ def generate_data_received_email(user_name, user_email, zip_uuid, base_url):
     processor_download_link = f"{base_url}/projects/{zip_uuid}/processor_zip"
     raw_data_download_link = f"{base_url}/projects/{zip_uuid}/raw_data"
     email_form_link = f"{base_url}/projects/{zip_uuid}/results_email_form"
-    # print(processor_download_link)
-    # print(raw_data_download_link)
-    # print(email_form_link)
-
-    # processor_download_link2 = urllib.parse.quote(f"{base_url}/projects/{zip_uuid}/processor_zip")
-    # raw_data_download_link2 = urllib.parse.quote(f"{base_url}/projects/{zip_uuid}/raw_data")
-    # email_form_link2 = urllib.parse.quote(f"{base_url}/projects/{zip_uuid}/results_email_form")
-    # print(processor_download_link2)
-    # print(raw_data_download_link2)
-    # print(email_form_link2)
 
     plain_text = f"""
     Data has been received from {user_name} at {user_email}.
