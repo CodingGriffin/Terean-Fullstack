@@ -5,7 +5,6 @@ from typing import Annotated
 import uuid
 import hashlib
 
-from dotenv import load_dotenv
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
 from jose import jwt, JWTError
@@ -20,20 +19,16 @@ if not hasattr(bcrypt, '__about__'):
 from database import get_db
 from models.user_model import UserDBModel
 from schemas.user_schema import User as UserSchema
+from config import settings
 
 logger = logging.getLogger(__name__)
 
-load_dotenv("backend/settings/.env", override=True)
-
 # Your JWT secret and algorithm
-SECRET_KEY = os.environ.get("SECRET_KEY")
-# SECRET_KEY = "M3wYVjqjYnJlrHcEDBnR5RunLQ_b7xsMrePSWwiccFQ"
-ALGORITHM = "HS256"
-logger.info(f"Environ ACCESS_TOKEN_EXPIRE_MINUTES = {os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES')}")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES")) #240 # 4 hours
-REFRESH_TOKEN_EXPIRE_MINUTES = int(os.environ.get("REFRESH_TOKEN_EXPIRE_MINUTES")) #43200 # 30 days
-# TODO: Password salt needs to be moved to a .env file
-SALT = os.environ.get("PASSWORD_SALT") #"adsefaestdfaADFDSVZXCWEsgfatgs"
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_MINUTES = settings.REFRESH_TOKEN_EXPIRE_MINUTES
+SALT = settings.PASSWORD_SALT
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

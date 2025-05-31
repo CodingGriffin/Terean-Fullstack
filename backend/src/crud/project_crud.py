@@ -1,11 +1,9 @@
 import datetime
 import json
 import logging
-
-from sqlalchemy.orm import Session
 from typing import List, Optional, Any, Type
 
-from tereancore.utils import generate_time_based_uid
+from sqlalchemy.orm import Session
 
 from models import SgyFileDBModel
 from models.project_model import ProjectDBModel

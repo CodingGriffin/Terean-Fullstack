@@ -2,29 +2,32 @@ import logging
 import os
 import sys
 import traceback
-import pika
-from dotenv import load_dotenv
 
+import pika
+
+from config import settings
 from utils.consumer_utils import write_zip_bytes, extract_zip_data, make_for_processor_file, \
     make_for_processor_zip, get_user_info
 from utils.email_utils import generate_request_received, send_email_gmail, generate_data_received_email
 
-logger = logging.getLogger("ReMi1dConsumer")
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s::%(lineno)d - %(levelname)s - %(message)s',
+    level=logging.INFO,
+)
+
+MQ_SAVE_DIR = settings.MQ_SAVE_DIR
+logger.info(f"SAVE DIRECTORY = {MQ_SAVE_DIR}")
 
 
 def main():
-    logging.basicConfig(
-        format='%(asctime)s - %(name)s::%(lineno)d - %(levelname)s - %(message)s',
-        level=logging.INFO,
-    )
-    load_dotenv("/settings/.env", override=True)
-    download_base_url = os.getenv("DOWNLOAD_BASE_URL")
-    mq_host_name = os.getenv("MQ_HOST_NAME")
-    mq_port = int(os.getenv("MQ_PORT"))
-    mq_virtual_host = os.getenv("MQ_VIRTUAL_HOST")
-    mq_user_name = os.getenv("MQ_USER_NAME")
-    mq_password = os.getenv("MQ_PASSWORD")
-    queue_name = os.getenv("MQ_QUEUE_NAME")
+    download_base_url = settings.DOWNLOAD_BASE_URL
+    mq_host_name = settings.MQ_HOST_NAME
+    mq_port = settings.MQ_PORT
+    mq_virtual_host = settings.MQ_VIRTUAL_HOST
+    mq_user_name = settings.MQ_USER_NAME
+    mq_password = settings.MQ_PASSWORD
+    queue_name = settings.MQ_QUEUE_NAME
 
     channel = None
     connection = None
@@ -51,7 +54,7 @@ def main():
                     method: pika.spec.Basic.Deliver,
                     properties: pika.spec.BasicProperties,
                     body: bytes,
-                    save_dir: str = os.getenv("MQ_SAVE_DIR")
+                    save_dir: str = MQ_SAVE_DIR
             ):
                 logger.info(f"Received a Message!")
                 logger.info(f"Channel is {ch} of type {type(ch)}")
@@ -65,6 +68,8 @@ def main():
 
                 plain_text, html_text = generate_request_received(user_name)
                 send_email_gmail(
+                    from_address=settings.GOOGLE_EMAIL,
+                    application_password=settings.GOOGLE_EMAIL_APP_PASSWORD,
                     subject="Request Received - 1dS Model Processing",
                     body_plain=plain_text,
                     body_html=html_text,
@@ -79,6 +84,8 @@ def main():
                     base_url=download_base_url,
                 )
                 send_email_gmail(
+                    from_address=settings.GOOGLE_EMAIL,
+                    application_password=settings.GOOGLE_EMAIL_APP_PASSWORD,
                     subject="Data Received for user " + user_name,
                     body_plain=None,
                     body_html=html_text,

@@ -1,37 +1,39 @@
 import json
 import logging
 import os
-import aiofiles
-from typing import List, Optional
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel
+from typing import List, Optional
 
+import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Query, Request, Form
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from sqlalchemy import desc, asc, not_
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc, not_, func
+from tereancore.utils import generate_time_based_uid
 
-from crud.project_crud import update_project, create_project, create_default_project, get_project, get_projects
+from config import settings
 from crud.file_crud import create_file_info, get_files_info_by_project, delete_file_info, get_file_info
+from crud.project_crud import update_project, create_project, get_project
 from crud.sgy_file_crud import create_sgy_file_info
 from database import get_db
 from models.project_model import ProjectDBModel
-from schemas.project_schema import ProjectCreate, Project
-from schemas.file_schema import FileCreate, FileSchema
-from schemas.sgy_file_schema import SgyFileCreate
-from schemas.user_schema import User
-from utils.authentication import get_current_user, check_permissions
-from utils.project_utils import init_project
-from utils.utils import CHUNK_SIZE, validate_id
-from tereancore.utils import generate_time_based_uid
 from schemas.additional_models import (
     DisperSettingsModel,
     OptionsModel,
     PickData
 )
-from utils.custom_types.ProjectStatus import ProjectStatus
+from schemas.file_schema import FileCreate, FileSchema
+from schemas.project_schema import ProjectCreate, Project
+from schemas.sgy_file_schema import SgyFileCreate
+from schemas.user_schema import User
+from utils.authentication import get_current_user, check_permissions
 from utils.custom_types.Priority import Priority
+from utils.custom_types.ProjectStatus import ProjectStatus
+from utils.project_utils import init_project
+from utils.streaming_utils import stream_file_in_chunks
+from utils.utils import CHUNK_SIZE, validate_id
 
 logger = logging.getLogger(__name__)
 project_router = APIRouter(prefix="/project", tags=["Project"])
@@ -40,7 +42,7 @@ project_router = APIRouter(prefix="/project", tags=["Project"])
 db_dependency = Depends(get_db)
 
 # Create a global directory for storing project files
-GLOBAL_DATA_DIR = os.getenv("MQ_SAVE_DIR", "data")
+GLOBAL_DATA_DIR = settings.MQ_SAVE_DIR
 GLOBAL_PROJECT_FILES_DIR = os.path.join(GLOBAL_DATA_DIR, "ProjectFiles")
 os.makedirs(GLOBAL_PROJECT_FILES_DIR, exist_ok=True)
 
@@ -672,9 +674,16 @@ async def create_new_project(
         
         # Handle SEG-Y file uploads
         if sgy_files:
-            # Create SGY files directory for the project
-            sgy_project_dir = os.path.join(os.getenv("MQ_SAVE_DIR", "data"), "SGYFiles", project_id)
-            os.makedirs(sgy_project_dir, exist_ok=True)
+            # First delete all SGY files in the project directory
+            sgy_project_dir = os.path.join(settings.MQ_SAVE_DIR, "SGYFiles", project_id)
+            
+            if os.path.exists(sgy_project_dir):
+                for filename in os.listdir(sgy_project_dir):
+                    file_path = os.path.join(sgy_project_dir, filename)
+                    try:
+                        os.remove(file_path)
+                    except Exception as e:
+                        logger.error(f"Error deleting SGY file {file_path}: {str(e)}")
             
             # Parse existing record_options from the project
             record_options = json.loads(project.record_options) if project.record_options else []

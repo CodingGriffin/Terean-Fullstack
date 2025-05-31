@@ -1,25 +1,24 @@
+import hashlib
 import logging
 import uuid
 from datetime import timedelta
 from typing import Annotated
 
-import hashlib
 from fastapi import Depends, HTTPException, APIRouter, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import JWTError
 from sqlalchemy.orm import Session
 from starlette import status
 from starlette.responses import JSONResponse
 
-from jose import JWTError
-from crud.user_crud import get_user_by_username, get_user_by_id, create_user, \
-    get_all_users
+from crud.user_crud import get_user_by_id
 from database import get_db
-from schemas.user_schema import UserCreate, User
-from schemas.auth_schema import UserPasswordChange
-from utils.authentication import decode_jwt, oauth2_scheme, authenticate_user, \
-    ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_MINUTES, create_access_token, verify_token, \
-    get_current_user, check_permissions, SECRET_KEY, ALGORITHM, verify_password, hash_password
 from models.user_model import UserDBModel
+from schemas.auth_schema import UserPasswordChange
+from schemas.user_schema import User
+from utils.authentication import decode_jwt, authenticate_user, \
+    ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_user, check_permissions, \
+    verify_password, hash_password
 
 logger = logging.getLogger(__name__)
 

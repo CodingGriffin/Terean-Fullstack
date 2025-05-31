@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
+
 from models.contact_model import ContactDBModel
 from schemas.contact_schema import ContactCreate
+
 
 def create_contact(
     db: Session,

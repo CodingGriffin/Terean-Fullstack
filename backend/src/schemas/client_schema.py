@@ -1,7 +1,9 @@
+from typing import List
+
 from pydantic import BaseModel
-from typing import Optional, List
 
 from schemas.contact_schema import Contact
+
 
 class ClientBase(BaseModel):
     name: str

@@ -1,34 +1,31 @@
 import ast
 import logging
 import os
-import json_fix
 from contextlib import asynccontextmanager
 from datetime import datetime
-
-import aiofiles
 # import pycuda.autoinit
 from typing import Annotated
 
-from dotenv import load_dotenv
+import aiofiles
+import json_fix
+from fastapi import FastAPI, Depends, UploadFile, File, Form, Response
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from fastapi import FastAPI, Depends, UploadFile, File, Form, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.models import HTTPBearer
+from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
-
 from tereancore.VelocityModel import VelocityModel
 
+from config import settings
 from crud.user_crud import get_user_by_username, create_user
 from database import engine, Base, get_db, SessionLocal
-from router.authentication import authentication_router
 from router.admin import admin_router
-from router.sgy_file_router import sgy_file_router
-from router.project_router import project_router
+from router.authentication import authentication_router
 from router.process_router import process_router
-from utils.authentication import check_permissions, get_current_user
+from router.project_router import project_router
+from router.sgy_file_router import sgy_file_router
 from schemas.user_schema import UserCreate, User
+from utils.authentication import check_permissions, get_current_user
 from utils.consumer_utils import get_user_info
 from utils.email_utils import generate_vs_surf_results, send_email_gmail
 from utils.utils import validate_id
@@ -36,12 +33,10 @@ from utils.utils import validate_id
 # Allows json to serialize objects using __json__
 json_fix.fix_it()
 
-load_dotenv("backend/settings/.env", override=True)
-logging.basicConfig(
-    format='%(asctime)s - %(name)s::%(lineno)d - %(levelname)s - %(message)s',
-    level=logging.INFO,
-)
+# Initialize routers
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+app = FastAPI()
 
 # Initialize / Update DB - Skip during testing
 # Check if we're running tests by looking for pytest in sys.modules
@@ -62,8 +57,8 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     
     db = SessionLocal()
-    raw_users = os.getenv("INITIAL_USERS")
-    if raw_users is not None:
+    raw_users = settings.INITIAL_USERS
+    if raw_users:
         initial_users = ast.literal_eval(raw_users)
         for initial_user in initial_users:
             # Ensure user has username and password
@@ -93,8 +88,6 @@ async def lifespan(app: FastAPI):
     logger.info("after")
 
 
-app = FastAPI(lifespan=lifespan)
-security = HTTPBearer()
 app.include_router(authentication_router)
 app.include_router(admin_router)
 app.include_router(sgy_file_router)
@@ -128,8 +121,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
-
-
 @app.post("/generateResultsEmail")
 async def generate_results_email(
     velocity_model: Annotated[UploadFile, File(...)],
@@ -144,7 +135,7 @@ async def generate_results_email(
     if not validate_id(file_id):
         raise HTTPException(status_code=400, detail="Invalid file ID")
     
-    data_dir = os.getenv("MQ_SAVE_DIR")
+    data_dir = settings.MQ_SAVE_DIR
     sent_results_dir = os.path.join(data_dir, "SentResults")
     final_results_dir = os.path.join(sent_results_dir, file_id, datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
     # Make folder in results dir
@@ -168,8 +159,8 @@ async def generate_results_email(
 
     plain_text, html_text = generate_vs_surf_results(client_name)
     send_email_gmail(
-        from_address=os.environ.get("YOUR_GOOGLE_EMAIL"),
-        application_password=os.environ.get("YOUR_GOOGLE_EMAIL_APP_PASSWORD"),
+        from_address=settings.GOOGLE_EMAIL,
+        application_password=settings.GOOGLE_EMAIL_APP_PASSWORD,
         subject="Your VsSurf 1dS® Results Are Ready!",
         body_plain=plain_text,
         body_html=html_text,
@@ -197,7 +188,7 @@ async def results_email_form(
     if not validate_id(file_id):
         raise HTTPException(status_code=400, detail="Invalid file ID")
     
-    data_dir = os.getenv("MQ_SAVE_DIR")
+    data_dir = settings.MQ_SAVE_DIR
 
     # Get user info
     extracted_dir = os.path.join(data_dir, "Extracted", file_id)

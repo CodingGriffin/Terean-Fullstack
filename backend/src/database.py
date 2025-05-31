@@ -1,10 +1,11 @@
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+from config import settings
+
 # Database URL from environment variable with fallback
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/sql_app.db")
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
 # For SQLite, we need special connection args
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):

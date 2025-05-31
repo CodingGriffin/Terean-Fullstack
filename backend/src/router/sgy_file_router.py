@@ -1,19 +1,15 @@
 import logging
 import os
-import aiofiles
-import tempfile
-import zipfile
-
-from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
-from sqlalchemy.orm import Session
-from typing import List
 from datetime import datetime
-from fastapi.responses import StreamingResponse
+from typing import List
 
+import aiofiles
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
 from tereancore.utils import generate_time_based_uid
 
-from database import get_db
+from config import settings
 from crud.sgy_file_crud import (
     get_sgy_file_info,
     get_sgy_files_info,
@@ -21,23 +17,26 @@ from crud.sgy_file_crud import (
     create_sgy_file_info,
     delete_sgy_file_info,
 )
+from database import get_db
 from schemas.sgy_file_schema import SgyFile, SgyFileCreate
 from schemas.user_schema import User
 from utils.authentication import get_current_user, check_permissions
-from utils.utils import CHUNK_SIZE, validate_id
 from utils.streaming_utils import create_streaming_zip_response
+from utils.utils import CHUNK_SIZE, validate_id
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 sgy_file_router = APIRouter(prefix="/sgy-files", tags=["SEG-Y Files"])
+
+app_router = APIRouter(prefix="/api/v1/projects/{project_id}/uploaded-files", tags=["SGY Files"])
+
+GLOBAL_DATA_DIR = settings.MQ_SAVE_DIR
+GLOBAL_SGY_FILES_DIR = os.path.join(GLOBAL_DATA_DIR, "SGYFiles")
+os.makedirs(GLOBAL_SGY_FILES_DIR, exist_ok=True)
 
 # Dependency
 db_dependency = Depends(get_db)
-
-# Create a global directory for storing SGY files
-load_dotenv("backend/settings/.env", override=True)
-GLOBAL_DATA_DIR = os.getenv("MQ_SAVE_DIR", "data")
-GLOBAL_SGY_FILES_DIR = os.path.join(GLOBAL_DATA_DIR, "SGYFiles")
-os.makedirs(GLOBAL_SGY_FILES_DIR, exist_ok=True)
 
 
 @sgy_file_router.get("/", response_model=List[SgyFile])
@@ -106,7 +105,7 @@ async def upload_sgy_files_to_project_endpoint(
     logger.info(f"Project ID: {project_id}")
     logger.info(f"Number of files: {len(files)}")
     logger.info(f"User: {current_user.username}")
-    
+
     # Validate project_id to prevent path traversal
     if not validate_id(project_id):
         raise HTTPException(status_code=400, detail="Invalid project ID")
@@ -117,7 +116,7 @@ async def upload_sgy_files_to_project_endpoint(
     # Ensure the directory exists
     os.makedirs(write_dir, exist_ok=True)
     logger.info(f"Write directory: {write_dir}")
-    
+
     try:
         result_files = []
 
@@ -126,7 +125,7 @@ async def upload_sgy_files_to_project_endpoint(
                 # Get original filename
                 original_filename = sgy_file.filename
                 logger.info(f"Processing file {i}: {original_filename}")
-                
+
                 if not original_filename:
                     logger.warning(f"File {i} has no name, skipping")
                     continue  # Skip files with no name
@@ -177,14 +176,14 @@ async def upload_sgy_files_to_project_endpoint(
             except Exception as file_error:
                 logger.error(f"Error processing file {sgy_file.filename}: {str(file_error)}")
                 # Continue with other files
-                
+
         if not result_files:
             logger.error("No files were successfully uploaded")
             raise HTTPException(status_code=400, detail="No files were successfully uploaded")
 
         logger.info(f"=== Upload Complete ===")
         logger.info(f"Successfully uploaded {len(result_files)} files")
-        
+
         return {
             "status": "success",
             "message": f"{len(result_files)} file(s) uploaded successfully",
@@ -255,6 +254,7 @@ async def download_sgy_file_endpoint(
         }
     )
 
+
 @sgy_file_router.get("/download_project_sgy/{project_id}", status_code=status.HTTP_200_OK)
 async def download_sgy_files_for_project_endpoint(
         project_id: str,
@@ -283,10 +283,10 @@ async def download_sgy_files_for_project_endpoint(
             files_to_zip.append((sgy_file.path, sgy_file.original_name))
         else:
             logger.warning(f"File not found on disk: {sgy_file.path}")
-    
+
     if not files_to_zip:
         raise HTTPException(status_code=404, detail="No files found on disk")
-    
+
     return await create_streaming_zip_response(
         files_to_zip=files_to_zip,
         filename=f"project_{project_id}_records.zip"

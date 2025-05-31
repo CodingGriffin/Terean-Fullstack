@@ -1,18 +1,16 @@
 import ast
 import glob
-import io
 import json
 import logging
 import os
 import tempfile
-from typing import Annotated, List
+from typing import Annotated
 
 import aiofiles
 import numpy as np
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Response, UploadFile
 from fastapi.responses import FileResponse
 from starlette.exceptions import HTTPException
-
 from tereancore.VelocityModel import VelocityModel
 from tereancore.plotting_utils import validate_contours, validate_unit_str, build_tick_dicts
 from tereancore.sgy_utils import load_segy_segyio, preprocess_streams
@@ -21,6 +19,7 @@ from tereancore.twods_utils import plot_2ds
 from tereancore.utils import lambda0, get_geom_func_from_excel, model_search_pattern
 from tereancore.vspect import vspect_stream
 
+from config import settings
 from schemas.user_schema import User as UserSchema
 from utils.authentication import check_permissions, get_current_user, require_auth_level
 from utils.utils import CHUNK_SIZE, get_fastapi_file_locally, validate_id
@@ -34,7 +33,7 @@ process_router = APIRouter(
 )
 
 # Create a global directory for storing SGY files
-GLOBAL_DATA_DIR = os.getenv("MQ_SAVE_DIR", "data")
+GLOBAL_DATA_DIR = settings.MQ_SAVE_DIR
 GLOBAL_SGY_FILES_DIR = os.path.join(GLOBAL_DATA_DIR, "SGYFiles")
 os.makedirs(GLOBAL_SGY_FILES_DIR, exist_ok=True)
 

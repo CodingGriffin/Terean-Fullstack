@@ -1,12 +1,12 @@
-from sqlalchemy import Enum, Column, Integer, String, Float, DateTime
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from utils.custom_types.Priority import Priority
-from utils.custom_types.ProjectStatus import ProjectStatus
+from sqlalchemy import Enum, String, DateTime
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
+from utils.custom_types.Priority import Priority
+from utils.custom_types.ProjectStatus import ProjectStatus
 
 if TYPE_CHECKING:
     from models.client_model import ClientDBModel

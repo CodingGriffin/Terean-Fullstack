@@ -3,11 +3,11 @@ from typing import Optional, List
 
 from pydantic import BaseModel
 
+from schemas.client_schema import Client
+from schemas.file_schema import FileBase
+from schemas.sgy_file_schema import SgyFileBase
 from utils.custom_types.Priority import Priority
 from utils.custom_types.ProjectStatus import ProjectStatus
-from schemas.client_schema import Client
-from schemas.sgy_file_schema import SgyFileBase
-from schemas.file_schema import FileBase
 
 
 class ProjectBase(BaseModel):

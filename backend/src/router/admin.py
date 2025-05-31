@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
 from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from database import get_db
 from models.user_model import UserDBModel
-from schemas.user_schema import UserCreate,User as UserSchema, UserUpdate, UserOut
+from schemas.user_schema import UserCreate, User as UserSchema, UserUpdate, UserOut
 from utils.authentication import hash_password, require_auth_level
 
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])

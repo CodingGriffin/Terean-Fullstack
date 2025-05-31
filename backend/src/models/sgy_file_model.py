@@ -1,9 +1,10 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from datetime import datetime
+
 from database import Base
 
 if TYPE_CHECKING:
