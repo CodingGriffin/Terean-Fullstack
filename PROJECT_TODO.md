@@ -11,11 +11,7 @@ This document contains findings from a comprehensive code review of the Terean f
    - No input validation on file paths
    - JWT tokens stored in localStorage (XSS vulnerable)
 
-2. **Non-Existent Endpoints**
-   - Frontend references 3 endpoints that don't exist in backend
-   - Will cause runtime errors when used
-
-3. **Data Loss Risk**
+2. **Data Loss Risk**
    - No database migrations system
    - No soft deletes
    - No backup strategy
@@ -61,10 +57,6 @@ This document contains findings from a comprehensive code review of the Terean f
 ### Potentially Unused Endpoints
 These endpoints appear to have no frontend usage:
 
-1. **`GET /items/`** (`main.py:151`)
-   - Test endpoint that just returns the token
-   - Should be removed
-
 2. **`GET /projects/{file_id}/sgy`** (`main.py:462`)
    - Downloads SGY files as zip
    - No frontend reference found
@@ -87,85 +79,6 @@ These endpoints appear to have no frontend usage:
    - Returns raw HTML form for email generation
    - Not integrated with React frontend
 
-7. **`POST /upload-sgy-with-id`** (`main.py:748`)
-   - Uploads SGY files with specified IDs
-   - Appears to be legacy - new upload uses auto-generated IDs
-
-8. **`DELETE /delete-sgy/{file_id}`** (`main.py:819`)
-   - Deletes SGY files
-   - No frontend implementation
-
-9. **`GET /file-info/{file_id}`** (`main.py:847`)
-   - Gets file info by ID
-   - Referenced in api.ts but no actual usage found
-
-### Non-Existent Backend Endpoints Referenced in Frontend
-
-These API functions exist in `frontend/src/services/api.ts` but have NO corresponding backend endpoints:
-
-1. **`processFrequencyWithSgy`** (`frontend/src/services/api.ts:44-56`)
-   ```typescript
-   export const processFrequencyWithSgy = async (
-       sgyFile: File,
-       maxFrequency: number,
-       numFreqPoints: number
-   ) => {
-       const formData = new FormData();
-       formData.append('sgy_file', sgyFile);
-       formData.append('max_frequency', maxFrequency.toString());
-       formData.append('num_freq_points', numFreqPoints.toString());
-       return api.post('/process/frequency_with_sgy', formData);
-   };
-   ```
-   - **Endpoint Called**: `POST /process/frequency_with_sgy`
-   - **Backend Status**: ❌ DOES NOT EXIST
-   - **Current Usage**: Not imported or used anywhere (yet)
-   - **Impact**: Will cause 404 error if called
-
-2. **`processFrequencyWithParams`** (`frontend/src/services/api.ts:58-72`)
-   ```typescript
-   export const processFrequencyWithParams = async (
-       nSamples: number,
-       sampleRate: number,
-       maxFrequency: number,
-       numFreqPoints: number
-   ) => {
-       const formData = new FormData();
-       formData.append('n_samples', nSamples.toString());
-       formData.append('sample_rate', sampleRate.toString());
-       formData.append('max_frequency', maxFrequency.toString());
-       formData.append('num_freq_points', numFreqPoints.toString());
-       return api.post('/process/frequency_with_params', formData);
-   };
-   ```
-   - **Endpoint Called**: `POST /process/frequency_with_params`
-   - **Backend Status**: ❌ DOES NOT EXIST
-   - **Current Usage**: Not imported or used anywhere (yet)
-   - **Impact**: Will cause 404 error if called
-
-3. **`processSlownessWithParams`** (`frontend/src/services/api.ts:74-84`)
-   ```typescript
-   export const processSlownessWithParams = async (
-       maxSlow: number,
-       numSlowPoints: number
-   ) => {
-       const formData = new FormData();
-       formData.append('max_slow', maxSlow.toString());
-       formData.append('num_slow_points', numSlowPoints.toString());
-       return api.post('/process/frequency_with_params', formData); // WRONG ENDPOINT!
-   };
-   ```
-   - **Endpoint Called**: `POST /process/frequency_with_params` ⚠️ (Copy-paste error!)
-   - **Backend Status**: ❌ DOES NOT EXIST
-   - **Should Call**: `/process/slowness_with_params` (also doesn't exist)
-   - **Current Usage**: Not imported or used anywhere (yet)
-   - **Impact**: Will cause 404 error if called, wrong endpoint name suggests copy-paste error
-
-### Missing Processing Endpoints from Documentation
-
-PROJECT_CONTEXT.md mentions these endpoints but they don't exist:
-- `POST /process/slownesses`
-- `POST /process/frequencies`
 
 ### Admin Endpoints Without Frontend
 
@@ -177,10 +90,6 @@ The admin router (`/admin/*`) has these endpoints with no frontend UI:
 - `PATCH /admin/disable_user/{username}` - Toggle user disabled status
 
 All require auth_level 3 (admin) but have no admin interface in the React app.
-
-### Endpoints with Inconsistent Naming
-- `/process2dP` and `/process2dS` - Only used in Quick2dPForm and Quick2dSForm components
-- These should follow REST conventions like `/process/2d-p` and `/process/2d-s`
 
 ## 2. Potential Bugs & Error-Prone Areas
 
@@ -592,48 +501,6 @@ All require auth_level 3 (admin) but have no admin interface in the React app.
    - Seed data scripts
    - Hot reloading for both frontend/backend
 
-### Additional Problematic Endpoint
-
-4. **`getFileInfo`** (`frontend/src/services/api.ts:196-204`)
-   ```typescript
-   export const getFileInfo = async (fileId: string) => {
-       try {
-           const response = await api.get(`/file-info/${fileId}`);
-           return response.data;
-       } catch (error) {
-           console.error("Error in getFileInfo:", error);
-           throw error;
-       }
-   };
-   ```
-   - **Endpoint Called**: `GET /file-info/{fileId}`
-   - **Backend Status**: ✅ EXISTS in `main.py:847`
-   - **Current Usage**: Defined but never imported/used
-   - **Issue**: Backend endpoint exists but is listed as unused/should be removed
-
-### Why This Is Critical
-
-1. **Dead Code Confusion**: Developers might try to use these functions thinking they work
-2. **Maintenance Burden**: Dead code that references non-existent endpoints
-3. **Copy-Paste Error**: `processSlownessWithParams` calls the wrong endpoint entirely
-4. **Future Bug Risk**: If someone imports and uses these functions, the app will break at runtime
-
-### Immediate Action Required
-
-1. **Option A**: Remove these unused functions from `api.ts`
-2. **Option B**: Implement the missing backend endpoints if they're needed
-3. **Fix**: Correct the endpoint URL in `processSlownessWithParams` if keeping it
-4. **Audit**: Check if any components plan to use these functions in the future
-
-### Missing Processing Endpoints from Documentation
-
-PROJECT_CONTEXT.md mentions these endpoints but they don't exist:
-- `POST /process/slownesses`
-- `POST /process/frequencies`
-
-PROJECT_CONTEXT.md mentions these endpoints but they don't exist:
-- `POST /process/slownesses`
-- `POST /process/frequencies`
 
 ### Admin Endpoints Without Frontend
 

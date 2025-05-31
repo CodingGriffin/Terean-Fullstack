@@ -247,13 +247,6 @@ aiofiles           # Async file operations
 - `GET /project/{project_id}/options` - Get project options (geometry, records, limits)
 - `POST /project/{project_id}/options` - Save project options
 
-### Additional Processing Endpoints
-- `POST /process/slownesses` - Process slowness data with form parameters
-- `POST /process/frequencies` - Process frequency data with form parameters
-  - Both endpoints accept: project_id, geometry_id, file_ids, test_mode flag
-  - Additional params for slownesses: v_min, v_max, v_step, aspect_ratio
-  - Additional params for frequencies: f_min, f_max, f_step
-
 ### Response Formats
 - Most endpoints return data directly: `{ field1: value1, ... }`
 - Process grids returns: `{ grids: [...], freq: {...}, slow: {...} }`
