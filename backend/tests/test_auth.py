@@ -7,8 +7,8 @@ from jose import jwt
 from fastapi import status
 
 from schemas.user_schema import UserCreate
-from crud.user_crud import create_user, authenticate_user
-from utils.authentication import verify_password, get_password_hash, create_access_token
+from crud.user_crud import create_user
+from utils.authentication import verify_password, hash_password, create_access_token, authenticate_user
 
 
 class TestPasswordHashing:
@@ -17,7 +17,7 @@ class TestPasswordHashing:
     def test_password_hash_verification(self):
         """Test that password hashing and verification works correctly."""
         password = "testpassword123"
-        hashed = get_password_hash(password)
+        hashed = hash_password(password)
         
         assert hashed != password
         assert verify_password(password, hashed)
@@ -26,9 +26,11 @@ class TestPasswordHashing:
     def test_same_password_different_hash(self):
         """Test that same password produces different hashes."""
         password = "testpassword123"
-        hash1 = get_password_hash(password)
-        hash2 = get_password_hash(password)
+        hash1 = hash_password(password)
+        hash2 = hash_password(password)
         
+        # With bcrypt, same password with same salt would produce same hash
+        # But bcrypt generates new salt each time, so hashes should be different
         assert hash1 != hash2
         assert verify_password(password, hash1)
         assert verify_password(password, hash2)
@@ -90,7 +92,7 @@ class TestUserAuthentication:
         create_user(db=test_db, user=user_data)
         
         # Authenticate
-        authenticated_user = authenticate_user(test_db, "authtest", "password123")
+        authenticated_user = authenticate_user("authtest", "password123", test_db)
         
         assert authenticated_user is not False
         assert authenticated_user.username == "authtest"
@@ -110,14 +112,14 @@ class TestUserAuthentication:
         create_user(db=test_db, user=user_data)
         
         # Try to authenticate with wrong password
-        result = authenticate_user(test_db, "authtest2", "wrongpassword")
+        result = authenticate_user("authtest2", "wrongpassword", test_db)
         
         assert result is False
     
     @pytest.mark.db
     def test_authenticate_nonexistent_user(self, test_db):
         """Test authentication of non-existent user."""
-        result = authenticate_user(test_db, "nonexistent", "password123")
+        result = authenticate_user("nonexistent", "password123", test_db)
         assert result is False
     
     @pytest.mark.db
@@ -134,7 +136,7 @@ class TestUserAuthentication:
         create_user(db=test_db, user=user_data)
         
         # Try to authenticate
-        result = authenticate_user(test_db, "disableduser", "password123")
+        result = authenticate_user("disableduser", "password123", test_db)
         
         # Should still return user object, disabled check happens elsewhere
         assert result is not False

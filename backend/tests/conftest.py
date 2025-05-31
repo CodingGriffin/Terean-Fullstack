@@ -3,11 +3,23 @@ Pytest configuration and shared fixtures for all tests.
 """
 import os
 import sys
-import pytest
+
+# Set up test environment variables before importing modules that use them
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["SECRET_KEY"] = "test-secret-key-for-jwt"
+os.environ["ALGORITHM"] = "HS256"
+os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "30"
+os.environ["REFRESH_TOKEN_EXPIRE_MINUTES"] = "43200"
+os.environ["PASSWORD_SALT"] = "test-salt-for-passwords"
+os.environ["MQ_SAVE_DIR"] = "/tmp/test_data"
+os.environ["YOUR_GOOGLE_EMAIL"] = "test@gmail.com"
+os.environ["YOUR_GOOGLE_EMAIL_APP_PASSWORD"] = "test_password"
+
 import tempfile
-from typing import Generator
 from datetime import datetime, timedelta
-from pathlib import Path
+from typing import Generator
+
+import pytest
 
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -20,14 +32,8 @@ from sqlalchemy.pool import StaticPool
 from database import Base, get_db
 from main import app
 from models.user_model import UserDBModel
-from models.project_model import ProjectDBModel
-from models.sgy_file_model import SgyFileDBModel
-from models.file_model import FileDBModel
-from models.client_model import ClientDBModel
-from models.contact_model import ContactDBModel
 from crud.user_crud import create_user
 from schemas.user_schema import UserCreate
-from utils.authentication import get_password_hash
 
 
 # Test database setup
@@ -41,12 +47,12 @@ def test_db():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    testing_session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     
     # Create tables
     Base.metadata.create_all(bind=engine)
     
-    db = TestingSessionLocal()
+    db = testing_session_local()
     try:
         yield db
     finally:
@@ -142,12 +148,15 @@ def temp_dir():
 def mock_env_vars(monkeypatch):
     """Mock environment variables for testing."""
     env_vars = {
+        "DATABASE_URL": "sqlite:///:memory:",
         "MQ_SAVE_DIR": "/tmp/test_data",
         "YOUR_GOOGLE_EMAIL": "test@gmail.com",
         "YOUR_GOOGLE_EMAIL_APP_PASSWORD": "test_password",
         "SECRET_KEY": "test-secret-key-for-jwt",
         "ALGORITHM": "HS256",
         "ACCESS_TOKEN_EXPIRE_MINUTES": "30",
+        "REFRESH_TOKEN_EXPIRE_MINUTES": "43200",
+        "PASSWORD_SALT": "test-salt-for-passwords",
     }
     for key, value in env_vars.items():
         monkeypatch.setenv(key, value)

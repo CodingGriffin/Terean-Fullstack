@@ -43,8 +43,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize / Update DB
-Base.metadata.create_all(bind=engine)
+# Initialize / Update DB - Skip during testing
+# Check if we're running tests by looking for pytest in sys.modules
+import sys
+if "pytest" not in sys.modules:
+    Base.metadata.create_all(bind=engine)
 
 
 def init_users_from_env():
@@ -54,6 +57,10 @@ def init_users_from_env():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("before")
+    
+    # Initialize / Update DB tables
+    Base.metadata.create_all(bind=engine)
+    
     db = SessionLocal()
     raw_users = os.getenv("INITIAL_USERS")
     if raw_users is not None:
@@ -81,6 +88,7 @@ async def lifespan(app: FastAPI):
                 logger.info(f"created user {new_user.username}: {res}")
             else:
                 logger.info(f"user {initial_user['username']} already exists")
+    db.close()
     yield
     logger.info("after")
 

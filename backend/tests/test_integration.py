@@ -3,7 +3,6 @@ Integration tests for the backend application.
 """
 import pytest
 import os
-import json
 from datetime import datetime, timedelta
 from fastapi import status
 
