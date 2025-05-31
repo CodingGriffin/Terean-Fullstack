@@ -89,11 +89,11 @@ export default function Navbar() {
             userData={userData}
           />
 
-          {/* Admin Dashboard link, accessible to admin users with auth level of 3 or higher */}
+          {/* Admin Dashboard link, accessible to admin users with auth level of 4 or higher */}
           <NavbarItem
             url={"/admin"}
             name={"Admin"}
-            authRequired={3}
+            authRequired={4}
             userData={userData}
           />
           <NavbarItem

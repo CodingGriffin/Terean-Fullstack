@@ -79,18 +79,6 @@ These endpoints appear to have no frontend usage:
    - Returns raw HTML form for email generation
    - Not integrated with React frontend
 
-
-### Admin Endpoints Without Frontend
-
-The admin router (`/admin/*`) has these endpoints with no frontend UI:
-- `GET /admin/users` - Get all users
-- `GET /admin/users/{username}` - Get specific user
-- `POST /admin/register_user` - Create new user
-- `PUT /admin/users/{username}` - Update user
-- `PATCH /admin/disable_user/{username}` - Toggle user disabled status
-
-All require auth_level 3 (admin) but have no admin interface in the React app.
-
 ## 2. Potential Bugs & Error-Prone Areas
 
 ### Backend Issues

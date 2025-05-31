@@ -11,7 +11,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const fetchUsers = async () => {
-      if (!userData || userData.auth_level < 3) {
+      if (!userData || userData.auth_level < 4) {
         navigate("/login");
         return;
       }

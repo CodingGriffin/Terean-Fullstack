@@ -22,7 +22,7 @@ class DisableUserRequest(BaseModel):
 @admin_router.get("/users", response_model=List[UserOut])
 def get_all_users(
     db: Session = db_dependency,
-    current_user: UserSchema = Depends(require_auth_level(3))
+    current_user: UserSchema = Depends(require_auth_level(4))
 ):
     return db.query(UserDBModel).all()
 
@@ -32,7 +32,7 @@ def get_all_users(
 def get_user(
     username: str, 
     db: Session = db_dependency,
-    current_user: UserSchema = Depends(require_auth_level(3))
+    current_user: UserSchema = Depends(require_auth_level(4))
 ):
 
     user = db.query(UserDBModel).filter(UserDBModel.username == username).first()
@@ -46,7 +46,7 @@ def get_user(
 def create_user(
     user: UserCreate, 
     db: Session = db_dependency,
-    current_user: UserSchema = Depends(require_auth_level(3))
+    current_user: UserSchema = Depends(require_auth_level(4))
 ):
    
     db_user = db.query(UserDBModel).filter(UserDBModel.username == user.username).first()
@@ -78,7 +78,7 @@ def update_user(
     username: str, 
     updates: UserUpdate, 
     db: Session = db_dependency,
-    current_user : UserSchema = Depends(require_auth_level(3))
+    current_user : UserSchema = Depends(require_auth_level(4))
 ):
     user = db.query(UserDBModel).filter(UserDBModel.username == username).first()
     if not user:
@@ -98,7 +98,7 @@ def update_user_disabled_status(
     username: str, 
     payload: DisableUserRequest, 
     db: Session = db_dependency,
-    current_user: UserSchema = Depends(require_auth_level(3))
+    current_user: UserSchema = Depends(require_auth_level(4))
 ):
     user = db.query(UserDBModel).filter(UserDBModel.username == username).first()
     if not user:

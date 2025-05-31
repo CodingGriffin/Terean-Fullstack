@@ -10,7 +10,7 @@ export default function CreateUser() {
   const handleCreate = async (data: UserFormData) => {
     
     
-    if (!userData || userData.auth_level < 3) {
+    if (!userData || userData.auth_level < 4) {
       console.log("You do not have permission to create users.");
       return;
     }

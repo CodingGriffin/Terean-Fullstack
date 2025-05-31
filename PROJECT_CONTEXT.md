@@ -170,13 +170,41 @@ YOUR_GOOGLE_EMAIL_APP_PASSWORD
   ```
 
 ### Auth Levels
-- Permission levels checked with `check_permissions(user, level)`
-- Higher auth_level = more permissions
-- Auth endpoints:
-  - `POST /token` - Login
-  - `POST /refresh-token` - Refresh access token
-  - `GET /users/me` - Get current user
-  - `PUT /change-password` - Change password
+The application uses a hierarchical permission system based on `auth_level`:
+
+- **auth_level 0**: Guest/Unauthenticated users
+  - No access to protected endpoints
+  - Default level for users without valid tokens
+  
+- **auth_level 1**: Basic authenticated users
+  - Access to profile page
+  - Can use Quick 2dS and Quick 2dP tools
+  - Can view projects and SGY files
+  
+- **auth_level 2**: Standard users
+  - All permissions of auth_level 1
+  - Access to project management features
+  - Can create, edit, and manage projects
+  - Access to picks and dispersion analysis tools
+  
+- **auth_level 3**: Beta/Automated users (Reserved)
+  - All permissions of auth_level 2
+  - Reserved for beta testers and automated service accounts
+  - May have access to experimental features
+  
+- **auth_level 4**: Admin users
+  - All permissions of lower levels
+  - Access to admin dashboard at `/admin`
+  - Can create, update, and disable users
+  - Full system administration capabilities
+
+Permission checks use `check_permissions(user, level)` which verifies the user has at least the required auth_level.
+
+### Auth Endpoints
+- `POST /token` - Login
+- `POST /refresh-token` - Refresh access token
+- `GET /users/me` - Get current user
+- `PUT /change-password` - Change password
 
 ## Redux State Management
 
