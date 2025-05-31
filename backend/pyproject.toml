@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "terean-backend"
+version = "0.1.0"
+description = "Terean Backend API"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "tereancore>=2025.4.24",
+    "aiofiles",
+    "bcrypt",
+    "cffi",
+    "fastapi[standard]",
+    "glob2",
+    "json-fix",
+    "matplotlib",
+    "openpyxl",
+    "pandas",
+    "passlib",
+    "pyjwt",
+    "python-jose",
+    "python-multipart",
+    "python3-pika",
+    "segyio",
+    "scipy",
+    "SQLAlchemy",
+    "tqdm",
+    "uvicorn",
+]
+
+[[project.source]]
+name = "terean-pypi"
+url = "https://dbarnes-terean.github.io/terean-pypi/"
+priority = "supplemental"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "black",
+    "isort",
+    "flake8",
+    "mypy",
+]
+
+[tool.setuptools]
+package-dir = {"": "src"}
+packages = ["crud", "models", "router", "schemas", "settings", "utils"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+mypy_path = "src"
+
+[tool.black]
+line-length = 100
+target-version = ["py38"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+src_paths = ["src", "tests"] 
