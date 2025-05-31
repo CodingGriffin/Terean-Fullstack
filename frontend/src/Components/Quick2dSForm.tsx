@@ -654,7 +654,7 @@ const Quick2dSForm = () => {
     try {
       console.log(formData);
       axios
-        .post(`${backendUrl}process2dS`, formData, config)
+        .post(`${backendUrl}process/2d-s`, formData, config)
         .catch((error) => {
           console.log("Error occurred on form post.");
           console.log(error);

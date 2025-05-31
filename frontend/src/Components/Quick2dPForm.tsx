@@ -354,7 +354,7 @@ const Quick2dPForm = () => {
     try {
       console.log(formData);
       axios
-        .post(`${backendUrl}process2dP`, formData, config)
+        .post(`${backendUrl}process/2d-p`, formData, config)
         .catch((error) => {
           console.log("Error occurred on form post.");
           console.log(error);

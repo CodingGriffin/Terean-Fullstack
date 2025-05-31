@@ -152,16 +152,6 @@ export const uploadSgyFilesToProject = async (files: File[], projectId: string) 
   }
 };
 
-export const getFileInfo = async (fileId: string) => {
-    try {
-        const response = await api.get(`/file-info/${fileId}`);
-        return response.data;
-    } catch (error) {
-        console.error("Error in getFileInfo:", error);
-        throw error;
-    }
-};
-
 export const getAllProjects = async (params: {
   skip?: number;
   limit?: number;
