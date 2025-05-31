@@ -23,7 +23,7 @@ from backend.schemas.sgy_file_schema import SgyFileCreate
 from backend.schemas.user_schema import User
 from backend.utils.authentication import get_current_user, check_permissions
 from backend.utils.project_utils import init_project
-from backend.utils.utils import CHUNK_SIZE
+from backend.utils.utils import CHUNK_SIZE, validate_id
 from tereancore.utils import generate_time_based_uid
 from backend.schemas.additional_models import (
     DisperSettingsModel,
@@ -182,6 +182,10 @@ async def upload_files_to_project(
     Requires authentication.
     """
     check_permissions(current_user, 1)
+    
+    # Validate project_id to prevent path traversal
+    if not validate_id(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID")
 
     # Get the dir to write to (Adding project ID)
     write_dir = os.path.join(GLOBAL_PROJECT_FILES_DIR, project_id)
@@ -553,6 +557,10 @@ async def create_new_project_json(
         if not project_id:
             project_id = generate_time_based_uid()
             logger.info(f"Generated project ID: {project_id}")
+        else:
+            # Validate provided project_id to prevent path traversal
+            if not validate_id(project_id):
+                raise HTTPException(status_code=400, detail="Invalid project ID format")
             
         # Check if project with this ID already exists
         existing_project = get_project(db, project_id)
@@ -639,6 +647,10 @@ async def create_new_project(
         if not project_id:
             project_id = generate_time_based_uid()
             logger.warning(f"Generated project ID: {project_id}")
+        else:
+            # Validate provided project_id to prevent path traversal
+            if not validate_id(project_id):
+                raise HTTPException(status_code=400, detail="Invalid project ID format")
             
         # Check if project with this ID already exists
         existing_project = get_project(db, project_id)

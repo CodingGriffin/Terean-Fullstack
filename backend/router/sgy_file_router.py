@@ -24,7 +24,7 @@ from backend.crud.sgy_file_crud import (
 from backend.schemas.sgy_file_schema import SgyFile, SgyFileCreate
 from backend.schemas.user_schema import User
 from backend.utils.authentication import get_current_user, check_permissions
-from backend.utils.utils import CHUNK_SIZE
+from backend.utils.utils import CHUNK_SIZE, validate_id
 
 logger = logging.getLogger(__name__)
 sgy_file_router = APIRouter(prefix="/sgy-files", tags=["SEG-Y Files"])
@@ -105,6 +105,10 @@ async def upload_sgy_files_to_project_endpoint(
     logger.info(f"Project ID: {project_id}")
     logger.info(f"Number of files: {len(files)}")
     logger.info(f"User: {current_user.username}")
+    
+    # Validate project_id to prevent path traversal
+    if not validate_id(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID")
 
     # Get the dir to write to (Adding project ID)
     write_dir = os.path.join(GLOBAL_SGY_FILES_DIR, project_id)

@@ -52,7 +52,7 @@ from backend.utils.authentication import oauth2_scheme
 from backend.utils.consumer_utils import get_user_info
 from backend.utils.email_utils import generate_vs_surf_results, send_email_gmail
 from backend.utils.project_utils import init_project
-from backend.utils.utils import CHUNK_SIZE, get_fastapi_file_locally
+from backend.utils.utils import CHUNK_SIZE, get_fastapi_file_locally, validate_id
 from backend.schemas.user_schema import User as UserSchema
 
 # Allows json to serialize objects using __json__
@@ -149,8 +149,18 @@ async def download_file(
     current_user: User = Depends(get_current_user)
 ):
     check_permissions(current_user, 1)
+    
+    # Validate file_id to prevent path traversal
+    if not validate_id(file_id):
+        raise HTTPException(status_code=400, detail="Invalid file ID")
+    
     data_dir = os.getenv("MQ_SAVE_DIR")
     sgy_dir = os.path.join(data_dir, "Extracted", file_id, "Save")
+    
+    # Check if directory exists
+    if not os.path.exists(sgy_dir):
+        raise HTTPException(status_code=404, detail="File not found")
+    
     sgy_files = [x for x in os.listdir(sgy_dir) if x.endswith(".sgy")]
     # Get sgy files
     zip_io = io.BytesIO()
@@ -176,10 +186,20 @@ async def download_raw_data(
     current_user: User = Depends(get_current_user)
 ):
     check_permissions(current_user, 1)
+    
+    # Validate file_id to prevent path traversal
+    if not validate_id(file_id):
+        raise HTTPException(status_code=400, detail="Invalid file ID")
+    
     data_dir = os.getenv("MQ_SAVE_DIR")
-    file_path = f"{data_dir}/Zips/{file_id}.zip"
+    file_path = os.path.join(data_dir, "Zips", f"{file_id}.zip")
+    
+    # Check if file exists
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    
     return FileResponse(
-        path=f"{file_path}",
+        path=file_path,
         filename=f"{file_id}_raw.zip",
         media_type="application/zip",
     )
@@ -191,10 +211,20 @@ async def download_processor_zip(
     current_user: User = Depends(get_current_user)
 ):
     check_permissions(current_user, 1)
+    
+    # Validate file_id to prevent path traversal
+    if not validate_id(file_id):
+        raise HTTPException(status_code=400, detail="Invalid file ID")
+    
     data_dir = os.getenv("MQ_SAVE_DIR")
-    file_path = f"{data_dir}/ProcessorReady/{file_id}.zip"
+    file_path = os.path.join(data_dir, "ProcessorReady", f"{file_id}.zip")
+    
+    # Check if file exists
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    
     return FileResponse(
-        path=f"{file_path}",
+        path=file_path,
         filename=f"{file_id}_processor.zip",
         media_type="application/zip",
     )
@@ -209,6 +239,11 @@ async def generate_results_email(
     current_user: User = Depends(get_current_user)
 ):
     check_permissions(current_user, 1)
+    
+    # Validate file_id to prevent path traversal
+    if not validate_id(file_id):
+        raise HTTPException(status_code=400, detail="Invalid file ID")
+    
     data_dir = os.getenv("MQ_SAVE_DIR")
     sent_results_dir = os.path.join(data_dir, "SentResults")
     final_results_dir = os.path.join(sent_results_dir, file_id, datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
@@ -257,6 +292,11 @@ async def results_email_form(
     current_user: User = Depends(get_current_user)
 ):
     check_permissions(current_user, 1)
+    
+    # Validate file_id to prevent path traversal
+    if not validate_id(file_id):
+        raise HTTPException(status_code=400, detail="Invalid file ID")
+    
     data_dir = os.getenv("MQ_SAVE_DIR")
 
     # Get user info

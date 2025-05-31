@@ -57,10 +57,10 @@ def main():
                 logger.info(f"Channel is {ch} of type {type(ch)}")
                 logger.info(f"Method is {method} of type {type(method)}")
                 logger.info(f"Properties is {properties} of type {type(properties)}")
-                zip_path, zip_uuid = write_zip_bytes(body, save_dir + "Zips/")
-                extracted_dir = extract_zip_data(zip_path, save_dir + "Extracted/")
+                zip_path, zip_uuid = write_zip_bytes(body, os.path.join(save_dir, "Zips"))
+                extracted_dir = extract_zip_data(zip_path, os.path.join(save_dir, "Extracted"))
                 make_for_processor_file(extracted_dir)
-                processor_zip_path = make_for_processor_zip(extracted_dir, os.path.join(save_dir + "ProcessorReady/"))
+                processor_zip_path = make_for_processor_zip(extracted_dir, os.path.join(save_dir, "ProcessorReady"))
                 user_name, user_phone, user_email = get_user_info(extracted_dir)
 
                 plain_text, html_text = generate_request_received(user_name)

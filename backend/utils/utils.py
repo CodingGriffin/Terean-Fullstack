@@ -1,5 +1,6 @@
 import os
 
+import re
 import aiofiles
 import logging
 import tempfile
@@ -10,10 +11,11 @@ logger = logging.getLogger("backend.utils.utils")
 
 CHUNK_SIZE = 1024 * 1024  # adjust the chunk size as desired
 
+
 async def get_fastapi_file_locally(
-        background_tasks: BackgroundTasks | None,
-        file_data: UploadFile,
-        extension: Union[None, str] = None
+    background_tasks: BackgroundTasks | None,
+    file_data: UploadFile,
+    extension: Union[None, str] = None
 ) -> Union[tuple[int, str, str], Exception]:
     """
     Caches a file locally - used for reading moderately sized files efficiently.
@@ -62,3 +64,41 @@ async def cache_multi_segy(upload_files, background_tasks: BackgroundTasks):
         file_descriptor, file_path, extension = local_result
         temp_file_paths.append(file_path)
     return temp_file_paths
+
+
+_ID_RE_UNDERSCORE_HYPHEN = re.compile(r'^[a-zA-Z0-9_-]+$')
+_ID_RE_NO_UNDERSCORE_HYPHEN = re.compile(r'^[a-zA-Z0-9]+$')
+
+
+def validate_id(test_id: str, allow_hyphen_underscore: bool = True) -> bool:
+    """
+    Validates a file or project ID to prevent path traversal attacks.
+    
+    A valid ID should:
+    - Not be empty
+    - Not contain path separators (/, \)
+    - Not contain parent directory references (..)
+    - Not start with a dot (hidden files)
+    - Only contain alphanumeric characters, hyphens, and underscores
+    
+    :param test_id: The file ID to validate
+    :param allow_hyphen_underscore: Default true. Whether to allow hyphens and underscores.
+    :return: True if valid, False otherwise
+    """
+    if not test_id:
+        return False
+
+    # Check for path traversal attempts
+    if any(char in test_id for char in ['/', '\\', '..']):
+        return False
+
+    # Don't allow hidden files
+    if test_id.startswith('.'):
+        return False
+
+    # Match depending on whether to allow underscores and hyphens, using precompiled regex
+    if allow_hyphen_underscore:
+        matched = _ID_RE_UNDERSCORE_HYPHEN.match(test_id)
+    else:
+        matched = _ID_RE_NO_UNDERSCORE_HYPHEN.match(test_id)
+    return matched is not None

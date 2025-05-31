@@ -23,7 +23,7 @@ from tereancore.vspect import vspect_stream
 
 from backend.schemas.user_schema import User as UserSchema
 from backend.utils.authentication import check_permissions, get_current_user, require_auth_level
-from backend.utils.utils import CHUNK_SIZE, get_fastapi_file_locally
+from backend.utils.utils import CHUNK_SIZE, get_fastapi_file_locally, validate_id
 
 logger = logging.getLogger(__name__)
 
@@ -397,6 +397,11 @@ async def process_grids_from_input(
     for i, option in enumerate(record_options_list):
         file_id = option["id"]
         logger.info(f"Processing file {i + 1}/{len(record_options_list)}, ID: {file_id}")
+        
+        # Validate file_id to prevent path traversal
+        if not validate_id(file_id):
+            logger.error(f"Invalid file ID: {file_id}")
+            continue
         
         # Look for files in both project-specific directory and global directory
         if project_id:

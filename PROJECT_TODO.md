@@ -83,29 +83,20 @@ These endpoints appear to have no frontend usage:
 
 ### Backend Issues
 
-1. **File Path Security Issues**
-   - `main.py:680-709` - File path construction uses string concatenation
-   - No validation of file IDs to prevent path traversal attacks
-   - Example: `file_path = os.path.join(GLOBAL_SGY_FILES_DIR, f"{file_id}.*")`
-
-2. **Mixed Path Separators (Windows)**
-   - Multiple places use `os.path.join()` but then concatenate strings
-   - Can cause issues on Windows with mixed `/` and `\`
-
-3. **Database Transaction Issues**
+1. **Database Transaction Issues**
    - `project_router.py:730` - Updates project in DB within file upload loop
    - Should use single transaction for atomicity
 
-4. **Error Handling Inconsistencies**
+2. **Error Handling Inconsistencies**
    - Some endpoints use `print()` for errors (e.g., `main.py:403`)
    - Should consistently use logger
    - Generic error messages hide actual problems
 
-5. **Missing Input Validation**
+3. **Missing Input Validation**
    - `process2dS` endpoint accepts elevation Excel files without proper validation
    - `contours` parameter validated but error not properly handled
 
-6. **Resource Leaks**
+4. **Resource Leaks**
    - Temporary files created but not always cleaned up (e.g., `main.py:217`)
    - Background tasks used inconsistently for cleanup
 
