@@ -100,17 +100,10 @@ app.include_router(sgy_file_router)
 app.include_router(project_router)
 app.include_router(process_router)
 
-origins = [
-    "http://localhost:3000",
-    "http://localhost:35197",
-    "http://47.48.84.166:35197",
-    "http://47.48.84.166:35198",
-    # Adjust the port if your frontend runs on a different one
-    # "https://yourfrontenddomain.com",
-]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # origins, # Allows all origins from the list
+    allow_origins=["*"],
+    # allow_origin_regex=r'https*://(www\.)*(app\.)*(localhost|terean|47\.48\.84\.166|172\.16\.1\.[0-9]*)(\.com)*:*[0-9]*',
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
