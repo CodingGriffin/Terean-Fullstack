@@ -32,7 +32,6 @@ from utils.authentication import get_current_user, check_permissions
 from utils.custom_types.Priority import Priority
 from utils.custom_types.ProjectStatus import ProjectStatus
 from utils.project_utils import init_project
-from utils.streaming_utils import stream_file_in_chunks
 from utils.utils import CHUNK_SIZE, validate_id
 
 logger = logging.getLogger(__name__)

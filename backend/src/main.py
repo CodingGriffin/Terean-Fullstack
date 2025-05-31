@@ -1,5 +1,11 @@
 import ast
 import logging
+
+logging.basicConfig(
+    format='%(asctime)s - %(name)s::%(lineno)d - %(levelname)s - %(message)s',
+    level=logging.INFO,
+)
+
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -35,12 +41,12 @@ json_fix.fix_it()
 
 # Initialize routers
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 app = FastAPI()
 
 # Initialize / Update DB - Skip during testing
 # Check if we're running tests by looking for pytest in sys.modules
 import sys
+
 if "pytest" not in sys.modules:
     Base.metadata.create_all(bind=engine)
 
@@ -52,10 +58,10 @@ def init_users_from_env():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("before")
-    
+
     # Initialize / Update DB tables
     Base.metadata.create_all(bind=engine)
-    
+
     db = SessionLocal()
     raw_users = settings.INITIAL_USERS
     if raw_users:
@@ -123,18 +129,18 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.post("/generateResultsEmail")
 async def generate_results_email(
-    velocity_model: Annotated[UploadFile, File(...)],
-    client_name: Annotated[str, Form(...)],
-    client_email: Annotated[str, Form(...)],
-    file_id: Annotated[str, Form(...)],
-    current_user: User = Depends(get_current_user)
+        velocity_model: Annotated[UploadFile, File(...)],
+        client_name: Annotated[str, Form(...)],
+        client_email: Annotated[str, Form(...)],
+        file_id: Annotated[str, Form(...)],
+        current_user: User = Depends(get_current_user)
 ):
     check_permissions(current_user, 1)
-    
+
     # Validate file_id to prevent path traversal
     if not validate_id(file_id):
         raise HTTPException(status_code=400, detail="Invalid file ID")
-    
+
     data_dir = settings.MQ_SAVE_DIR
     sent_results_dir = os.path.join(data_dir, "SentResults")
     final_results_dir = os.path.join(sent_results_dir, file_id, datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
@@ -179,15 +185,15 @@ async def generate_results_email(
 
 @app.get("/projects/{file_id}/results_email_form", response_class=Response)
 async def results_email_form(
-    file_id: str,
-    current_user: User = Depends(get_current_user)
+        file_id: str,
+        current_user: User = Depends(get_current_user)
 ):
     check_permissions(current_user, 1)
-    
+
     # Validate file_id to prevent path traversal
     if not validate_id(file_id):
         raise HTTPException(status_code=400, detail="Invalid file ID")
-    
+
     data_dir = settings.MQ_SAVE_DIR
 
     # Get user info
@@ -223,6 +229,5 @@ async def results_email_form(
     </html>
     """
     return Response(content=html_content, media_type="text/html")
-
 
 # endregion
