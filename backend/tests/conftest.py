@@ -16,7 +16,7 @@ os.environ["YOUR_GOOGLE_EMAIL"] = "test@gmail.com"
 os.environ["YOUR_GOOGLE_EMAIL_APP_PASSWORD"] = "test_password"
 
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Generator
 
 import pytest
@@ -87,7 +87,7 @@ def test_user(test_db: Session) -> UserDBModel:
         full_name="Test User",
         disabled=False,
         auth_level=1,
-        expiration=datetime.utcnow() + timedelta(days=30)
+        expiration=datetime.now(timezone.utc) + timedelta(days=30)
     )
     return create_user(db=test_db, user=user_data)
 
@@ -101,8 +101,8 @@ def admin_user(test_db: Session) -> UserDBModel:
         email="admin@example.com",
         full_name="Admin User",
         disabled=False,
-        auth_level=3,
-        expiration=datetime.utcnow() + timedelta(days=30)
+        auth_level=4,
+        expiration=datetime.now(timezone.utc) + timedelta(days=30)
     )
     return create_user(db=test_db, user=user_data)
 
@@ -111,7 +111,7 @@ def admin_user(test_db: Session) -> UserDBModel:
 def auth_headers(client: TestClient, test_user: UserDBModel) -> dict:
     """Get authentication headers for a regular user."""
     response = client.post(
-        "/api/auth/login",
+        "/token",
         data={
             "username": "testuser",
             "password": "testpassword123"
@@ -126,7 +126,7 @@ def auth_headers(client: TestClient, test_user: UserDBModel) -> dict:
 def admin_auth_headers(client: TestClient, admin_user: UserDBModel) -> dict:
     """Get authentication headers for an admin user."""
     response = client.post(
-        "/api/auth/login",
+        "/token",
         data={
             "username": "adminuser",
             "password": "adminpassword123"
@@ -170,8 +170,8 @@ def sample_project_data():
         "name": "Test Project",
         "description": "A test project for unit testing",
         "status": "active",
-        "created_date": datetime.utcnow(),
-        "modified_date": datetime.utcnow(),
+        "created_date": datetime.now(timezone.utc),
+        "modified_date": datetime.now(timezone.utc),
     }
 
 
@@ -182,7 +182,7 @@ def sample_sgy_file_data():
         "filename": "test_file.sgy",
         "file_path": "/tmp/test_file.sgy",
         "file_size": 1024000,
-        "upload_date": datetime.utcnow(),
+        "upload_date": datetime.now(timezone.utc),
         "status": "uploaded",
         "metadata": {"traces": 100, "samples": 1000}
     }
