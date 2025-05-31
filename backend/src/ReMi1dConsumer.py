@@ -16,10 +16,6 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-MQ_SAVE_DIR = settings.MQ_SAVE_DIR
-logger.info(f"SAVE DIRECTORY = {MQ_SAVE_DIR}")
-
-
 def main():
     download_base_url = settings.DOWNLOAD_BASE_URL
     mq_host_name = settings.MQ_HOST_NAME

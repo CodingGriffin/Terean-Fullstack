@@ -77,6 +77,7 @@ def extract_project_name(
 
 def make_for_processor_file(
         unzipped_dir: str | PathLike,
+        return_limits=False,
 ):
     try:
         limits_path = os.path.join(unzipped_dir, "QaData", "limits.txt")
@@ -101,6 +102,7 @@ def make_for_processor_file(
         f.write(f"Max frequency={max_frequency}\n")
         f.write(f"Min velocity={min_velocity}\n")
         f.write(f"Spacing={spacing}\n")
+    return max_frequency, min_velocity, spacing 
 
 
 def make_for_processor_zip(
