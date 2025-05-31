@@ -49,9 +49,9 @@ os.makedirs(GLOBAL_PROJECT_FILES_DIR, exist_ok=True)
 # region disper-settings endpoint 
 @project_router.get("/{project_id}/disper-settings")
 async def get_disper_settings(
-    project_id: str,
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user),
+        project_id: str,
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user),
 ) -> DisperSettingsModel:
     check_permissions(current_user, 1)
     project = init_project(project_id=project_id, db=db)
@@ -60,10 +60,10 @@ async def get_disper_settings(
 
 @project_router.post("/{project_id}/disper-settings")
 async def save_disper_settings(
-    project_id: str,
-    model: DisperSettingsModel,
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user),
+        project_id: str,
+        model: DisperSettingsModel,
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user),
 ):
     check_permissions(current_user, 1)
     project = init_project(project_id=project_id, db=db)
@@ -78,9 +78,9 @@ async def save_disper_settings(
 # region pick options endpoint
 @project_router.get("/{project_id}/options")
 async def get_options(
-    project_id: str,
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user),
+        project_id: str,
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user),
 ):
     logger.info(f"Hit options endpoint for project_id {project_id}.")
     check_permissions(current_user, 1)
@@ -96,10 +96,10 @@ async def get_options(
 
 @project_router.post("/{project_id}/options")
 async def save_options(
-    project_id: str,
-    options: OptionsModel,
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user),
+        project_id: str,
+        options: OptionsModel,
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user),
 ):
     check_permissions(current_user, 1)
     logger.info(f"Options: {options}")
@@ -118,9 +118,9 @@ async def save_options(
 # region pick data endpoint
 @project_router.get("/{project_id}/picks")
 async def get_picks(
-    project_id: str,
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user),
+        project_id: str,
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user),
 ):
     check_permissions(current_user, 1)
     project = init_project(project_id=project_id, db=db)
@@ -129,10 +129,10 @@ async def get_picks(
 
 @project_router.post("/{project_id}/picks")
 async def save_picks(
-    project_id: str,
-    picks: List[PickData],
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user),
+        project_id: str,
+        picks: List[PickData],
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user),
 ):
     check_permissions(current_user, 1)
     project = init_project(project_id=project_id, db=db)
@@ -147,9 +147,9 @@ async def save_picks(
 
 @project_router.get("/{project_id}/project-data")
 async def get_project_data(
-    project_id: str,
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user),
+        project_id: str,
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user),
 ):
     check_permissions(current_user, 1)
     try:
@@ -170,20 +170,21 @@ async def get_project_data(
         logger.error(f"Error getting project data: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting project data: {str(e)}")
 
+
 # region file management endpoints
 @project_router.post("/{project_id}/upload-files", status_code=status.HTTP_201_CREATED)
 async def upload_files_to_project(
-    project_id: str,
-    files: List[UploadFile] = File(...),
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user)
+        project_id: str,
+        files: List[UploadFile] = File(...),
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user)
 ):
     """
     Upload one or more files to a specific project.
     Requires authentication.
     """
     check_permissions(current_user, 1)
-    
+
     # Validate project_id to prevent path traversal
     if not validate_id(project_id):
         raise HTTPException(status_code=400, detail="Invalid project ID")
@@ -259,20 +260,21 @@ async def upload_files_to_project(
         logger.error(f"Error in upload_files_to_project: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error uploading files: {str(e)}")
 
+
 @project_router.get("/{project_id}/files", response_model=List[FileSchema])
 async def get_project_files(
-    project_id: str,
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user)
+        project_id: str,
+        skip: int = 0,
+        limit: int = 100,
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user)
 ):
     """
     Get a list of files associated with a project.
     Requires authentication.
     """
     check_permissions(current_user, 1)
-    
+
     try:
         files = get_files_info_by_project(db=db, project_id=project_id, skip=skip, limit=limit)
         return files
@@ -283,28 +285,28 @@ async def get_project_files(
 
 @project_router.delete("/{project_id}/files/{file_id}")
 async def delete_project_file(
-    project_id: str,
-    file_id: str,
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user)
+        project_id: str,
+        file_id: str,
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user)
 ):
     """
     Delete a file from a project.
     Requires authentication.
     """
     check_permissions(current_user, 1)
-    
+
     try:
         # Get file info to check if it exists and belongs to the project
         file_info = get_files_info_by_project(db=db, project_id=project_id)
         file_to_delete = next((f for f in file_info if f.id == file_id), None)
-        
+
         if not file_to_delete:
             raise HTTPException(
                 status_code=404,
                 detail=f"File with ID {file_id} not found in project {project_id}"
             )
-        
+
         # Delete the physical file
         try:
             if os.path.exists(file_to_delete.path):
@@ -312,7 +314,7 @@ async def delete_project_file(
         except Exception as e:
             logger.error(f"Error deleting physical file {file_to_delete.path}: {str(e)}")
             # Continue with DB deletion even if physical file deletion fails
-        
+
         # Delete from database
         if delete_file_info(db=db, file_id=file_id):
             return {"status": "success", "message": f"File {file_id} deleted successfully"}
@@ -321,53 +323,54 @@ async def delete_project_file(
                 status_code=500,
                 detail=f"Failed to delete file {file_id} from database"
             )
-            
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error deleting project file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error deleting project file: {str(e)}")
 
+
 @project_router.get("/{project_id}/files/{file_id}/download")
 async def download_project_file(
-    project_id: str,
-    file_id: str,
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user)
+        project_id: str,
+        file_id: str,
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user)
 ):
     """
     Download a file from a project.
     Requires authentication.
     """
     check_permissions(current_user, 1)
-    
+
     try:
         # Get file info to check if it exists and belongs to the project
         file_info = get_file_info(db=db, file_id=file_id)
-        
+
         if not file_info:
             raise HTTPException(
                 status_code=404,
                 detail=f"File with ID {file_id} not found"
             )
-            
+
         if file_info.project_id != project_id:
             raise HTTPException(
                 status_code=403,
                 detail=f"File {file_id} does not belong to project {project_id}"
             )
-            
+
         if not os.path.exists(file_info.path):
             raise HTTPException(
                 status_code=404,
                 detail=f"File {file_id} exists in database but not found on disk"
             )
-            
+
         async def file_generator():
             async with aiofiles.open(file_info.path, 'rb') as f:
                 while chunk := await f.read(CHUNK_SIZE):
                     yield chunk
-                    
+
         return StreamingResponse(
             file_generator(),
             media_type=file_info.mime_type,
@@ -375,28 +378,29 @@ async def download_project_file(
                 "Content-Disposition": f'attachment; filename="{file_info.original_name}"'
             }
         )
-            
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error downloading project file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error downloading project file: {str(e)}")
 
+
 # endregion
 
 # region project management endpoints
 @project_router.get("/{project_id}", response_model=Project)
 async def get_project_by_id(
-    project_id: str,
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user)
+        project_id: str,
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user)
 ):
     """
     Get a single project by ID.
     Requires authentication.
     """
     check_permissions(current_user, 1)
-    
+
     try:
         project = get_project(db, project_id)
         if not project:
@@ -416,12 +420,14 @@ class SortOrder(str, Enum):
     ASC = "asc"
     DESC = "desc"
 
+
 class SortField(str, Enum):
     NAME = "name"
     STATUS = "status"
     PRIORITY = "priority"
     SURVEY_DATE = "survey_date"
     RECEIVED_DATE = "received_date"
+
 
 class ProjectListResponse(BaseModel):
     items: List[Project]
@@ -430,23 +436,26 @@ class ProjectListResponse(BaseModel):
     size: int
     pages: int
 
+
 @project_router.get("/", response_model=ProjectListResponse)
 async def get_all_projects(
-    skip: int = 0,
-    limit: int = 100,
-    status: Optional[List[ProjectStatus]] = Query(None, description="Filter by project status(es)"),
-    not_status: Optional[List[ProjectStatus]] = Query(None, description="Filter out projects with these status(es)"),
-    priority: Optional[List[Priority]] = Query(None, description="Filter by project priority(ies)"),
-    not_priority: Optional[List[Priority]] = Query(None, description="Filter out projects with these priority(ies)"),
-    name_search: Optional[str] = None,
-    survey_date_start: Optional[datetime] = Query(None, description="Filter by survey date (inclusive)"),
-    survey_date_end: Optional[datetime] = Query(None, description="Filter by survey date (inclusive)"),
-    received_date_start: Optional[datetime] = Query(None, description="Filter by received date (inclusive)"),
-    received_date_end: Optional[datetime] = Query(None, description="Filter by received date (inclusive)"),
-    sort_by: SortField = SortField.NAME,
-    sort_order: SortOrder = SortOrder.ASC,
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user)
+        skip: int = 0,
+        limit: int = 100,
+        status: Optional[List[ProjectStatus]] = Query(None, description="Filter by project status(es)"),
+        not_status: Optional[List[ProjectStatus]] = Query(None,
+                                                          description="Filter out projects with these status(es)"),
+        priority: Optional[List[Priority]] = Query(None, description="Filter by project priority(ies)"),
+        not_priority: Optional[List[Priority]] = Query(None,
+                                                       description="Filter out projects with these priority(ies)"),
+        name_search: Optional[str] = None,
+        survey_date_start: Optional[datetime] = Query(None, description="Filter by survey date (inclusive)"),
+        survey_date_end: Optional[datetime] = Query(None, description="Filter by survey date (inclusive)"),
+        received_date_start: Optional[datetime] = Query(None, description="Filter by received date (inclusive)"),
+        received_date_end: Optional[datetime] = Query(None, description="Filter by received date (inclusive)"),
+        sort_by: SortField = SortField.NAME,
+        sort_order: SortOrder = SortOrder.ASC,
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user)
 ):
     """
     Get a list of all projects with pagination, filtering, and sorting.
@@ -468,27 +477,27 @@ async def get_all_projects(
     - sort_order: Sort order (asc or desc)
     """
     check_permissions(current_user, 1)
-    
+
     try:
         # Start with base query
         query = db.query(ProjectDBModel)
-        
+
         # Apply status filters
         if status:
             query = query.filter(ProjectDBModel.status.in_(status))
         if not_status:
             query = query.filter(not_(ProjectDBModel.status.in_(not_status)))
-            
+
         # Apply priority filters
         if priority:
             query = query.filter(ProjectDBModel.priority.in_(priority))
         if not_priority:
             query = query.filter(not_(ProjectDBModel.priority.in_(not_priority)))
-            
+
         # Apply name search
         if name_search:
             query = query.filter(ProjectDBModel.name.ilike(f"%{name_search}%"))
-            
+
         # Apply date range filters
         if survey_date_start:
             query = query.filter(ProjectDBModel.survey_date >= survey_date_start)
@@ -498,27 +507,27 @@ async def get_all_projects(
             query = query.filter(ProjectDBModel.received_date >= received_date_start)
         if received_date_end:
             query = query.filter(ProjectDBModel.received_date <= received_date_end)
-            
+
         # Get total count before pagination
         total = query.count()
-        
+
         # Apply sorting
         sort_column = getattr(ProjectDBModel, sort_by.value)
         if sort_order == SortOrder.DESC:
             query = query.order_by(desc(sort_column))
         else:
             query = query.order_by(asc(sort_column))
-            
+
         # Apply pagination
         query = query.offset(skip).limit(limit)
-        
+
         # Execute query
         projects = query.all()
-        
+
         # Calculate pagination info
         page = (skip // limit) + 1
         pages = (total + limit - 1) // limit  # Ceiling division
-        
+
         return ProjectListResponse(
             items=[Project.from_db(project) for project in projects],
             total=total,
@@ -526,7 +535,7 @@ async def get_all_projects(
             size=limit,
             pages=pages
         )
-        
+
     except Exception as e:
         logger.error(f"Error getting projects: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting projects: {str(e)}")
@@ -534,10 +543,10 @@ async def get_all_projects(
 
 @project_router.post("/create-json", response_model=Project, status_code=status.HTTP_201_CREATED)
 async def create_new_project_json(
-    project: ProjectCreate,
-    project_id: Optional[str] = Query(None),
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user)
+        project: ProjectCreate,
+        project_id: Optional[str] = Query(None),
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user)
 ):
     """
     Create a new project without file uploads.
@@ -548,11 +557,11 @@ async def create_new_project_json(
     - project_id: Optional project ID (will be generated if not provided)
     """
     check_permissions(current_user, 1)
-    
+
     logger.info("=== CREATE PROJECT JSON ENDPOINT ===")
     logger.info(f"Received project data: {project.model_dump()}")
     logger.info(f"Query param project_id: {project_id}")
-    
+
     try:
         # Generate project ID if not provided
         if not project_id:
@@ -562,7 +571,7 @@ async def create_new_project_json(
             # Validate provided project_id to prevent path traversal
             if not validate_id(project_id):
                 raise HTTPException(status_code=400, detail="Invalid project ID format")
-            
+
         # Check if project with this ID already exists
         existing_project = get_project(db, project_id)
         if existing_project:
@@ -570,13 +579,13 @@ async def create_new_project_json(
                 status_code=400,
                 detail=f"Project with ID {project_id} already exists"
             )
-            
+
         # Create project directory
         logger.info("Making project directory")
         project_dir = os.path.join(GLOBAL_PROJECT_FILES_DIR, project_id)
         os.makedirs(project_dir, exist_ok=True)
         logger.info("Successfully made project directory.")
-        
+
         # Create project in database - pass ProjectCreate with the ID set
         logger.info("Creating in DB")
         project_data = project.model_dump()
@@ -584,9 +593,9 @@ async def create_new_project_json(
         project_with_id = ProjectCreate(**project_data)
         logger.info(f"Calling create_project with object \"project_with_id\":\n{project_with_id}")
         db_project = create_project(db=db, project=project_with_id)
-        
+
         return Project.from_db(db_project)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -596,13 +605,13 @@ async def create_new_project_json(
 
 @project_router.post("/create", response_model=Project, status_code=status.HTTP_201_CREATED)
 async def create_new_project(
-    request: Request,
-    project_data: str = Form(...),  # Project data as JSON string in form data
-    project_id: Optional[str] = Query(None),
-    sgy_files: List[UploadFile] = File(None),
-    additional_files: List[UploadFile] = File(None),
-    db: Session = db_dependency,
-    current_user: User = Depends(get_current_user)
+        request: Request,
+        project_data: str = Form(...),  # Project data as JSON string in form data
+        project_id: Optional[str] = Query(None),
+        sgy_files: List[UploadFile] = File(None),
+        additional_files: List[UploadFile] = File(None),
+        db: Session = db_dependency,
+        current_user: User = Depends(get_current_user)
 ):
     """
     Create a new project with optional project ID and file uploads.
@@ -616,16 +625,17 @@ async def create_new_project(
     - additional_files: Optional list of additional files to upload
     """
     check_permissions(current_user, 1)
-    
+
     # Add detailed logging
     logger.info("=== CREATE PROJECT ENDPOINT ===")
     logger.info(f"Request URL: {request.url}")
     logger.info(f"Request method: {request.method}")
     logger.info(f"Content-Type header: {request.headers.get('content-type', 'Not found')}")
     logger.info(f"Query params - project_id: {project_id}")
-    
+
     # Parse the project data from JSON string
     try:
+        logger.info(f"Raw project data:\n{project_data}")
         project_dict = json.loads(project_data)
         logger.info(f"Parsed project data: {project_dict}")
         project = ProjectCreate(**project_dict)
@@ -635,14 +645,14 @@ async def create_new_project(
     except Exception as e:
         logger.error(f"Error creating ProjectCreate from data: {e}")
         raise HTTPException(status_code=400, detail=f"Invalid project data: {str(e)}")
-    
+
     # Log the received project data
     logger.info(f"Created ProjectCreate object: {project.model_dump()}")
-    
+
     # Log file info
     logger.info(f"Number of sgy_files: {len(sgy_files) if sgy_files else 0}")
     logger.info(f"Number of additional_files: {len(additional_files) if additional_files else 0}")
-    
+
     try:
         # Generate project ID if not provided
         if not project_id:
@@ -652,7 +662,7 @@ async def create_new_project(
             # Validate provided project_id to prevent path traversal
             if not validate_id(project_id):
                 raise HTTPException(status_code=400, detail="Invalid project ID format")
-            
+
         # Check if project with this ID already exists
         existing_project = get_project(db, project_id)
         if existing_project:
@@ -660,52 +670,49 @@ async def create_new_project(
                 status_code=400,
                 detail=f"Project with ID {project_id} already exists"
             )
-            
+
         # Create project directory
         project_dir = os.path.join(GLOBAL_PROJECT_FILES_DIR, project_id)
         os.makedirs(project_dir, exist_ok=True)
-        
+
         # Create project in database - pass ProjectCreate with the ID set
         project_data = project.model_dump()
         project_data["id"] = project_id
         project_with_id = ProjectCreate(**project_data)
         db_project = create_project(db=db, project=project_with_id)
-        
+
         # Handle SEG-Y file uploads
         if sgy_files:
-            # First delete all SGY files in the project directory
+            # Get project dir and ensure it exists.
             sgy_project_dir = os.path.join(settings.MQ_SAVE_DIR, "SGYFiles", project_id)
-            
-            if os.path.exists(sgy_project_dir):
-                for filename in os.listdir(sgy_project_dir):
-                    file_path = os.path.join(sgy_project_dir, filename)
-                    try:
-                        os.remove(file_path)
-                    except Exception as e:
-                        logger.error(f"Error deleting SGY file {file_path}: {str(e)}")
-            
+            os.makedirs(sgy_project_dir, exist_ok=True)
+
             # Parse existing record_options from the project
             record_options = json.loads(project.record_options) if project.record_options else []
             updated_record_options = []
             file_index = 0
-            
+
             for file in sgy_files:
                 try:
                     # Get original filename
+                    logger.info(f"Processing sgy file {file}")
                     original_filename = file.filename
                     if not original_filename:
                         continue
+                    logger.info(f"Got original filename {original_filename}")
 
                     # Generate unique filename
                     file_id = generate_time_based_uid()
                     file_extension = original_filename.split('.')[-1] if '.' in original_filename else 'sgy'
                     unique_filename = f"{file_id}.{file_extension}"
                     file_path = os.path.join(sgy_project_dir, unique_filename)
+                    logger.info(f"Generated unique filename {unique_filename} and file path {file_path}")
 
                     # Save the file
                     async with aiofiles.open(file_path, 'wb') as f:
                         while chunk := await file.read(CHUNK_SIZE):
                             await f.write(chunk)
+                    logger.info(f"Successfully saved file to {file_path}")
 
                     # Create SgyFileCreate object
                     sgy_file_create = SgyFileCreate(
@@ -717,11 +724,12 @@ async def create_new_project(
                         project_id=project_id,
                         upload_date=datetime.now()
                     )
+                    logger.info(f"Creating db entry with data {sgy_file_create}")
 
                     # Add it to the DB
                     create_sgy_file_info(db=db, sgy_file=sgy_file_create)
                     logger.info(f"Successfully saved SEG-Y file: {original_filename} to {file_path} with ID: {file_id}")
-                    
+
                     # Update record_options with the generated ID
                     if file_index < len(record_options):
                         # Update existing record option with the generated ID
@@ -736,13 +744,13 @@ async def create_new_project(
                             'weight': 100,
                             'fileName': original_filename
                         })
-                    
+
                     file_index += 1
 
                 except Exception as file_error:
                     logger.error(f"Error processing SEG-Y file {file.filename}: {str(file_error)}")
                     continue
-            
+
             # Update the project's record_options with the file IDs
             if updated_record_options:
                 logger.info(f"Updating project record_options with file IDs: {updated_record_options}")
@@ -788,17 +796,18 @@ async def create_new_project(
 
                     # Add it to the DB
                     create_file_info(db=db, file=file_create)
-                    logger.info(f"Successfully saved additional file: {original_filename} to {file_path} with ID: {file_id}")
+                    logger.info(
+                        f"Successfully saved additional file: {original_filename} to {file_path} with ID: {file_id}")
 
                 except Exception as file_error:
                     logger.error(f"Error processing additional file {file.filename}: {str(file_error)}")
                     continue
-        
+
         logger.info("Getting return data from db")
         ret_project = Project.from_db(db_project)
         logger.info(f"Return data:\n{ret_project}")
         return ret_project
-        
+
     except HTTPException:
         raise
     except Exception as e:

@@ -71,6 +71,11 @@ class Settings:
 
     # Initial users
     INITIAL_USERS: str = os.getenv("INITIAL_USERS", "[]")
+    
+    # Backend username, password and url for the 1d_consumer
+    BACKEND_URL: str = os.environ.get("BACKEND_URL")
+    BACKEND_USERNAME: str = os.environ.get("BACKEND_USERNAME")
+    BACKEND_PASSWORD: str = os.environ.get("BACKEND_PASSWORD")
 
     # Other settings can be added here...
 

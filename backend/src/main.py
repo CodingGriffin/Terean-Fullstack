@@ -1,19 +1,14 @@
 import ast
 import logging
-
-logging.basicConfig(
-    format='%(asctime)s - %(name)s::%(lineno)d - %(levelname)s - %(message)s',
-    level=logging.INFO,
-)
-
+import aiofiles
+import json_fix
 import os
+
 from contextlib import asynccontextmanager
 from datetime import datetime
 # import pycuda.autoinit
 from typing import Annotated
-
-import aiofiles
-import json_fix
+from fastapi.security import HTTPBearer
 from fastapi import FastAPI, Depends, UploadFile, File, Form, Response
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
@@ -21,6 +16,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 from tereancore.VelocityModel import VelocityModel
+
+logging.basicConfig(
+    format='%(asctime)s - %(name)s::%(lineno)d - %(levelname)s - %(message)s',
+    level=logging.INFO,
+)
+logger = logging.getLogger(__name__)
+logger.error("START")
 
 from config import settings
 from crud.user_crud import get_user_by_username, create_user
@@ -40,7 +42,6 @@ from utils.utils import validate_id
 json_fix.fix_it()
 
 # Initialize routers
-logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # Initialize / Update DB - Skip during testing
@@ -94,6 +95,8 @@ async def lifespan(app: FastAPI):
     logger.info("after")
 
 
+app = FastAPI(lifespan=lifespan)
+security = HTTPBearer()
 app.include_router(authentication_router)
 app.include_router(admin_router)
 app.include_router(sgy_file_router)
