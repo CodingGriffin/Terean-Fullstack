@@ -4,7 +4,7 @@ Test process router endpoints.
 import pytest
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import status
 
 from schemas.project_schema import ProjectCreate
@@ -37,11 +37,10 @@ class TestProcessInitiation:
         
         # Start processing
         response = client.post(
-            "/api/process/start",
+            "/process/start",
             json={
-                "project_id": project.id,
-                "sgy_file_id": sgy_file.id,
-                "process_type": "velocity_analysis",
+                "file_id": sgy_file.id,
+                "processing_type": "velocity_analysis",
                 "parameters": {
                     "method": "semblance",
                     "min_velocity": 1500,
@@ -65,12 +64,10 @@ class TestProcessInitiation:
     def test_start_processing_invalid_file(self, client, auth_headers):
         """Test starting processing with invalid file ID."""
         response = client.post(
-            "/api/process/start",
+            "/process/start",
             json={
-                "project_id": 1,
-                "sgy_file_id": 99999,
-                "process_type": "velocity_analysis",
-                "parameters": {}
+                "file_id": 99999,
+                "processing_type": "velocity_analysis"
             },
             headers=auth_headers
         )
@@ -82,10 +79,10 @@ class TestProcessInitiation:
     def test_start_processing_missing_params(self, client, auth_headers):
         """Test starting processing with missing parameters."""
         response = client.post(
-            "/api/process/start",
+            "/process/start",
             json={
-                "sgy_file_id": 1,
-                # Missing process_type and other required fields
+                "file_id": 1,
+                # Missing processing_type and other required fields
             },
             headers=auth_headers
         )
@@ -96,12 +93,10 @@ class TestProcessInitiation:
     def test_start_processing_no_auth(self, client):
         """Test starting processing without authentication."""
         response = client.post(
-            "/api/process/start",
+            "/process/start",
             json={
-                "project_id": 1,
-                "sgy_file_id": 1,
-                "process_type": "velocity_analysis",
-                "parameters": {}
+                "file_id": 1,
+                "processing_type": "velocity_analysis"
             }
         )
         
@@ -118,7 +113,7 @@ class TestProcessStatus:
         job_id = "test_job_123"
         
         response = client.get(
-            f"/api/process/status/{job_id}",
+            f"/process/status/{job_id}",
             headers=auth_headers
         )
         
@@ -135,7 +130,7 @@ class TestProcessStatus:
     @pytest.mark.auth
     def test_get_all_process_jobs(self, client, auth_headers):
         """Test getting list of all process jobs."""
-        response = client.get("/api/process/jobs", headers=auth_headers)
+        response = client.get("/process/jobs", headers=auth_headers)
         
         assert response.status_code == status.HTTP_200_OK
         jobs = response.json()
@@ -146,7 +141,7 @@ class TestProcessStatus:
         """Test getting filtered list of process jobs."""
         # Filter by status
         response = client.get(
-            "/api/process/jobs?status=processing",
+            "/process/jobs?status=processing",
             headers=auth_headers
         )
         
@@ -162,7 +157,7 @@ class TestProcessStatus:
         job_id = "test_job_123"
         
         response = client.get(
-            f"/api/process/jobs/{job_id}/logs",
+            f"/process/jobs/{job_id}/logs",
             headers=auth_headers
         )
         
@@ -181,7 +176,7 @@ class TestProcessControl:
         job_id = "test_job_123"
         
         response = client.post(
-            f"/api/process/jobs/{job_id}/cancel",
+            f"/process/jobs/{job_id}/cancel",
             headers=auth_headers
         )
         
@@ -196,7 +191,7 @@ class TestProcessControl:
         job_id = "test_job_123"
         
         response = client.post(
-            f"/api/process/jobs/{job_id}/pause",
+            f"/process/jobs/{job_id}/pause",
             headers=auth_headers
         )
         
@@ -212,7 +207,7 @@ class TestProcessControl:
         job_id = "test_job_123"
         
         response = client.post(
-            f"/api/process/jobs/{job_id}/resume",
+            f"/process/jobs/{job_id}/resume",
             headers=auth_headers
         )
         
@@ -228,7 +223,7 @@ class TestProcessControl:
         job_id = "failed_job_123"
         
         response = client.post(
-            f"/api/process/jobs/{job_id}/retry",
+            f"/process/jobs/{job_id}/retry",
             headers=auth_headers
         )
         
@@ -248,7 +243,7 @@ class TestProcessResults:
         job_id = "completed_job_123"
         
         response = client.get(
-            f"/api/process/jobs/{job_id}/results",
+            f"/process/jobs/{job_id}/results",
             headers=auth_headers
         )
         
@@ -268,7 +263,7 @@ class TestProcessResults:
         job_id = "completed_job_123"
         
         response = client.get(
-            f"/api/process/jobs/{job_id}/download",
+            f"/process/jobs/{job_id}/download",
             headers=auth_headers
         )
         
@@ -286,7 +281,7 @@ class TestProcessResults:
         job_id = "completed_job_123"
         
         response = client.get(
-            f"/api/process/jobs/{job_id}/preview",
+            f"/process/jobs/{job_id}/preview",
             headers=auth_headers
         )
         
@@ -302,7 +297,7 @@ class TestProcessQueue:
     @pytest.mark.auth
     def test_get_queue_status(self, client, auth_headers):
         """Test getting process queue status."""
-        response = client.get("/api/process/queue/status", headers=auth_headers)
+        response = client.get("/process/queue/status", headers=auth_headers)
         
         if response.status_code != status.HTTP_404_NOT_FOUND:
             assert response.status_code == status.HTTP_200_OK
@@ -317,7 +312,7 @@ class TestProcessQueue:
         job_id = "queued_job_123"
         
         response = client.get(
-            f"/api/process/queue/position/{job_id}",
+            f"/process/queue/position/{job_id}",
             headers=auth_headers
         )
         
@@ -332,7 +327,7 @@ class TestProcessQueue:
     def test_clear_process_queue(self, client, admin_auth_headers):
         """Test clearing process queue (admin only)."""
         response = client.post(
-            "/api/process/queue/clear",
+            "/process/queue/clear",
             headers=admin_auth_headers
         )
         
@@ -348,7 +343,7 @@ class TestProcessTypes:
     @pytest.mark.auth
     def test_get_available_process_types(self, client, auth_headers):
         """Test getting list of available process types."""
-        response = client.get("/api/process/types", headers=auth_headers)
+        response = client.get("/process/types", headers=auth_headers)
         
         if response.status_code != status.HTTP_404_NOT_FOUND:
             assert response.status_code == status.HTTP_200_OK
@@ -374,7 +369,7 @@ class TestProcessTypes:
         process_type = "velocity_analysis"
         
         response = client.get(
-            f"/api/process/types/{process_type}/parameters",
+            f"/process/types/{process_type}/parameters",
             headers=auth_headers
         )
         
@@ -403,10 +398,10 @@ class TestBatchProcessing:
             file_ids.append(sgy_file.id)
         
         response = client.post(
-            "/api/process/batch",
+            "/process/batch",
             json={
-                "sgy_file_ids": file_ids,
-                "process_type": "velocity_analysis",
+                "file_ids": file_ids,
+                "processing_type": "velocity_analysis",
                 "parameters": {
                     "method": "semblance",
                     "min_velocity": 1500,
@@ -432,7 +427,7 @@ class TestBatchProcessing:
         batch_id = "batch_123"
         
         response = client.get(
-            f"/api/process/batch/{batch_id}/status",
+            f"/process/batch/{batch_id}/status",
             headers=auth_headers
         )
         
@@ -480,17 +475,15 @@ class TestProcessPermissions:
             headers = {"Authorization": f"Bearer {token}"}
             
             # Check viewing process status (all should have access)
-            status_response = client.get("/api/process/jobs", headers=headers)
+            status_response = client.get("/process/jobs", headers=headers)
             assert status_response.status_code == status.HTTP_200_OK
             
             # Check starting process (might require higher level)
             start_response = client.post(
-                "/api/process/start",
+                "/process/start",
                 json={
-                    "project_id": 1,
-                    "sgy_file_id": 1,
-                    "process_type": "velocity_analysis",
-                    "parameters": {}
+                    "file_id": 1,
+                    "processing_type": "velocity_analysis"
                 },
                 headers=headers
             )
@@ -507,7 +500,7 @@ class TestProcessPermissions:
             
             # Check admin operations (only level 3)
             clear_response = client.post(
-                "/api/process/queue/clear",
+                "/process/queue/clear",
                 headers=headers
             )
             
@@ -527,7 +520,7 @@ class TestProcessNotifications:
         job_id = "test_job_123"
         
         response = client.post(
-            f"/api/process/jobs/{job_id}/subscribe",
+            f"/process/jobs/{job_id}/subscribe",
             json={
                 "notification_type": "email",
                 "email": "user@example.com"

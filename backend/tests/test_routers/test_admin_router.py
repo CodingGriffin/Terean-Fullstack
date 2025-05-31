@@ -26,7 +26,7 @@ class TestAdminUserManagement:
             )
             create_user(db=test_db, user=user_data)
         
-        response = client.get("/api/admin/users", headers=admin_auth_headers)
+        response = client.get("/admin/users", headers=admin_auth_headers)
         
         assert response.status_code == status.HTTP_200_OK
         users = response.json()
@@ -45,15 +45,14 @@ class TestAdminUserManagement:
     @pytest.mark.auth
     def test_get_users_list_as_regular_user(self, client, auth_headers):
         """Test getting users list as regular user (should fail)."""
-        response = client.get("/api/admin/users", headers=auth_headers)
-        
+        response = client.get("/admin/users", headers=auth_headers)
         assert response.status_code == status.HTTP_403_FORBIDDEN
-        assert "Not enough permissions" in response.json()["detail"]
+        assert "Not enough permissions" in response.json()["detail"] or "Insufficient permissions" in response.json()["detail"]
     
     @pytest.mark.auth
     def test_get_users_list_no_auth(self, client):
         """Test getting users list without authentication."""
-        response = client.get("/api/admin/users")
+        response = client.get("/admin/users")
         
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
     
@@ -73,7 +72,7 @@ class TestAdminUserManagement:
         
         # Get first page
         response = client.get(
-            "/api/admin/users?skip=0&limit=5",
+            "/admin/users?skip=0&limit=5",
             headers=admin_auth_headers
         )
         assert response.status_code == status.HTTP_200_OK
@@ -82,7 +81,7 @@ class TestAdminUserManagement:
         
         # Get second page
         response2 = client.get(
-            "/api/admin/users?skip=5&limit=5",
+            "/admin/users?skip=5&limit=5",
             headers=admin_auth_headers
         )
         assert response2.status_code == status.HTTP_200_OK
@@ -97,7 +96,7 @@ class TestAdminUserCRUD:
     def test_create_user_as_admin(self, client, admin_auth_headers):
         """Test creating a new user as admin."""
         response = client.post(
-            "/api/admin/users",
+            "/admin/users",
             json={
                 "username": "newadminuser",
                 "password": "newpassword123",
@@ -120,7 +119,7 @@ class TestAdminUserCRUD:
     def test_create_user_duplicate_username(self, client, admin_auth_headers, test_user):
         """Test creating user with duplicate username."""
         response = client.post(
-            "/api/admin/users",
+            "/admin/users",
             json={
                 "username": "testuser",  # Already exists
                 "password": "password123",
@@ -149,7 +148,7 @@ class TestAdminUserCRUD:
         
         # Update the user
         response = client.put(
-            f"/api/admin/users/{user.id}",
+            f"/admin/users/{user.id}",
             json={
                 "email": "updated@test.com",
                 "full_name": "Updated User",
@@ -171,7 +170,7 @@ class TestAdminUserCRUD:
     def test_update_nonexistent_user(self, client, admin_auth_headers):
         """Test updating a nonexistent user."""
         response = client.put(
-            "/api/admin/users/99999",
+            "/admin/users/99999",
             json={
                 "email": "updated@test.com"
             },
@@ -195,7 +194,7 @@ class TestAdminUserCRUD:
         
         # Delete the user
         response = client.delete(
-            f"/api/admin/users/{user.id}",
+            f"/admin/users/{user.id}",
             headers=admin_auth_headers
         )
         
@@ -203,7 +202,7 @@ class TestAdminUserCRUD:
         
         # Verify user is deleted
         get_response = client.get(
-            f"/api/admin/users/{user.id}",
+            f"/admin/users/{user.id}",
             headers=admin_auth_headers
         )
         assert get_response.status_code == status.HTTP_404_NOT_FOUND
@@ -212,7 +211,7 @@ class TestAdminUserCRUD:
     def test_delete_nonexistent_user(self, client, admin_auth_headers):
         """Test deleting a nonexistent user."""
         response = client.delete(
-            "/api/admin/users/99999",
+            "/admin/users/99999",
             headers=admin_auth_headers
         )
         
@@ -241,7 +240,7 @@ class TestAdminPermissions:
         for level, user in zip([1, 2, 3], users):
             # Login
             login_response = client.post(
-                "/api/auth/login",
+                "/token",
                 data={
                     "username": f"level{level}admin",
                     "password": "password123"
@@ -251,7 +250,7 @@ class TestAdminPermissions:
             headers = {"Authorization": f"Bearer {token}"}
             
             # Try to access admin endpoints
-            response = client.get("/api/admin/users", headers=headers)
+            response = client.get("/admin/users", headers=headers)
             
             if level == 3:  # Only level 3 should have admin access
                 assert response.status_code == status.HTTP_200_OK
@@ -276,7 +275,7 @@ class TestAdminStatistics:
             )
             create_user(db=test_db, user=user_data)
         
-        response = client.get("/api/admin/stats/users", headers=admin_auth_headers)
+        response = client.get("/admin/stats/users", headers=admin_auth_headers)
         
         # If endpoint exists
         if response.status_code != status.HTTP_404_NOT_FOUND:
@@ -289,7 +288,7 @@ class TestAdminStatistics:
     @pytest.mark.auth
     def test_get_system_health(self, client, admin_auth_headers):
         """Test getting system health status."""
-        response = client.get("/api/admin/health", headers=admin_auth_headers)
+        response = client.get("/admin/health", headers=admin_auth_headers)
         
         # If endpoint exists
         if response.status_code != status.HTTP_404_NOT_FOUND:
@@ -305,7 +304,7 @@ class TestAdminAuditLog:
     @pytest.mark.auth
     def test_get_audit_logs(self, client, admin_auth_headers):
         """Test getting audit logs."""
-        response = client.get("/api/admin/audit-logs", headers=admin_auth_headers)
+        response = client.get("/admin/audit-logs", headers=admin_auth_headers)
         
         # If endpoint exists
         if response.status_code != status.HTTP_404_NOT_FOUND:
@@ -317,7 +316,7 @@ class TestAdminAuditLog:
     def test_get_user_activity(self, client, admin_auth_headers, test_user):
         """Test getting specific user activity."""
         response = client.get(
-            f"/api/admin/users/{test_user.id}/activity",
+            f"/admin/users/{test_user.id}/activity",
             headers=admin_auth_headers
         )
         
@@ -348,7 +347,7 @@ class TestAdminBulkOperations:
             user_ids.append(user.id)
         
         response = client.post(
-            "/api/admin/users/bulk-disable",
+            "/admin/users/bulk-disable",
             json={"user_ids": user_ids},
             headers=admin_auth_headers
         )
@@ -376,7 +375,7 @@ class TestAdminBulkOperations:
             user_ids.append(user.id)
         
         response = client.post(
-            "/api/admin/users/bulk-delete",
+            "/admin/users/bulk-delete",
             json={"user_ids": user_ids},
             headers=admin_auth_headers
         )

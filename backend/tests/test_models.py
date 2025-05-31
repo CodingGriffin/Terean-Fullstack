@@ -2,7 +2,7 @@
 Test database models.
 """
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from models.sgy_file_model import SgyFileDBModel
 from models.file_model import FileDBModel
 from models.client_model import ClientDBModel
 from models.contact_model import ContactDBModel
+from utils.custom_types.ProjectStatus import ProjectStatus
 
 
 class TestUserModel:
@@ -81,7 +82,7 @@ class TestUserModel:
     @pytest.mark.db
     def test_user_with_expiration(self, test_db: Session):
         """Test user with expiration date."""
-        expiration = datetime(2025, 12, 31, 23, 59, 59)
+        expiration = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
         user = UserDBModel(
             username="expiring",
             hashed_password="hash",
@@ -102,67 +103,98 @@ class TestProjectModel:
     @pytest.mark.db
     def test_create_project(self, test_db: Session):
         """Test creating a project."""
+        # First create a user to be the owner
+        user = UserDBModel(
+            username="projectowner",
+            hashed_password="hash",
+            disabled=False,
+            auth_level=1
+        )
+        test_db.add(user)
+        test_db.commit()
+        test_db.refresh(user)
+        
         project = ProjectDBModel(
-            unique_id="proj123",
             name="Test Project",
             description="A test project",
-            status="active",
-            created_date=datetime.utcnow(),
-            modified_date=datetime.utcnow()
+            status=ProjectStatus.not_started,
+            created_date=datetime.now(timezone.utc),
+            modified_date=datetime.now(timezone.utc),
+            owner_id=user.id
         )
         test_db.add(project)
         test_db.commit()
         test_db.refresh(project)
         
         assert project.id is not None
-        assert project.unique_id == "proj123"
         assert project.name == "Test Project"
-        assert project.status == "active"
+        assert project.status == ProjectStatus.not_started
+        assert project.owner_id == user.id
     
     @pytest.mark.db
-    def test_project_metadata(self, test_db: Session):
-        """Test project with metadata."""
-        metadata = {
-            "client": "Test Client",
-            "location": "Test Location",
-            "budget": 100000
-        }
-        project = ProjectDBModel(
-            unique_id="proj456",
-            name="Metadata Project",
-            status="planning",
-            metadata=metadata
+    def test_project_different_statuses(self, test_db: Session):
+        """Test project with different status values."""
+        # Create owner
+        user = UserDBModel(
+            username="statusowner",
+            hashed_password="hash",
+            disabled=False,
+            auth_level=1
         )
-        test_db.add(project)
+        test_db.add(user)
         test_db.commit()
-        test_db.refresh(project)
         
-        assert project.metadata == metadata
-        assert project.metadata["client"] == "Test Client"
+        # Test each valid status
+        for status in [ProjectStatus.not_started, ProjectStatus.in_progress, 
+                      ProjectStatus.completed, ProjectStatus.blocked]:
+            project = ProjectDBModel(
+                name=f"Project {status.value}",
+                status=status,
+                owner_id=user.id
+            )
+            test_db.add(project)
+            test_db.commit()
+            test_db.refresh(project)
+            
+            assert project.status == status
     
     @pytest.mark.db
     def test_project_relationships(self, test_db: Session):
         """Test project relationships with files."""
+        # Create owner
+        user = UserDBModel(
+            username="relowner",
+            hashed_password="hash",
+            disabled=False,
+            auth_level=1
+        )
+        test_db.add(user)
+        test_db.commit()
+        
         project = ProjectDBModel(
-            unique_id="proj789",
             name="Related Project",
-            status="active"
+            status=ProjectStatus.in_progress,
+            owner_id=user.id
         )
         test_db.add(project)
         test_db.commit()
         
         # Add a file to the project
         file = FileDBModel(
-            unique_id="file123",
-            filename="test.sgy",
+            id="file123",
+            original_name="test.sgy",
+            path="/data/test.sgy",
+            size=1024,
+            mime_type="application/octet-stream",
+            file_extension=".sgy",
             project_id=project.id
         )
         test_db.add(file)
         test_db.commit()
         test_db.refresh(project)
         
-        assert len(project.files) == 1
-        assert project.files[0].filename == "test.sgy"
+        assert len(project.additional_files) == 1
+        assert project.additional_files[0].original_name == "test.sgy"
 
 
 class TestSgyFileModel:
@@ -171,12 +203,32 @@ class TestSgyFileModel:
     @pytest.mark.db
     def test_create_sgy_file(self, test_db: Session):
         """Test creating an SGY file."""
+        # Create user and project first
+        user = UserDBModel(
+            username="sgyowner",
+            hashed_password="hash",
+            disabled=False,
+            auth_level=1
+        )
+        test_db.add(user)
+        test_db.commit()
+        
+        project = ProjectDBModel(
+            name="SGY Project",
+            status=ProjectStatus.in_progress,
+            owner_id=user.id
+        )
+        test_db.add(project)
+        test_db.commit()
+        
         sgy_file = SgyFileDBModel(
             filename="seismic_data.sgy",
             file_path="/data/seismic_data.sgy",
             file_size=1024000,
-            upload_date=datetime.utcnow(),
-            status="uploaded"
+            upload_date=datetime.now(timezone.utc),
+            status="uploaded",
+            project_id=project.id,
+            user_id=user.id
         )
         test_db.add(sgy_file)
         test_db.commit()
@@ -190,6 +242,24 @@ class TestSgyFileModel:
     @pytest.mark.db
     def test_sgy_file_with_metadata(self, test_db: Session):
         """Test SGY file with metadata."""
+        # Create user and project
+        user = UserDBModel(
+            username="metaowner",
+            hashed_password="hash",
+            disabled=False,
+            auth_level=1
+        )
+        test_db.add(user)
+        test_db.commit()
+        
+        project = ProjectDBModel(
+            name="Meta Project",
+            status=ProjectStatus.in_progress,
+            owner_id=user.id
+        )
+        test_db.add(project)
+        test_db.commit()
+        
         metadata = {
             "traces": 1000,
             "samples": 2000,
@@ -200,9 +270,11 @@ class TestSgyFileModel:
             filename="metadata.sgy",
             file_path="/data/metadata.sgy",
             file_size=2048000,
-            upload_date=datetime.utcnow(),
+            upload_date=datetime.now(timezone.utc),
             status="processed",
-            metadata=metadata
+            metadata=metadata,
+            project_id=project.id,
+            user_id=user.id
         )
         test_db.add(sgy_file)
         test_db.commit()
@@ -214,9 +286,27 @@ class TestSgyFileModel:
     @pytest.mark.db
     def test_sgy_file_processing_dates(self, test_db: Session):
         """Test SGY file processing dates."""
-        upload_date = datetime.utcnow()
-        process_start = datetime.utcnow()
-        process_end = datetime.utcnow()
+        # Create user and project
+        user = UserDBModel(
+            username="procowner",
+            hashed_password="hash",
+            disabled=False,
+            auth_level=1
+        )
+        test_db.add(user)
+        test_db.commit()
+        
+        project = ProjectDBModel(
+            name="Process Project",
+            status=ProjectStatus.in_progress,
+            owner_id=user.id
+        )
+        test_db.add(project)
+        test_db.commit()
+        
+        upload_date = datetime.now(timezone.utc)
+        process_start = datetime.now(timezone.utc)
+        process_end = datetime.now(timezone.utc)
         
         sgy_file = SgyFileDBModel(
             filename="processed.sgy",
@@ -225,7 +315,9 @@ class TestSgyFileModel:
             upload_date=upload_date,
             process_start_date=process_start,
             process_end_date=process_end,
-            status="completed"
+            status="completed",
+            project_id=project.id,
+            user_id=user.id
         )
         test_db.add(sgy_file)
         test_db.commit()
@@ -241,37 +333,71 @@ class TestFileModel:
     @pytest.mark.db
     def test_create_file(self, test_db: Session):
         """Test creating a file."""
+        # Create owner and project
+        user = UserDBModel(
+            username="fileowner",
+            hashed_password="hash",
+            disabled=False,
+            auth_level=1
+        )
+        test_db.add(user)
+        test_db.commit()
+        
+        project = ProjectDBModel(
+            name="File Project",
+            status=ProjectStatus.in_progress,
+            owner_id=user.id
+        )
+        test_db.add(project)
+        test_db.commit()
+        
         file = FileDBModel(
-            unique_id="file001",
-            filename="document.pdf",
-            file_path="/files/document.pdf",
-            file_size=512000,
-            upload_date=datetime.utcnow()
+            id="file001",
+            original_name="document.pdf",
+            path="/files/document.pdf",
+            size=512000,
+            upload_date=datetime.now(timezone.utc),
+            mime_type="application/pdf",
+            file_extension=".pdf",
+            project_id=project.id
         )
         test_db.add(file)
         test_db.commit()
         test_db.refresh(file)
         
-        assert file.id is not None
-        assert file.unique_id == "file001"
-        assert file.filename == "document.pdf"
+        assert file.id == "file001"
+        assert file.original_name == "document.pdf"
+        assert file.size == 512000
     
     @pytest.mark.db
     def test_file_with_project(self, test_db: Session):
         """Test file associated with project."""
-        # Create project first
+        # Create user and project first
+        user = UserDBModel(
+            username="projfileowner",
+            hashed_password="hash",
+            disabled=False,
+            auth_level=1
+        )
+        test_db.add(user)
+        test_db.commit()
+        
         project = ProjectDBModel(
-            unique_id="proj_file",
             name="File Project",
-            status="active"
+            status=ProjectStatus.completed,
+            owner_id=user.id
         )
         test_db.add(project)
         test_db.commit()
         
         # Create file with project
         file = FileDBModel(
-            unique_id="file002",
-            filename="project_doc.pdf",
+            id="file002",
+            original_name="project_doc.pdf",
+            path="/files/project_doc.pdf",
+            size=256000,
+            mime_type="application/pdf",
+            file_extension=".pdf",
             project_id=project.id
         )
         test_db.add(file)
@@ -292,7 +418,7 @@ class TestClientModel:
             name="Test Client Inc.",
             email="client@test.com",
             phone="+1234567890",
-            created_date=datetime.utcnow()
+            created_date=datetime.now(timezone.utc)
         )
         test_db.add(client)
         test_db.commit()
@@ -307,7 +433,7 @@ class TestClientModel:
         """Test client with optional fields."""
         client = ClientDBModel(
             name="Minimal Client",
-            created_date=datetime.utcnow()
+            created_date=datetime.now(timezone.utc)
         )
         test_db.add(client)
         test_db.commit()
@@ -327,7 +453,7 @@ class TestClientModel:
             phone="+9876543210",
             company="Full Company Ltd.",
             address="123 Main St, City, Country",
-            created_date=datetime.utcnow()
+            created_date=datetime.now(timezone.utc)
         )
         test_db.add(client)
         test_db.commit()
@@ -347,7 +473,7 @@ class TestContactModel:
             name="John Doe",
             email="john@example.com",
             message="Test inquiry message",
-            created_date=datetime.utcnow()
+            created_date=datetime.now(timezone.utc)
         )
         test_db.add(contact)
         test_db.commit()
@@ -363,7 +489,7 @@ class TestContactModel:
         contact = ContactDBModel(
             name="Jane Doe",
             email="jane@example.com",
-            created_date=datetime.utcnow()
+            created_date=datetime.now(timezone.utc)
         )
         test_db.add(contact)
         test_db.commit()
@@ -382,7 +508,7 @@ class TestContactModel:
             phone="+1112223333",
             company="Big Corp Inc.",
             message="Business inquiry",
-            created_date=datetime.utcnow()
+            created_date=datetime.now(timezone.utc)
         )
         test_db.add(contact)
         test_db.commit()
@@ -398,24 +524,41 @@ class TestModelRelationships:
     @pytest.mark.db
     def test_project_file_cascade_delete(self, test_db: Session):
         """Test cascade delete of files when project is deleted."""
-        # Create project
+        # Create user and project
+        user = UserDBModel(
+            username="cascadeowner",
+            hashed_password="hash",
+            disabled=False,
+            auth_level=1
+        )
+        test_db.add(user)
+        test_db.commit()
+        
         project = ProjectDBModel(
-            unique_id="cascade_proj",
             name="Cascade Project",
-            status="active"
+            status=ProjectStatus.not_started,
+            owner_id=user.id
         )
         test_db.add(project)
         test_db.commit()
         
         # Create files
         file1 = FileDBModel(
-            unique_id="cascade_file1",
-            filename="file1.txt",
+            id="cascade_file1",
+            original_name="file1.txt",
+            path="/files/file1.txt",
+            size=1024,
+            mime_type="text/plain",
+            file_extension=".txt",
             project_id=project.id
         )
         file2 = FileDBModel(
-            unique_id="cascade_file2",
-            filename="file2.txt",
+            id="cascade_file2",
+            original_name="file2.txt",
+            path="/files/file2.txt",
+            size=2048,
+            mime_type="text/plain",
+            file_extension=".txt",
             project_id=project.id
         )
         test_db.add_all([file1, file2])
