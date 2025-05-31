@@ -541,68 +541,6 @@ async def get_all_projects(
         raise HTTPException(status_code=500, detail=f"Error getting projects: {str(e)}")
 
 
-@project_router.post("/create-json", response_model=Project, status_code=status.HTTP_201_CREATED)
-async def create_new_project_json(
-        project: ProjectCreate,
-        project_id: Optional[str] = Query(None),
-        db: Session = db_dependency,
-        current_user: User = Depends(get_current_user)
-):
-    """
-    Create a new project without file uploads.
-    This endpoint accepts JSON data.
-    
-    Parameters:
-    - project: Project creation data
-    - project_id: Optional project ID (will be generated if not provided)
-    """
-    check_permissions(current_user, 1)
-
-    logger.info("=== CREATE PROJECT JSON ENDPOINT ===")
-    logger.info(f"Received project data: {project.model_dump()}")
-    logger.info(f"Query param project_id: {project_id}")
-
-    try:
-        # Generate project ID if not provided
-        if not project_id:
-            project_id = generate_time_based_uid()
-            logger.info(f"Generated project ID: {project_id}")
-        else:
-            # Validate provided project_id to prevent path traversal
-            if not validate_id(project_id):
-                raise HTTPException(status_code=400, detail="Invalid project ID format")
-
-        # Check if project with this ID already exists
-        existing_project = get_project(db, project_id)
-        if existing_project:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Project with ID {project_id} already exists"
-            )
-
-        # Create project directory
-        logger.info("Making project directory")
-        project_dir = os.path.join(GLOBAL_PROJECT_FILES_DIR, project_id)
-        os.makedirs(project_dir, exist_ok=True)
-        logger.info("Successfully made project directory.")
-
-        # Create project in database - pass ProjectCreate with the ID set
-        logger.info("Creating in DB")
-        project_data = project.model_dump()
-        project_data["id"] = project_id
-        project_with_id = ProjectCreate(**project_data)
-        logger.info(f"Calling create_project with object \"project_with_id\":\n{project_with_id}")
-        db_project = create_project(db=db, project=project_with_id)
-
-        return Project.from_db(db_project)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error creating project: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error creating project: {str(e)}")
-
-
 @project_router.post("/create", response_model=Project, status_code=status.HTTP_201_CREATED)
 async def create_new_project(
         request: Request,
