@@ -35,25 +35,11 @@ from backend.router.admin import admin_router
 from backend.router.sgy_file_router import sgy_file_router
 from backend.router.project_router import project_router
 from backend.router.process_router import process_router
-from backend.utils.authentication import require_auth_level, check_permissions, get_current_user
-from backend.schemas.project_schema import Project, ProjectCreate
+from backend.utils.authentication import check_permissions, get_current_user
 from backend.schemas.user_schema import UserCreate, User
-from backend.schemas.additional_models import (
-    GeometryItem,
-    PlotLimits,
-    Layer,
-    DisperSettingsModel,
-    RecordOption,
-    PickData,
-    Grid,
-    OptionsModel
-)
-from backend.utils.authentication import oauth2_scheme
 from backend.utils.consumer_utils import get_user_info
 from backend.utils.email_utils import generate_vs_surf_results, send_email_gmail
-from backend.utils.project_utils import init_project
-from backend.utils.utils import CHUNK_SIZE, get_fastapi_file_locally, validate_id
-from backend.schemas.user_schema import User as UserSchema
+from backend.utils.utils import validate_id
 
 # Allows json to serialize objects using __json__
 json_fix.fix_it()
@@ -142,92 +128,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
-# region Processor / File Download Endpoints
-@app.get("/projects/{file_id}/sgy")
-async def download_file(
-    file_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    check_permissions(current_user, 1)
-    
-    # Validate file_id to prevent path traversal
-    if not validate_id(file_id):
-        raise HTTPException(status_code=400, detail="Invalid file ID")
-    
-    data_dir = os.getenv("MQ_SAVE_DIR")
-    sgy_dir = os.path.join(data_dir, "Extracted", file_id, "Save")
-    
-    # Check if directory exists
-    if not os.path.exists(sgy_dir):
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    sgy_files = [x for x in os.listdir(sgy_dir) if x.endswith(".sgy")]
-    # Get sgy files
-    zip_io = io.BytesIO()
-    with zipfile.ZipFile(zip_io, mode='w', compression=zipfile.ZIP_DEFLATED) as temp_zip:
-        for sgy_file in sgy_files:
-            sgy_path = os.path.join(sgy_dir, sgy_file)
-            # archive_path = os.path.join("Save", sgy_file)
-            archive_path = sgy_file
-            temp_zip.write(
-                filename=sgy_path,
-                arcname=archive_path,
-            )
-    return StreamingResponse(
-        iter([zip_io.getvalue()]),
-        media_type="application/x-zip-compressed",
-        headers={"Content-Disposition": f"attachment; filename={file_id}_sgy.zip"}
-    )
-
-
-@app.get("/projects/{file_id}/raw_data")
-async def download_raw_data(
-    file_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    check_permissions(current_user, 1)
-    
-    # Validate file_id to prevent path traversal
-    if not validate_id(file_id):
-        raise HTTPException(status_code=400, detail="Invalid file ID")
-    
-    data_dir = os.getenv("MQ_SAVE_DIR")
-    file_path = os.path.join(data_dir, "Zips", f"{file_id}.zip")
-    
-    # Check if file exists
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    return FileResponse(
-        path=file_path,
-        filename=f"{file_id}_raw.zip",
-        media_type="application/zip",
-    )
-
-
-@app.get("/projects/{file_id}/processor_zip")
-async def download_processor_zip(
-    file_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    check_permissions(current_user, 1)
-    
-    # Validate file_id to prevent path traversal
-    if not validate_id(file_id):
-        raise HTTPException(status_code=400, detail="Invalid file ID")
-    
-    data_dir = os.getenv("MQ_SAVE_DIR")
-    file_path = os.path.join(data_dir, "ProcessorReady", f"{file_id}.zip")
-    
-    # Check if file exists
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    return FileResponse(
-        path=file_path,
-        filename=f"{file_id}_processor.zip",
-        media_type="application/zip",
-    )
 
 
 @app.post("/generateResultsEmail")
