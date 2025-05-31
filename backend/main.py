@@ -838,3 +838,27 @@ async def get_file_info(
     except Exception as e:
         print(f"Error getting file info for ID {file_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting file info: {str(e)}")
+
+
+@app.post("/process/auto-velocity-model")
+async def auto_velocity_model(
+    picks: Annotated[str, Form(...)],
+    current_user: User = Depends(get_current_user)
+):
+    check_permissions(current_user, 1)
+    
+    default_model = {
+        "layers": [
+            {"startDepth": 0.0, "endDepth": 30.0, "velocity": 760.0, "density": 2.0, "ignore": 0},
+            {"startDepth": 30.0, "endDepth": 44.0, "velocity": 1061.0, "density": 2.0, "ignore": 0},
+            {"startDepth": 44.0, "endDepth": 144.0, "velocity": 1270.657, "density": 2.0, "ignore": 0},
+        ],
+        "modelAxisLimits": {
+            "xmin": 50,
+            "xmax": 1400,
+            "ymin": 0,
+            "ymax": 150
+        }
+    }
+    
+    return default_model
