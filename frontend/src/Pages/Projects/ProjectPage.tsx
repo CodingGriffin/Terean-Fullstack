@@ -270,7 +270,7 @@ const ProjectPage: React.FC = () => {
           </div>
 
           <div className="row g-4">
-            <div className="col-md-6">
+            <div className="col-md-6 col-lg-4">
               <div className="card shadow-sm p-4">
                 <h3>Picks Analysis</h3>
                 <p>Manage and analyze picks data for this project.</p>
@@ -282,7 +282,7 @@ const ProjectPage: React.FC = () => {
                 </button>
               </div>
             </div>
-            <div className="col-md-6">
+            <div className="col-md-6 col-lg-4">
               <div className="card shadow-sm p-4">
                 <h3>Dispersion Analysis</h3>
                 <p>Perform dispersion analysis for this project.</p>
@@ -291,6 +291,42 @@ const ProjectPage: React.FC = () => {
                   onClick={() => navigate(`/projects/${projectId}/disper`)}
                 >
                   Go to Disper
+                </button>
+              </div>
+            </div>
+            <div className="col-md-6 col-lg-4">
+              <div className="card shadow-sm p-4">
+                <h3>Data Management</h3>
+                <p>View, upload, and manage project files and data.</p>
+                <button 
+                  className="btn btn-primary mt-3"
+                  onClick={() => navigate(`/projects/${projectId}/data`)}
+                >
+                  Manage Data
+                </button>
+              </div>
+            </div>
+            <div className="col-md-6 col-lg-4">
+              <div className="card shadow-sm p-4">
+                <h3>Download Links</h3>
+                <p>Quick access to download project data and files.</p>
+                <button 
+                  className="btn btn-primary mt-3"
+                  onClick={() => navigate(`/projects/${projectId}/downloads`)}
+                >
+                  View Downloads
+                </button>
+              </div>
+            </div>
+            <div className="col-md-6 col-lg-4">
+              <div className="card shadow-sm p-4">
+                <h3>Send Results Email</h3>
+                <p>Send analysis results and reports to clients.</p>
+                <button 
+                  className="btn btn-primary mt-3"
+                  onClick={() => navigate(`/projects/${projectId}/email`)}
+                >
+                  Send Email
                 </button>
               </div>
             </div>
