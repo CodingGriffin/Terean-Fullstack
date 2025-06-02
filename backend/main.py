@@ -862,3 +862,52 @@ async def auto_velocity_model(
     }
     
     return default_model
+
+
+@app.post("/process/auto-limit")
+async def auto_limit(
+    project_id: Annotated[str, Form(...)],
+    current_user: User = Depends(get_current_user)
+):
+    check_permissions(current_user, 1)
+    
+    # For now, just return default values
+    # In a real implementation, you would:
+    # 1. Get all SGY files for the project
+    try:
+        # Find all SGY files associated with this project
+        project_sgy_dir = os.path.join(GLOBAL_SGY_FILES_DIR, project_id)
+        if os.path.exists(project_sgy_dir):
+            sgy_files = glob.glob(os.path.join(project_sgy_dir, "*.sgy"))
+            logger.info(f"Found {len(sgy_files)} SGY files for project {project_id}")
+        else:
+            logger.warning(f"No SGY directory found for project {project_id}")
+            sgy_files = []
+            
+        # 2. Analyze them to determine optimal frequency and slowness limits
+        if sgy_files:
+            # This is where you would analyze the files
+            # For now, we'll just return different defaults based on file count
+            if len(sgy_files) > 5:
+                # More files might need higher frequency resolution
+                return {
+                    "maxFreq": 60.0,
+                    "maxSlow": 0.012
+                }
+            elif len(sgy_files) > 0:
+                # Some files found, use moderate settings
+                return {
+                    "maxFreq": 55.0,
+                    "maxSlow": 0.014
+                }
+    except Exception as e:
+        logger.error(f"Error analyzing SGY files: {str(e)}")
+        # Continue to default values on error
+    
+    # 3. Return those values (or defaults if analysis failed)
+    default_limits = {
+        "maxFreq": 50.0,
+        "maxSlow": 0.015
+    }
+    
+    return default_limits

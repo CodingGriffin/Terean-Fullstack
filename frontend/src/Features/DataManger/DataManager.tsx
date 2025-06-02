@@ -126,6 +126,7 @@ export const DataManager = ({ projectId }: { projectId?: string }) => {
                     maxFreq={state.savedFreqSettings.maxFreq}
                     numSlow={state.savedSlowSettings.numSlow}
                     maxSlow={state.savedSlowSettings.maxSlow}
+                    projectId={projectId}
                     onNumFreqChange={(value) => setSavedFreqSettings({...state.savedFreqSettings, numFreq: value})}
                     onMaxFreqChange={(value) => setSavedFreqSettings({...state.savedFreqSettings, maxFreq: value})}
                     onNumSlowChange={(value) => setSavedSlowSettings({...state.savedSlowSettings, numSlow: value})}

@@ -260,3 +260,10 @@ export const autoFitVelocityModel = async (picks: any) => {
     
     return api.post('/process/auto-velocity-model', formData);
 };
+
+export const autoFitLimits = async (projectId: string) => {
+    const formData = new FormData();
+    formData.append('project_id', projectId);
+    
+    return api.post('/process/auto-limit', formData);
+};
