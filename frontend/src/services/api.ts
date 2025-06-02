@@ -443,3 +443,25 @@ export const generateResultsEmail = async (
     throw error;
   }
 };
+
+export const getProjectClientContacts = async (projectId: string) => {
+  try {
+    const response = await api.get(`/project/${projectId}/client-contacts`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching client contacts for project ${projectId}:`, error);
+    throw error;
+  }
+};
+
+export const getAdditionalFileContent = async (projectId: string, fileId: string) => {
+  try {
+    const response = await api.get(`/project/${projectId}/files/${fileId}/download`, {
+      responseType: 'text'
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching file content for ${fileId}:`, error);
+    throw error;
+  }
+};

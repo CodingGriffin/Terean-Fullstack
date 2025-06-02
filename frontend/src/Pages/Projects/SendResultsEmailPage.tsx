@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../Components/navbar/Navbar";
 import { Toast } from "../../Components/Toast/Toast";
 import SectionHeader from "../../Components/SectionHeader/SectionHeader";
-import { getProjectById, generateResultsEmail } from "../../services/api";
+import { getProjectById, generateResultsEmail, getAdditionalFileContent } from "../../services/api";
 import { addToast } from "../../store/slices/toastSlice";
 import { useAppDispatch } from "../../hooks/useAppDispatch";
 
@@ -12,6 +12,27 @@ interface Project {
   name: string;
   status?: string;
   priority?: string;
+  client?: {
+    id: number;
+    name: string;
+    contacts: Array<{
+      id: number;
+      name: string;
+      email: string;
+      phone_number?: string;
+    }>;
+  };
+  additional_files?: Array<{
+    id: string;
+    original_name: string;
+    name: string;
+  }>;
+}
+
+interface ContactOption {
+  name: string;
+  email: string;
+  source: 'user_cfg' | 'client_contact';
 }
 
 const SendResultsEmailPage: React.FC = () => {
@@ -22,31 +43,46 @@ const SendResultsEmailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
+  // Dropdown options
+  const [contactOptions, setContactOptions] = useState<ContactOption[]>([]);
+  const [hasProjectVelocityModel, setHasProjectVelocityModel] = useState(false);
+  
   // Form state
   const [formData, setFormData] = useState({
-    clientName: '',
-    clientEmail: '',
-    velocityModelFile: null as File | null
+    velocityModelOption: '',
+    velocityModelFile: null as File | null,
+    clientContactOption: '',
+    manualClientName: '',
+    manualClientEmail: ''
   });
   
   // Validation errors
   const [errors, setErrors] = useState({
-    clientName: '',
-    clientEmail: '',
-    velocityModelFile: ''
+    velocityModelOption: '',
+    velocityModelFile: '',
+    clientContactOption: '',
+    manualClientName: '',
+    manualClientEmail: ''
   });
 
   useEffect(() => {
-    fetchProject();
+    fetchProjectData();
   }, [projectId]);
 
-  const fetchProject = async () => {
+  const fetchProjectData = async () => {
     if (!projectId) return;
     
     setLoading(true);
     try {
       const data = await getProjectById(projectId);
       setProject(data);
+      
+      // Check for project velocity model (you may need to adjust this logic based on your data structure)
+      setHasProjectVelocityModel(true); // Assume all projects have velocity models for now
+      
+      // Parse contact options
+      await parseContactOptions(data);
+      
     } catch (error) {
       console.error("Error fetching project:", error);
       dispatch(addToast({
@@ -59,30 +95,106 @@ const SendResultsEmailPage: React.FC = () => {
     }
   };
 
+  const parseContactOptions = async (projectData: Project) => {
+    const options: ContactOption[] = [];
+    
+    // Parse user.cfg if it exists
+    // Log what project data is present - I'm guessing this is erroring out because it hasn't hit the backend yet?
+    const userCfgFile = projectData.additional_files?.find(
+      file => {
+        console.log("Trying to parse file: ", JSON.stringify(file))
+        console.log("As object:", file)
+        console.log("Original name:", file.original_name)
+        return file.original_name.toLowerCase() === 'user.cfg'
+      }
+    );
+    
+    if (userCfgFile) {
+      try {
+        const fileContent = await getAdditionalFileContent(projectId!, userCfgFile.id);
+        const userCfgData = parseUserCfg(fileContent);
+        if (userCfgData.name && userCfgData.email) {
+          options.push({
+            name: userCfgData.name,
+            email: userCfgData.email,
+            source: 'user_cfg'
+          });
+        }
+      } catch (error) {
+        console.error("Error parsing user.cfg:", error);
+      }
+    }
+    
+    // Add client contacts if available
+    if (projectData.client?.contacts) {
+      projectData.client.contacts.forEach(contact => {
+        options.push({
+          name: contact.name,
+          email: contact.email,
+          source: 'client_contact'
+        });
+      });
+    }
+    
+    setContactOptions(options);
+    
+    // Set default selection to first option if available
+    if (options.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        clientContactOption: `${options[0].name}|${options[0].email}`
+      }));
+    }
+  };
+
+  const parseUserCfg = (content: string) => {
+    const lines = content.split('\n');
+    const data: { name?: string; email?: string; phone?: string } = {};
+    
+    lines.forEach(line => {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith('name=')) {
+        data.name = trimmedLine.substring(5).trim();
+      } else if (trimmedLine.startsWith('email=')) {
+        data.email = trimmedLine.substring(6).trim();
+      } else if (trimmedLine.startsWith('phone=')) {
+        data.phone = trimmedLine.substring(6).trim();
+      }
+    });
+    
+    return data;
+  };
+
   const validateForm = () => {
     const newErrors = {
-      clientName: '',
-      clientEmail: '',
-      velocityModelFile: ''
+      velocityModelOption: '',
+      velocityModelFile: '',
+      clientContactOption: '',
+      manualClientName: '',
+      manualClientEmail: ''
     };
 
-    // Validate client name
-    if (!formData.clientName.trim()) {
-      newErrors.clientName = 'Client name is required';
-    }
-
-    // Validate client email
-    if (!formData.clientEmail.trim()) {
-      newErrors.clientEmail = 'Client email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.clientEmail)) {
-      newErrors.clientEmail = 'Please enter a valid email address';
-    }
-
-    // Validate velocity model file
-    if (!formData.velocityModelFile) {
-      newErrors.velocityModelFile = 'Velocity model file is required';
-    } else if (!formData.velocityModelFile.name.toLowerCase().endsWith('.txt')) {
+    // Validate velocity model selection
+    if (!formData.velocityModelOption) {
+      newErrors.velocityModelOption = 'Please select a velocity model option';
+    } else if (formData.velocityModelOption === 'upload' && !formData.velocityModelFile) {
+      newErrors.velocityModelFile = 'Please select a velocity model file';
+    } else if (formData.velocityModelFile && !formData.velocityModelFile.name.toLowerCase().endsWith('.txt')) {
       newErrors.velocityModelFile = 'Please select a .txt file';
+    }
+
+    // Validate client contact selection
+    if (!formData.clientContactOption) {
+      newErrors.clientContactOption = 'Please select a client contact option';
+    } else if (formData.clientContactOption === 'manual') {
+      if (!formData.manualClientName.trim()) {
+        newErrors.manualClientName = 'Client name is required';
+      }
+      if (!formData.manualClientEmail.trim()) {
+        newErrors.manualClientEmail = 'Client email is required';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.manualClientEmail)) {
+        newErrors.manualClientEmail = 'Please enter a valid email address';
+      }
     }
 
     setErrors(newErrors);
@@ -92,7 +204,7 @@ const SendResultsEmailPage: React.FC = () => {
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
-    // Clear error when user starts typing
+    // Clear error when user makes changes
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -111,17 +223,45 @@ const SendResultsEmailPage: React.FC = () => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
-    if (!validateForm() || !projectId || !formData.velocityModelFile) {
+    if (!validateForm() || !projectId) {
       return;
     }
 
     setSubmitting(true);
     try {
+      let clientName = '';
+      let clientEmail = '';
+      let velocityFile: File | null = null;
+
+      // Extract client information
+      if (formData.clientContactOption === 'manual') {
+        clientName = formData.manualClientName;
+        clientEmail = formData.manualClientEmail;
+      } else {
+        const [name, email] = formData.clientContactOption.split('|');
+        clientName = name;
+        clientEmail = email;
+      }
+
+      // Handle velocity model
+      if (formData.velocityModelOption === 'upload' && formData.velocityModelFile) {
+        velocityFile = formData.velocityModelFile;
+      } else if (formData.velocityModelOption === 'project') {
+        // Create a placeholder file for project velocity model
+        // The backend should handle this case differently
+        const blob = new Blob(['USE_PROJECT_VELOCITY_MODEL'], { type: 'text/plain' });
+        velocityFile = new File([blob], 'project_velocity_model.txt', { type: 'text/plain' });
+      }
+
+      if (!velocityFile) {
+        throw new Error('No velocity model specified');
+      }
+
       await generateResultsEmail(
         projectId,
-        formData.velocityModelFile,
-        formData.clientName,
-        formData.clientEmail
+        velocityFile,
+        clientName,
+        clientEmail
       );
       
       dispatch(addToast({
@@ -132,9 +272,11 @@ const SendResultsEmailPage: React.FC = () => {
 
       // Reset form
       setFormData({
-        clientName: '',
-        clientEmail: '',
-        velocityModelFile: null
+        velocityModelOption: '',
+        velocityModelFile: null,
+        clientContactOption: contactOptions.length > 0 ? `${contactOptions[0].name}|${contactOptions[0].email}` : '',
+        manualClientName: '',
+        manualClientEmail: ''
       });
       
       // Reset file input
@@ -216,70 +358,127 @@ const SendResultsEmailPage: React.FC = () => {
                     Generate Results Email
                   </h5>
                   <form onSubmit={handleSubmit}>
-                    {/* Velocity Model File */}
+                    {/* Velocity Model Selection */}
                     <div className="mb-3">
-                      <label htmlFor="velocity-model-file" className="form-label">
+                      <label htmlFor="velocity-model-option" className="form-label">
                         Velocity Model <span className="text-danger">*</span>
                       </label>
-                      <input
-                        type="file"
-                        className={`form-control ${errors.velocityModelFile ? 'is-invalid' : ''}`}
-                        id="velocity-model-file"
-                        accept=".txt"
-                        onChange={handleFileChange}
+                      <select
+                        className={`form-select ${errors.velocityModelOption ? 'is-invalid' : ''}`}
+                        id="velocity-model-option"
+                        value={formData.velocityModelOption}
+                        onChange={(e) => handleInputChange('velocityModelOption', e.target.value)}
                         disabled={submitting}
-                      />
-                      <div className="form-text">
-                        Please select a .txt file containing the velocity model data.
+                      >
+                        <option value="">Select velocity model option...</option>
+                        {hasProjectVelocityModel && (
+                          <option value="project">Use project velocity model</option>
+                        )}
+                        <option value="upload">Upload velocity model</option>
+                      </select>
+                      {errors.velocityModelOption && (
+                        <div className="invalid-feedback">
+                          {errors.velocityModelOption}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* File Upload (shown only when upload is selected) */}
+                    {formData.velocityModelOption === 'upload' && (
+                      <div className="mb-3">
+                        <label htmlFor="velocity-model-file" className="form-label">
+                          Upload Velocity Model File <span className="text-danger">*</span>
+                        </label>
+                        <input
+                          type="file"
+                          className={`form-control ${errors.velocityModelFile ? 'is-invalid' : ''}`}
+                          id="velocity-model-file"
+                          accept=".txt"
+                          onChange={handleFileChange}
+                          disabled={submitting}
+                        />
+                        <div className="form-text">
+                          Please select a .txt file containing the velocity model data.
+                        </div>
+                        {errors.velocityModelFile && (
+                          <div className="invalid-feedback">
+                            {errors.velocityModelFile}
+                          </div>
+                        )}
                       </div>
-                      {errors.velocityModelFile && (
-                        <div className="invalid-feedback">
-                          {errors.velocityModelFile}
-                        </div>
-                      )}
-                    </div>
+                    )}
 
-                    {/* Client Name */}
+                    {/* Client Contact Selection */}
                     <div className="mb-3">
-                      <label htmlFor="client-name" className="form-label">
-                        Client Name <span className="text-danger">*</span>
+                      <label htmlFor="client-contact-option" className="form-label">
+                        Client Contact <span className="text-danger">*</span>
                       </label>
-                      <input
-                        type="text"
-                        className={`form-control ${errors.clientName ? 'is-invalid' : ''}`}
-                        id="client-name"
-                        value={formData.clientName}
-                        onChange={(e) => handleInputChange('clientName', e.target.value)}
-                        placeholder="Enter client name"
+                      <select
+                        className={`form-select ${errors.clientContactOption ? 'is-invalid' : ''}`}
+                        id="client-contact-option"
+                        value={formData.clientContactOption}
+                        onChange={(e) => handleInputChange('clientContactOption', e.target.value)}
                         disabled={submitting}
-                      />
-                      {errors.clientName && (
+                      >
+                        <option value="">Select client contact...</option>
+                        {contactOptions.map((contact, index) => (
+                          <option key={index} value={`${contact.name}|${contact.email}`}>
+                            {contact.name} ({contact.email}) - {contact.source === 'user_cfg' ? 'from user.cfg' : 'client contact'}
+                          </option>
+                        ))}
+                        <option value="manual">Enter manually</option>
+                      </select>
+                      {errors.clientContactOption && (
                         <div className="invalid-feedback">
-                          {errors.clientName}
+                          {errors.clientContactOption}
                         </div>
                       )}
                     </div>
 
-                    {/* Client Email */}
-                    <div className="mb-4">
-                      <label htmlFor="client-email" className="form-label">
-                        Client Email <span className="text-danger">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        className={`form-control ${errors.clientEmail ? 'is-invalid' : ''}`}
-                        id="client-email"
-                        value={formData.clientEmail}
-                        onChange={(e) => handleInputChange('clientEmail', e.target.value)}
-                        placeholder="Enter client email address"
-                        disabled={submitting}
-                      />
-                      {errors.clientEmail && (
-                        <div className="invalid-feedback">
-                          {errors.clientEmail}
+                    {/* Manual Client Entry (shown only when manual is selected) */}
+                    {formData.clientContactOption === 'manual' && (
+                      <>
+                        <div className="mb-3">
+                          <label htmlFor="manual-client-name" className="form-label">
+                            Client Name <span className="text-danger">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            className={`form-control ${errors.manualClientName ? 'is-invalid' : ''}`}
+                            id="manual-client-name"
+                            value={formData.manualClientName}
+                            onChange={(e) => handleInputChange('manualClientName', e.target.value)}
+                            placeholder="Enter client name"
+                            disabled={submitting}
+                          />
+                          {errors.manualClientName && (
+                            <div className="invalid-feedback">
+                              {errors.manualClientName}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
+
+                        <div className="mb-4">
+                          <label htmlFor="manual-client-email" className="form-label">
+                            Client Email <span className="text-danger">*</span>
+                          </label>
+                          <input
+                            type="email"
+                            className={`form-control ${errors.manualClientEmail ? 'is-invalid' : ''}`}
+                            id="manual-client-email"
+                            value={formData.manualClientEmail}
+                            onChange={(e) => handleInputChange('manualClientEmail', e.target.value)}
+                            placeholder="Enter client email address"
+                            disabled={submitting}
+                          />
+                          {errors.manualClientEmail && (
+                            <div className="invalid-feedback">
+                              {errors.manualClientEmail}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
 
                     {/* Submit Button */}
                     <div className="d-grid">
