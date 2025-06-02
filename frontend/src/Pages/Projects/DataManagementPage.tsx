@@ -61,6 +61,7 @@ const DataManagementPage: React.FC = () => {
     records: false,
     picks: false,
     additionalFiles: false,
+    uploadFiles: false,
     velocityModel: false,
     reports: false,
   });
@@ -339,7 +340,8 @@ const DataManagementPage: React.FC = () => {
         duration: 3000
       }));
 
-      // Refresh project data to show new files
+      // Close upload modal and refresh project data
+      handleModals("uploadFiles", false);
       await fetchProjectData();
     } catch (error) {
       console.error("Error uploading files:", error);
@@ -710,45 +712,6 @@ const DataManagementPage: React.FC = () => {
             ></button>
           </div>
           <div className="modal-body">
-            {/* Upload Section */}
-            <div className="mb-4">
-              <div className="card border-primary">
-                <div className="card-header bg-primary text-white">
-                  <h6 className="mb-0">
-                    <i className="bi bi-cloud-upload me-2"></i>
-                    Upload New Files
-                  </h6>
-                </div>
-                <div className="card-body">
-                  <div className="row align-items-center">
-                    <div className="col-md-8">
-                      <input
-                        type="file"
-                        className="form-control"
-                        onChange={handleUploadAdditionalFiles}
-                        disabled={uploading}
-                        multiple
-                      />
-                      <small className="text-muted">
-                        All file formats are supported
-                      </small>
-                    </div>
-                    <div className="col-md-4">
-                      {uploading && (
-                        <div className="d-flex align-items-center">
-                          <div className="spinner-border spinner-border-sm me-2" role="status">
-                            <span className="visually-hidden">Uploading...</span>
-                          </div>
-                          <span>Uploading...</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Existing Files Section */}
             <div className="mb-3">
               <div className="d-flex justify-content-between align-items-center">
                 <h6>Additional Files ({project?.additional_files?.length || 0})</h6>
@@ -825,6 +788,78 @@ const DataManagementPage: React.FC = () => {
             ) : (
               <p className="text-muted">No additional files found for this project.</p>
             )}
+          </div>
+          <div className="modal-footer">
+            <button 
+              className="btn btn-primary"
+              onClick={() => handleModals("uploadFiles", true)}
+            >
+              <i className="bi bi-cloud-upload me-2"></i>
+              Upload Files
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Upload Files Modal */}
+      <Modal 
+        isOpen={modals.uploadFiles}
+        onClose={() => handleModals("uploadFiles", false)}
+      >
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title">Upload Additional Files</h5>
+            <button 
+              type="button" 
+              className="btn-close" 
+              onClick={() => handleModals("uploadFiles", false)}
+            ></button>
+          </div>
+          <div className="modal-body">
+            <div className="card border-primary">
+              <div className="card-header bg-primary text-white">
+                <h6 className="mb-0">
+                  <i className="bi bi-cloud-upload me-2"></i>
+                  Select Files to Upload
+                </h6>
+              </div>
+              <div className="card-body">
+                <div className="row align-items-center">
+                  <div className="col-md-8">
+                    <input
+                      type="file"
+                      className="form-control"
+                      onChange={handleUploadAdditionalFiles}
+                      disabled={uploading}
+                      multiple
+                    />
+                    <small className="text-muted">
+                      All file formats are supported
+                    </small>
+                  </div>
+                  <div className="col-md-4">
+                    {uploading && (
+                      <div className="d-flex align-items-center">
+                        <div className="spinner-border spinner-border-sm me-2" role="status">
+                          <span className="visually-hidden">Uploading...</span>
+                        </div>
+                        <span>Uploading...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={() => handleModals("uploadFiles", false)}
+              disabled={uploading}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       </Modal>
