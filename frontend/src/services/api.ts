@@ -169,6 +169,16 @@ export const uploadSgyFilesToProject = async (files: File[], projectId: string) 
   }
 };
 
+export const getSgyFilesByProject = async (projectId: string) => {
+  try {
+    const response = await api.get(`/sgy-files/project/${projectId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching SGY files for project ${projectId}:`, error);
+    throw error;
+  }
+};
+
 export const getAllProjects = async (params: {
   skip?: number;
   limit?: number;
