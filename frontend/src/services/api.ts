@@ -204,12 +204,33 @@ export const downloadAllSgyFiles = async (projectId: string) => {
 
 export const downloadAdditionalFile = async (projectId: string, fileId: string) => {
   try {
-    const response = await api.get(`/projects/${projectId}/files/${fileId}/download`, {
+    const response = await api.get(`/project/${projectId}/files/${fileId}/download`, {
       responseType: 'blob'
     });
     return response.data;
   } catch (error) {
     console.error(`Error downloading additional file ${fileId}:`, error);
+    throw error;
+  }
+};
+
+export const uploadAdditionalFiles = async (projectId: string, files: File[]) => {
+  try {
+    const formData = new FormData();
+    
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+
+    const response = await api.post(`/project/${projectId}/upload-files`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error(`Error uploading additional files to project ${projectId}:`, error);
     throw error;
   }
 };

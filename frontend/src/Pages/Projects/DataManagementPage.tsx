@@ -12,7 +12,8 @@ import {
   downloadSgyFile, 
   downloadAllSgyFiles, 
   downloadAdditionalFile,
-  getOptions
+  getOptions,
+  uploadAdditionalFiles
 } from "../../services/api";
 import { addToast } from "../../store/slices/toastSlice";
 import { useAppDispatch } from "../../hooks/useAppDispatch";
@@ -53,6 +54,7 @@ const DataManagementPage: React.FC = () => {
   const [picks, setPicks] = useState<PickData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [uploading, setUploading] = useState(false);
   
   const [modals, setModals] = useState({
     geometry: false,
@@ -320,6 +322,37 @@ const DataManagementPage: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleUploadAdditionalFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !projectId) return;
+
+    setUploading(true);
+    try {
+      const filesArray = Array.from(files);
+      const response = await uploadAdditionalFiles(projectId, filesArray);
+      
+      dispatch(addToast({
+        message: `Successfully uploaded ${filesArray.length} file(s)`,
+        type: "success",
+        duration: 3000
+      }));
+
+      // Refresh project data to show new files
+      await fetchProjectData();
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      dispatch(addToast({
+        message: "Failed to upload files",
+        type: "error",
+        duration: 5000
+      }));
+    } finally {
+      setUploading(false);
+      // Reset file input
+      event.target.value = '';
+    }
   };
 
   if (loading) {
@@ -677,6 +710,45 @@ const DataManagementPage: React.FC = () => {
             ></button>
           </div>
           <div className="modal-body">
+            {/* Upload Section */}
+            <div className="mb-4">
+              <div className="card border-primary">
+                <div className="card-header bg-primary text-white">
+                  <h6 className="mb-0">
+                    <i className="bi bi-cloud-upload me-2"></i>
+                    Upload New Files
+                  </h6>
+                </div>
+                <div className="card-body">
+                  <div className="row align-items-center">
+                    <div className="col-md-8">
+                      <input
+                        type="file"
+                        className="form-control"
+                        onChange={handleUploadAdditionalFiles}
+                        disabled={uploading}
+                        multiple
+                      />
+                      <small className="text-muted">
+                        All file formats are supported
+                      </small>
+                    </div>
+                    <div className="col-md-4">
+                      {uploading && (
+                        <div className="d-flex align-items-center">
+                          <div className="spinner-border spinner-border-sm me-2" role="status">
+                            <span className="visually-hidden">Uploading...</span>
+                          </div>
+                          <span>Uploading...</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Existing Files Section */}
             <div className="mb-3">
               <div className="d-flex justify-content-between align-items-center">
                 <h6>Additional Files ({project?.additional_files?.length || 0})</h6>
