@@ -147,13 +147,6 @@ const SendResultsEmailPage: React.FC = () => {
                     </p>
                     <div className="d-flex gap-2 justify-content-center flex-wrap">
                       <button
-                        className="btn btn-primary"
-                        onClick={() => navigate(`/projects/${projectId}/downloads`)}
-                      >
-                        <i className="bi bi-download me-2"></i>
-                        Go to Download Links
-                      </button>
-                      <button
                         className="btn btn-outline-secondary"
                         onClick={() => navigate(`/projects/${projectId}/data`)}
                       >
@@ -178,13 +171,6 @@ const SendResultsEmailPage: React.FC = () => {
                     using the other available tools and send them manually via your preferred email client.
                   </p>
                   <div className="d-flex gap-2 flex-wrap">
-                    <button
-                      className="btn btn-outline-info btn-sm"
-                      onClick={() => navigate(`/projects/${projectId}/downloads`)}
-                    >
-                      <i className="bi bi-download me-1"></i>
-                      Download Project Data
-                    </button>
                     <button
                       className="btn btn-outline-primary btn-sm"
                       onClick={() => navigate(`/projects/${projectId}/data`)}

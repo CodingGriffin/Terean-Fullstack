@@ -22,7 +22,6 @@ import DisperPage from "./Pages/Projects/DisperPage.tsx";
 import ProjectPage from "./Pages/Projects/ProjectPage.tsx";
 import ProjectsPage from "./Pages/Projects/ProjectsPage.tsx";
 import DataManagementPage from "./Pages/Projects/DataManagementPage.tsx";
-import DownloadLinksPage from "./Pages/Projects/DownloadLinksPage.tsx";
 import SendResultsEmailPage from "./Pages/Projects/SendResultsEmailPage.tsx";
 
 export default function App() {
@@ -87,14 +86,6 @@ export default function App() {
           element={
             <ProtectedRoute minAuthLevel={2}>
               <DataManagementPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/projects/:projectId/downloads"
-          element={
-            <ProtectedRoute minAuthLevel={2}>
-              <DownloadLinksPage />
             </ProtectedRoute>
           }
         />
