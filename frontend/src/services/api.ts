@@ -267,3 +267,10 @@ export const autoFitLimits = async (projectId: string) => {
     
     return api.post('/process/auto-limit', formData);
 };
+
+export const autoGeneratePicks = async (projectId: string) => {
+    const formData = new FormData();
+    formData.append('project_id', projectId);
+    
+    return api.post('/process/auto-pick', formData);
+};

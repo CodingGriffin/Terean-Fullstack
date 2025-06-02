@@ -1,9 +1,9 @@
 import React, {useEffect, useCallback} from 'react';
-import {Button} from '../../Components/Button/Button';
 import {useParams} from 'react-router';
 import {useAppDispatch} from '../../hooks/useAppDispatch';
 import {saveOptionsByProjectId} from '../../store/thunks/cacheThunks';
 import {savePicksByProjectId} from "../../store/thunks/cacheThunks";
+import { usePicks } from '../../Contexts/PicksContext';
 
 interface PicksSettingsSaveProps {
   className?: string;
@@ -22,6 +22,7 @@ export const PicksSettingsSave: React.FC<PicksSettingsSaveProps> =
     const dispatch = useAppDispatch();
     const {projectId} = useParams<{ projectId: string }>();
     const [isSaving, setIsSaving] = React.useState(false);
+    const { autoGeneratePicksForProject, state: { isAutoPickLoading } } = usePicks();
 
     const handleSave = useCallback(async () => {
       if (!projectId) {
@@ -37,6 +38,10 @@ export const PicksSettingsSave: React.FC<PicksSettingsSaveProps> =
         setIsSaving(false);
       }
     }, [dispatch, projectId]);
+
+    const handleAutoPick = useCallback(() => {
+      autoGeneratePicksForProject();
+    }, [autoGeneratePicksForProject]);
 
     useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
@@ -56,25 +61,35 @@ export const PicksSettingsSave: React.FC<PicksSettingsSaveProps> =
 
     return (
       <div className="d-flex gap-2">
-        <Button
-          variant={variant}
-          size={size}
-          fullWidth={fullWidth}
-          className={className}
+        <button
+          className={`btn btn-${variant} ${className}`}
           onClick={handleSave}
           disabled={isSaving}
         >
-          {isSaving ? 'Saving...' : 'Save Picks Settings'}
-        </Button>
-        {/* <Button
-        variant="secondary"
-        size={size}
-        fullWidth={fullWidth}
-        className={className}
-        onClick={handleLoad}
-      >
-        Load Settings
-      </Button> */}
+          {isSaving ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+              Saving...
+            </>
+          ) : (
+            'Save'
+          )}
+        </button>
+        
+        <button
+          className={`btn btn-outline-secondary ${className}`}
+          onClick={handleAutoPick}
+          disabled={isAutoPickLoading}
+        >
+          {isAutoPickLoading ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+              Auto Picking...
+            </>
+          ) : (
+            'Auto Pick'
+          )}
+        </button>
       </div>
     );
   };

@@ -911,3 +911,24 @@ async def auto_limit(
     }
     
     return default_limits
+
+
+@app.post("/process/auto-pick")
+async def auto_pick(
+    project_id: Annotated[str, Form(...)],
+    current_user: User = Depends(get_current_user)
+):
+    check_permissions(current_user, 1)
+    
+    default_picks = [
+        {"d1": 0, "d2": 0, "frequency": 5.0, "d3": 0, "slowness": 0.0015, "d4": 0, "d5": 0},
+        {"d1": 0, "d2": 0, "frequency": 10.0, "d3": 0, "slowness": 0.0012, "d4": 0, "d5": 0},
+        {"d1": 0, "d2": 0, "frequency": 15.0, "d3": 0, "slowness": 0.0010, "d4": 0, "d5": 0},
+        {"d1": 0, "d2": 0, "frequency": 20.0, "d3": 0, "slowness": 0.0008, "d4": 0, "d5": 0},
+        {"d1": 0, "d2": 0, "frequency": 25.0, "d3": 0, "slowness": 0.0007, "d4": 0, "d5": 0},
+        {"d1": 0, "d2": 0, "frequency": 30.0, "d3": 0, "slowness": 0.0006, "d4": 0, "d5": 0},
+        {"d1": 0, "d2": 0, "frequency": 35.0, "d3": 0, "slowness": 0.0005, "d4": 0, "d5": 0},
+        {"d1": 0, "d2": 0, "frequency": 40.0, "d3": 0, "slowness": 0.0004, "d4": 0, "d5": 0}
+    ]
+    
+    return default_picks
