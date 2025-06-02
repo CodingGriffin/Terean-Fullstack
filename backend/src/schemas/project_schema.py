@@ -79,3 +79,11 @@ class ProjectCreate(ProjectBase):
 class ProjectCreateWithFiles(ProjectBase):
     sgy_files: Optional[List[str]] = None  # List of SgyFile IDs
     additional_files: Optional[List[str]] = None  # List of File IDs
+
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    status: Optional[ProjectStatus] = None
+    priority: Optional[Priority] = None
+    survey_date: Optional[datetime.datetime] = None
+    received_date: Optional[datetime.datetime] = None

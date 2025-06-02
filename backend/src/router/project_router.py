@@ -25,7 +25,7 @@ from schemas.additional_models import (
     PickData
 )
 from schemas.file_schema import FileCreate, FileSchema
-from schemas.project_schema import ProjectCreate, Project
+from schemas.project_schema import ProjectCreate, Project, ProjectUpdate
 from schemas.sgy_file_schema import SgyFileCreate
 from schemas.user_schema import User
 from utils.authentication import get_current_user, check_permissions
@@ -414,6 +414,43 @@ async def get_project_by_id(
     except Exception as e:
         logger.error(f"Error getting project: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting project: {str(e)}")
+
+
+@project_router.patch("/{project_id}", response_model=Project)
+async def update_project_fields(
+    project_id: str,
+    project_update: ProjectUpdate,
+    db: Session = db_dependency,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update specific fields of a project.
+    Requires authentication.
+    """
+    check_permissions(current_user, 1)
+    
+    try:
+        project = get_project(db, project_id)
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Project with ID {project_id} not found"
+            )
+        
+        # Update only provided fields
+        update_data = project_update.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(project, field, value)
+        
+        db.commit()
+        db.refresh(project)
+        
+        return Project.from_db(project)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating project: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating project: {str(e)}")
 
 
 class SortOrder(str, Enum):

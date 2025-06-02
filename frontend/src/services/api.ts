@@ -304,3 +304,19 @@ export const createProjectWithFiles = async (
     throw error;
   }
 };
+
+export const updateProject = async (projectId: string, updates: {
+  name?: string;
+  status?: string;
+  priority?: string;
+  survey_date?: string | null;
+  received_date?: string | null;
+}) => {
+  try {
+    const response = await api.patch(`/project/${projectId}`, updates);
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating project ${projectId}:`, error);
+    throw error;
+  }
+};
