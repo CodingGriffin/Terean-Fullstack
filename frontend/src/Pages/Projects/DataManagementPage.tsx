@@ -11,7 +11,8 @@ import {
   getSgyFilesByProject, 
   downloadSgyFile, 
   downloadAllSgyFiles, 
-  downloadAdditionalFile 
+  downloadAdditionalFile,
+  getOptions
 } from "../../services/api";
 import { addToast } from "../../store/slices/toastSlice";
 import { useAppDispatch } from "../../hooks/useAppDispatch";
@@ -71,19 +72,21 @@ const DataManagementPage: React.FC = () => {
     
     setLoading(true);
     try {
-      const [projectData, picksData, sgyFilesData] = await Promise.all([
+      const [projectData, picksData, sgyFilesData, optionsData] = await Promise.all([
         getProjectById(projectId),
         getPicks(projectId).catch(() => ({ data: [] })), // Don't fail if picks don't exist
-        getSgyFilesByProject(projectId).catch(() => []) // Don't fail if no SGY files
+        getSgyFilesByProject(projectId).catch(() => []), // Don't fail if no SGY files
+        getOptions(projectId).catch(() => ({ data: null })) // Don't fail if no options
       ]);
       
-      // Merge SGY files data into project data
-      const projectWithSgyFiles = {
+      // Merge SGY files data and geometry from options into project data
+      const projectWithAllData = {
         ...projectData,
-        records: sgyFilesData
+        records: sgyFilesData,
+        geometry: optionsData?.data?.geometry || []
       };
       
-      setProject(projectWithSgyFiles);
+      setProject(projectWithAllData);
       setPicks(picksData.data || []);
     } catch (error) {
       console.error("Error fetching project data:", error);
