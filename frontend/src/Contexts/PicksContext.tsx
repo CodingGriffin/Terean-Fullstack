@@ -3,7 +3,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { addToast } from '../store/slices/toastSlice';
 import { useParams } from 'react-router-dom';
 import { PickData } from '../types/data';
-import { savePicksByProjectId, fetchPicksByProjectId, processGridsForPreview, uploadSgyFilesToProjectThunk, fetchOptionsByProjectId } from '../store/thunks/cacheThunks';
+import { savePicksByProjectId, fetchPicksByProjectId, processGridsForPreview, uploadSgyFilesToProjectThunk, fetchOptionsByProjectId, saveRecordOptionsByProjectId } from '../store/thunks/cacheThunks';
 import { GeometryItem } from '../types/geometry';
 import { RecordOption, RecordUploadFile } from '../types/record';
 import { setGeometrySlice } from '../store/slices/geometrySlice';
@@ -11,6 +11,7 @@ import { setNumFreq, updateMaxFreq } from '../store/slices/freqSlice';
 import { setNumSlow, updateMaxSlow } from '../store/slices/slowSlice';
 import { setOptions } from '../store/slices/recordSlice';
 import { setInitialized } from '../store/slices/initializationSlice';
+import { useAppSelector } from '../hooks/useAppSelector';
 
 const initialState = {
     points: [] as PickData[],
@@ -254,7 +255,10 @@ export function PicksProvider({ children }: { children: ReactNode }) {
     const reduxDispatch = useAppDispatch();
     const { projectId } = useParams<{ projectId: string }>();
     const initialFetchDone = useRef(false);
-
+    
+    // Get record options from Redux store
+    const reduxRecordOptions = useAppSelector((state) => state.record.options);
+    
     const addPoint = useCallback((point: PickData) => {
         dispatch({ type: 'ADD_POINT', payload: point });
     }, []);
@@ -343,6 +347,23 @@ export function PicksProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_UPLOAD_FILES', payload: files });
     }, []);
 
+    // Sync savedRecordOptions with Redux store when DataManager opens
+    useEffect(() => {
+        console.log('=== Sync Effect Check ===');
+        console.log('state.showDataManager:', state.showDataManager);
+        console.log('reduxRecordOptions.length:', reduxRecordOptions.length);
+        console.log('reduxRecordOptions:', JSON.stringify(reduxRecordOptions, null, 2));
+        
+        if (state.showDataManager && reduxRecordOptions.length > 0) {
+            console.log('=== Syncing savedRecordOptions with Redux ===');
+            console.log('Redux record options:', JSON.stringify(reduxRecordOptions, null, 2));
+            console.log('Current saved record options:', JSON.stringify(state.savedRecordOptions, null, 2));
+            console.log('Current record options:', JSON.stringify(state.recordOptions, null, 2));
+            setSavedRecordOptions(reduxRecordOptions);
+            setRecordOptions(reduxRecordOptions);
+        }
+    }, [state.showDataManager, reduxRecordOptions, state.savedRecordOptions, setSavedRecordOptions, setRecordOptions]);
+
     const handleUploadFiles = useCallback((files: RecordUploadFile[] | null) => {
         console.log('=== PicksContext handleUploadFiles ===');
         console.log('Received files:', JSON.stringify(files, null, 2));
@@ -412,6 +433,11 @@ export function PicksProvider({ children }: { children: ReactNode }) {
 
         if (projectId && state.savedRecordOptions.length > 0 && state.savedGeometry.length > 0) {
             try {
+                // Save record options to backend
+                console.log('Saving record options to backend for project:', projectId);
+                await reduxDispatch(saveRecordOptionsByProjectId(projectId)).unwrap();
+                console.log('Record options saved successfully to backend');
+                
                 await reduxDispatch(processGridsForPreview({
                     projectId,
                     recordOptions: JSON.stringify(state.savedRecordOptions),
@@ -664,8 +690,38 @@ export function PicksProvider({ children }: { children: ReactNode }) {
                 if (result.meta.requestStatus === 'fulfilled' && result.payload) {
                     // Update saved record options with backend-generated IDs
                     const newRecordOptions = result.payload.recordOptions;
-                    console.log('Setting new record options from backend:', newRecordOptions);
-                    setSavedRecordOptions(newRecordOptions);
+                    console.log('New record options from backend:', JSON.stringify(newRecordOptions, null, 2));
+                    console.log('Current saved record options:', JSON.stringify(state.savedRecordOptions, null, 2));
+                    
+                    // Find which temp IDs correspond to which files
+                    const tempIdMapping: { [fileName: string]: string } = {};
+                    state.savedRecordOptions.forEach(opt => {
+                        if (opt.id.startsWith('temp-')) {
+                            tempIdMapping[opt.fileName] = opt.id;
+                        }
+                    });
+                    console.log('Temp ID mapping:', JSON.stringify(tempIdMapping, null, 2));
+                    
+                    // Replace temp records with backend records instead of appending
+                    const updatedRecordOptions = state.savedRecordOptions.map(existingOption => {
+                        // If this is a temp record and we have a backend replacement, use the backend version
+                        if (existingOption.id.startsWith('temp-')) {
+                            const backendOption = newRecordOptions.find(
+                                (newOpt: RecordOption) => newOpt.fileName === existingOption.fileName
+                            );
+                            if (backendOption) {
+                                console.log(`Replacing temp ID ${existingOption.id} with backend ID ${backendOption.id} for file ${existingOption.fileName}`);
+                                return backendOption;
+                            }
+                        }
+                        // Otherwise keep the existing option
+                        return existingOption;
+                    });
+                    
+                    console.log('Updated record options (replaced):', JSON.stringify(updatedRecordOptions, null, 2));
+                    console.log('Total records after replacement:', updatedRecordOptions.length);
+                    
+                    setSavedRecordOptions(updatedRecordOptions);
                     // Clear upload files since they're now on the backend
                     setUploadFiles({});
                 }
@@ -673,7 +729,7 @@ export function PicksProvider({ children }: { children: ReactNode }) {
                 console.error('Upload thunk error:', error);
             });
         }
-    }, [state.uploadFiles, projectId, reduxDispatch, setSavedRecordOptions, setUploadFiles]);
+    }, [state.uploadFiles, projectId, reduxDispatch, setSavedRecordOptions, setUploadFiles, state.savedRecordOptions]);
 
     return (
         <PicksContext.Provider

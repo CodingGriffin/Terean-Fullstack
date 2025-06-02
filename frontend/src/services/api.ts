@@ -79,6 +79,23 @@ export const saveOptions = async (projectId: string | undefined,
     });
 };
 
+export const saveRecordOptions = async (projectId: string | undefined, records: RecordOption[]) => {
+    if (!projectId) {
+        throw new Error("Project ID is required to save record options");
+    }
+    
+    // Get current options first to preserve geometry and plotLimits
+    const currentOptions = await getOptions(projectId);
+    const { geometry, plotLimits } = currentOptions.data;
+    
+    // Save with updated records but preserved geometry and plotLimits
+    return api.post(`/project/${projectId}/options`, {
+        geometry,
+        records,
+        plotLimits
+    });
+};
+
 export const getOptions = async (projectId: string) => {
     return api.get(`/project/${projectId}/options`);
 };

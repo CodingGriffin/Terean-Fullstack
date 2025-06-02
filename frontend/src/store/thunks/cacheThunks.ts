@@ -20,6 +20,7 @@ import {
   processGrids,
   savePicks,
   saveOptions,
+  saveRecordOptions,
   uploadSgyFilesToProject
 } from "../../services/api";
 
@@ -277,6 +278,45 @@ export const saveOptionsByProjectId = createAsyncThunk(
       console.error("Error saving options:", error);
       dispatch(addToast({
         message: "Failed to save options",
+        type: "error",
+        duration: 5000
+      }));
+      throw error;
+    }
+  }
+);
+
+export const saveRecordOptionsByProjectId = createAsyncThunk(
+  "cache/saveRecordOptionsByProjectId",
+  async (
+    projectId: string | undefined,
+    {dispatch, getState}
+  ) => {
+    if (!projectId) {
+      dispatch(addToast({
+        message: "No project ID available",
+        type: "error",
+        duration: 5000
+      }));
+      return;
+    }
+
+    try {
+      const state = getState() as RootState;
+      const records = state.record.options;
+
+      console.log('Saving record options to backend:', records);
+      const response = await saveRecordOptions(projectId, records);
+      dispatch(addToast({
+        message: "Record options saved successfully",
+        type: "success",
+        duration: 3000
+      }));
+      return response.data;
+    } catch (error) {
+      console.error("Error saving record options:", error);
+      dispatch(addToast({
+        message: "Failed to save record options",
         type: "error",
         duration: 5000
       }));

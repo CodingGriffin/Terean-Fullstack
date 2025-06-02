@@ -46,21 +46,36 @@ const AddRecordOptions: React.FC<AddRecordOptionsProps> = ({
     setSelectedFiles(filesArray);
     
     // Create preview data without IDs (will be added by backend)
-    const newRecordOptions = filesArray.map(file => ({
-      id: '', // Temporary empty ID, will be filled by backend
-      enabled: false,
-      weight: 100,
-      fileName: file.name,
-    }));
+    const newRecordOptions = filesArray.map((file, index) => {
+      const tempId = `temp-${Date.now()}-${index}-${file.name}`;
+      console.log(`Creating record option for file ${index}: ${file.name} with temp ID: ${tempId}`);
+      
+      return {
+        id: tempId, // Use temporary unique ID
+        enabled: false,
+        weight: 100,
+        fileName: file.name,
+      };
+    });
     
-    console.log('Preview record options:', newRecordOptions);
+    console.log('Preview record options:', JSON.stringify(newRecordOptions, null, 2));
     setPreviewData(newRecordOptions);
     
-    // Store files for upload
-    const newUploadFiles = filesArray.map(file => ({
-      id: '', // Temporary empty ID
-      file
-    }));
+    // Store files for upload with matching temporary IDs
+    const newUploadFiles = filesArray.map((file, index) => {
+      const tempId = `temp-${Date.now()}-${index}-${file.name}`;
+      console.log(`Creating upload file for ${file.name} with temp ID: ${tempId}`);
+      
+      return {
+        id: tempId, // Use same temporary unique ID
+        file
+      };
+    });
+    
+    console.log('Upload files created:', JSON.stringify(newUploadFiles.map(uf => ({
+      id: uf.id,
+      fileName: uf.file.name
+    })), null, 2));
     setUploadFiles(newUploadFiles);
   };
 
@@ -96,6 +111,7 @@ const AddRecordOptions: React.FC<AddRecordOptionsProps> = ({
                   <div className="small text-muted">
                     <div>Weight: {data.weight}</div>
                     <div>Enabled: {data.enabled ? "Yes" : "No"}</div>
+                    <div>Temp ID: {data.id}</div>
                   </div>
                 </div>
               ))}
@@ -110,8 +126,12 @@ const AddRecordOptions: React.FC<AddRecordOptionsProps> = ({
         </Button>
         <Button variant="primary" onClick={() => {
           console.log('=== AddRecordOptions Submit ===');
-          console.log('Upload files:', uploadfiles);
-          console.log('Selected files:', selectedFiles);
+          console.log('Upload files to submit:', JSON.stringify(uploadfiles.map(uf => ({
+            id: uf.id,
+            fileName: uf.file?.name
+          })), null, 2));
+          console.log('Selected files:', selectedFiles.map(f => f.name));
+          console.log('Preview data:', JSON.stringify(previewData, null, 2));
           
           // Pass the actual files for upload
           onUploadFiles(uploadfiles);
