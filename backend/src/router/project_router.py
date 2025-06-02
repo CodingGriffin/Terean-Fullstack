@@ -454,6 +454,40 @@ async def update_project_fields(
         raise HTTPException(status_code=500, detail=f"Error updating project: {str(e)}")
 
 
+@project_router.patch("/{project_id}/client")
+async def update_project_client(
+    project_id: str,
+    client_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update or remove the client associated with a project."""
+    check_permissions(current_user, 1)
+    
+    project = get_project(db, project_id)
+    if not project:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Project with ID {project_id} not found"
+        )
+    
+    if client_id is not None:
+        # Verify client exists
+        from crud.client_crud import get_client
+        client = get_client(db, client_id)
+        if not client:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Client with ID {client_id} not found"
+            )
+    
+    project.client_id = client_id
+    db.commit()
+    db.refresh(project)
+    
+    return {"detail": f"Project client updated successfully", "client_id": client_id}
+
+
 class SortOrder(str, Enum):
     ASC = "asc"
     DESC = "desc"
@@ -584,19 +618,21 @@ async def create_new_project(
         request: Request,
         project_data: str = Form(...),  # Project data as JSON string in form data
         project_id: Optional[str] = Query(None),
+        client_id: Optional[int] = Form(None),  # Add client_id parameter
         sgy_files: List[UploadFile] = File(None),
         additional_files: List[UploadFile] = File(None),
         db: Session = db_dependency,
         current_user: User = Depends(get_current_user)
 ):
     """
-    Create a new project with optional project ID and file uploads.
+    Create a new project with optional project ID, client association, and file uploads.
     If project_id is not provided, one will be generated.
     Requires authentication.
     
     Parameters:
     - project_data: Project creation data as JSON string
     - project_id: Optional project ID (will be generated if not provided)
+    - client_id: Optional client ID to associate with the project
     - sgy_files: Optional list of SEG-Y files to upload
     - additional_files: Optional list of additional files to upload
     """
@@ -608,11 +644,17 @@ async def create_new_project(
     logger.info(f"Request method: {request.method}")
     logger.info(f"Content-Type header: {request.headers.get('content-type', 'Not found')}")
     logger.info(f"Query params - project_id: {project_id}")
+    logger.info(f"Form params - client_id: {client_id}")
 
     # Parse the project data from JSON string
     try:
         logger.info(f"Raw project data:\n{project_data}")
         project_dict = json.loads(project_data)
+        
+        # Add client_id if provided
+        if client_id:
+            project_dict["client_id"] = client_id
+            
         logger.info(f"Parsed project data: {project_dict}")
         project = ProjectCreate(**project_dict)
     except json.JSONDecodeError as e:
@@ -655,7 +697,12 @@ async def create_new_project(
         project_data = project.model_dump()
         project_data["id"] = project_id
         project_with_id = ProjectCreate(**project_data)
-        db_project = create_project(db=db, project=project_with_id)
+        
+        try:
+            db_project = create_project(db=db, project=project_with_id)
+        except ValueError as e:
+            # Handle client not found error
+            raise HTTPException(status_code=400, detail=str(e))
 
         # Handle SEG-Y file uploads
         if sgy_files:
