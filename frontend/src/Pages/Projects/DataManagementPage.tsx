@@ -244,20 +244,60 @@ const DataManagementPage: React.FC = () => {
     
     const pointsData = picks.map(p => `${p.d1.toFixed(6)} ${p.d2.toFixed(6)} ${p.frequency.toFixed(6)} ${p.d3.toFixed(6)} ${p.slowness.toFixed(6)} ${p.d4.toFixed(6)} ${p.d5.toFixed(6)}`).join('\n');
     const blob = new Blob([pointsData], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = "picks.pck";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
     
-    dispatch(addToast({
-      message: "Downloaded picks",
-      type: "success",
-      duration: 3000
-    }));
+    // Create filename with project name
+    const projectName = project?.name || 'project';
+    const filename = `${projectName}_picks.pck`;
+    
+    // Use showSaveFilePicker API for native file save dialog
+    try {
+      (window as unknown as { showSaveFilePicker: (options: any) => Promise<any> })
+        .showSaveFilePicker({
+          suggestedName: filename,
+          types: [
+            {
+              description: "Picked Points",
+              accept: {
+                "text/plain": [".pck"],
+              },
+            },
+          ],
+        })
+        .then(async (handle: any) => {
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          
+          dispatch(addToast({
+            message: "Picks saved successfully",
+            type: "success",
+            duration: 3000
+          }));
+        });
+    } catch (err) {
+      console.error("Error saving file:", err);
+      dispatch(addToast({
+        message: "Failed to save file. Downloading instead.",
+        type: "warning",
+        duration: 3000
+      }));
+      
+      // Fallback to download link if native file picker fails
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      dispatch(addToast({
+        message: "Downloaded picks",
+        type: "success",
+        duration: 3000
+      }));
+    }
   };
 
   const toggleFileSelection = (fileId: string) => {
@@ -373,7 +413,7 @@ const DataManagementPage: React.FC = () => {
               <div className="card h-100 shadow-sm">
                 <div className="card-body d-flex flex-column">
                   <h5 className="card-title">
-                    <i className="bi bi-file-earmark-binary me-2 text-success"></i>
+                    <i className="bi bi-file-earmark-binary me-2 text-primary"></i>
                     Records
                   </h5>
                   <p className="card-text text-muted">
@@ -384,7 +424,7 @@ const DataManagementPage: React.FC = () => {
                       <strong>Files:</strong> {project?.records?.length || 0}
                     </p>
                     <button 
-                      className="btn btn-success w-100"
+                      className="btn btn-primary w-100"
                       onClick={() => handleModals("records", true)}
                     >
                       Manage Records
@@ -399,7 +439,7 @@ const DataManagementPage: React.FC = () => {
               <div className="card h-100 shadow-sm">
                 <div className="card-body d-flex flex-column">
                   <h5 className="card-title">
-                    <i className="bi bi-cursor me-2 text-warning"></i>
+                    <i className="bi bi-cursor me-2 text-primary"></i>
                     Picks
                   </h5>
                   <p className="card-text text-muted">
@@ -410,7 +450,7 @@ const DataManagementPage: React.FC = () => {
                       <strong>Points:</strong> {picks.length}
                     </p>
                     <button 
-                      className="btn btn-warning w-100"
+                      className="btn btn-primary w-100"
                       onClick={() => handleModals("picks", true)}
                     >
                       Manage Picks
@@ -425,7 +465,7 @@ const DataManagementPage: React.FC = () => {
               <div className="card h-100 shadow-sm">
                 <div className="card-body d-flex flex-column">
                   <h5 className="card-title">
-                    <i className="bi bi-files me-2 text-info"></i>
+                    <i className="bi bi-files me-2 text-primary"></i>
                     Additional Files
                   </h5>
                   <p className="card-text text-muted">
@@ -436,7 +476,7 @@ const DataManagementPage: React.FC = () => {
                       <strong>Files:</strong> {project?.additional_files?.length || 0}
                     </p>
                     <button 
-                      className="btn btn-info w-100"
+                      className="btn btn-primary w-100"
                       onClick={() => handleModals("additionalFiles", true)}
                     >
                       Manage Files
@@ -451,7 +491,7 @@ const DataManagementPage: React.FC = () => {
               <div className="card h-100 shadow-sm">
                 <div className="card-body d-flex flex-column">
                   <h5 className="card-title">
-                    <i className="bi bi-layers me-2 text-secondary"></i>
+                    <i className="bi bi-layers me-2 text-primary"></i>
                     Velocity Model
                   </h5>
                   <p className="card-text text-muted">
@@ -478,7 +518,7 @@ const DataManagementPage: React.FC = () => {
               <div className="card h-100 shadow-sm">
                 <div className="card-body d-flex flex-column">
                   <h5 className="card-title">
-                    <i className="bi bi-file-text me-2 text-dark"></i>
+                    <i className="bi bi-file-text me-2 text-primary"></i>
                     Reports
                   </h5>
                   <p className="card-text text-muted">
@@ -489,7 +529,7 @@ const DataManagementPage: React.FC = () => {
                       <em>Coming soon...</em>
                     </p>
                     <button 
-                      className="btn btn-dark w-100"
+                      className="btn btn-secondary w-100"
                       onClick={() => handleModals("reports", true)}
                       disabled
                     >
@@ -616,7 +656,7 @@ const DataManagementPage: React.FC = () => {
                 Download your dispersion curve picks as a .pck file.
               </p>
               <button 
-                className="btn btn-warning"
+                className="btn btn-primary"
                 onClick={handleDownloadPicks}
                 disabled={picks.length === 0}
               >
