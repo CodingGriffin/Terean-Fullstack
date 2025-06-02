@@ -7,7 +7,7 @@ import {
   TextStyle,
 } from "pixi.js";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { extend } from "@pixi/react";
+import { extend, useApp } from "@pixi/react";
 import "@pixi/events";
 import { Layer } from "../../types/data";
 import { useDisper } from "../../Contexts/DisperContext";
@@ -17,6 +17,7 @@ import SectionHeader from "../../Components/SectionHeader/SectionHeader";
 // import { useParams } from "react-router";
 import { useAppDispatch } from "../../hooks/useAppDispatch";
 import { addToast } from "../../store/slices/toastSlice";
+import { autoFitVelocityModel } from '../../services/api';
 
 extend({ Container, Sprite, Graphics, Text });
 
@@ -30,7 +31,7 @@ const VELOCITY_MARGIN_FACTOR = 1.1; // 110% of max velocity
 
 export const DisperModelManager = () => {
   const {
-    state: { layers, asceVersion, displayUnits, modelAxisLimits },
+    state: { layers, asceVersion, displayUnits, modelAxisLimits, pickData },
     setLayers,
     splitLayer,
     deleteLayer,
@@ -48,6 +49,9 @@ export const DisperModelManager = () => {
     width: 0,
     height: 0,
   });
+
+  // Add loading state
+  const [isLoading, setIsLoading] = useState(false);
 
   const plotRef = useRef<HTMLDivElement>(null);
   const plotContainerRef = useRef<HTMLDivElement>(null);
@@ -463,6 +467,41 @@ export const DisperModelManager = () => {
     }
   }, [layers, modelAxisLimits.ymax]);
 
+  const handleAutoFitLayers = useCallback(async () => {
+    const dispatch = useAppDispatch();
+    
+    try {
+      setIsLoading(true);
+      
+      const picks = pickData || [];
+      
+      const response = await autoFitVelocityModel(picks);
+      
+      if (response.data) {
+        setLayers(response.data.layers);
+        
+        if (response.data.modelAxisLimits) {
+          setModelAxisLimits(response.data.modelAxisLimits);
+        }
+        
+        dispatch(addToast({
+          message: "Velocity model auto-fitted successfully",
+          type: "success",
+          duration: 3000
+        }));
+      }
+    } catch (error) {
+      console.error("Error auto-fitting velocity model:", error);
+      dispatch(addToast({
+        message: "Failed to auto-fit velocity model",
+        type: "error",
+        duration: 5000
+      }));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pickData, setLayers, setModelAxisLimits]);
+
   // Add click handler for the plot area
   const handlePlotClick = (event: React.PointerEvent) => {
     // If shift key is pressed, handle layer splitting
@@ -620,6 +659,20 @@ export const DisperModelManager = () => {
                 onClick={handleDownloadLayers}
               >
                 Download Layers
+              </button>
+              <button 
+                className="btn btn-outline-secondary btn-sm"
+                onClick={handleAutoFitLayers}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    Auto Fitting...
+                  </>
+                ) : (
+                  'Auto Fit Layers'
+                )}
               </button>
             </div>
           </div>

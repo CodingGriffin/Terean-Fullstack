@@ -1,11 +1,15 @@
 import { Input } from "../../../Components/Input/Input";
 import { useState } from "react";
+import { autoFitLimits } from '../../../services/api';
+import { useAppDispatch } from "../../../hooks/useAppDispatch";
+import { addToast } from "../../../store/slices/toastSlice";
 
 interface FreqSlowMangerProps {
   numFreq: number;
   maxFreq: number;
   numSlow: number;
   maxSlow: number;
+  projectId?: string;
   onNumFreqChange: (value: number) => void;
   onMaxFreqChange: (value: number) => void;
   onNumSlowChange: (value: number) => void;
@@ -17,13 +21,61 @@ export const FreqSlowManger = ({
     maxFreq, 
     numSlow, 
     maxSlow, 
+    projectId,
     onNumFreqChange, 
     onMaxFreqChange,
     onNumSlowChange,
     onMaxSlowChange
   }:FreqSlowMangerProps) => {
   
+  const dispatch = useAppDispatch();
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isUpdated, setIsUpdated] = useState<boolean>(false);
+  
+  // Add auto-fit function
+  const handleAutoFitLimits = async () => {
+    if (!projectId) {
+      dispatch(addToast({
+        message: "Project ID is required to auto-fit limits",
+        type: "error",
+        duration: 5000
+      }));
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      
+      const response = await autoFitLimits(projectId);
+      
+      if (response.data) {
+        if (response.data.maxFreq) {
+          onMaxFreqChange(response.data.maxFreq);
+        }
+        
+        if (response.data.maxSlow) {
+          onMaxSlowChange(response.data.maxSlow);
+        }
+        
+        setIsUpdated(true);
+        
+        dispatch(addToast({
+          message: "Frequency and slowness limits auto-fitted successfully",
+          type: "success",
+          duration: 3000
+        }));
+      }
+    } catch (error) {
+      console.error("Error auto-fitting limits:", error);
+      dispatch(addToast({
+        message: "Failed to auto-fit limits",
+        type: "error",
+        duration: 5000
+      }));
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const handleNumFreqChange = (value: string) => {
     onNumFreqChange(parseInt(value));
@@ -98,6 +150,15 @@ export const FreqSlowManger = ({
             />
           </div>
         </div>
+      </div>
+      <div className="d-flex justify-content-center mt-3">
+        <button
+          className="btn btn-primary"
+          onClick={handleAutoFitLimits}
+          disabled={isLoading || !projectId}
+        >
+          {isLoading ? "Auto Fitting..." : "Auto Fit Limits"}
+        </button>
       </div>
     </div>
   );

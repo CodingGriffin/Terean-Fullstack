@@ -253,3 +253,24 @@ export const createProject = async (projectData: ProjectCreate, projectId?: stri
     throw error;
   }
 };
+
+export const autoFitVelocityModel = async (picks: any) => {
+    const formData = new FormData();
+    formData.append('picks', JSON.stringify(picks));
+    
+    return api.post('/process/auto-velocity-model', formData);
+};
+
+export const autoFitLimits = async (projectId: string) => {
+    const formData = new FormData();
+    formData.append('project_id', projectId);
+    
+    return api.post('/process/auto-limit', formData);
+};
+
+export const autoGeneratePicks = async (projectId: string) => {
+    const formData = new FormData();
+    formData.append('project_id', projectId);
+    
+    return api.post('/process/auto-pick', formData);
+};
