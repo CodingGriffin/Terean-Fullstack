@@ -308,18 +308,6 @@ const ProjectPage: React.FC = () => {
             </div>
             <div className="col-md-6 col-lg-4">
               <div className="card shadow-sm p-4">
-                <h3>Download Links</h3>
-                <p>Quick access to download project data and files.</p>
-                <button 
-                  className="btn btn-primary mt-3"
-                  onClick={() => navigate(`/projects/${projectId}/downloads`)}
-                >
-                  View Downloads
-                </button>
-              </div>
-            </div>
-            <div className="col-md-6 col-lg-4">
-              <div className="card shadow-sm p-4">
                 <h3>Send Results Email</h3>
                 <p>Send analysis results and reports to clients.</p>
                 <button 

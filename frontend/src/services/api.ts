@@ -5,7 +5,6 @@ import axios from 'axios';
 import {GeometryItem} from '../types/geometry';
 import {RecordOption} from '../types/record';
 import {PickData} from '../types/data';
-import {RecordUploadFile} from '../types/record';
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000/';
 
@@ -175,6 +174,42 @@ export const getSgyFilesByProject = async (projectId: string) => {
     return response.data;
   } catch (error) {
     console.error(`Error fetching SGY files for project ${projectId}:`, error);
+    throw error;
+  }
+};
+
+export const downloadSgyFile = async (fileId: string) => {
+  try {
+    const response = await api.get(`/sgy-files/download_file/${fileId}`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error downloading SGY file ${fileId}:`, error);
+    throw error;
+  }
+};
+
+export const downloadAllSgyFiles = async (projectId: string) => {
+  try {
+    const response = await api.get(`/sgy-files/download_project_sgy/${projectId}`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error downloading all SGY files for project ${projectId}:`, error);
+    throw error;
+  }
+};
+
+export const downloadAdditionalFile = async (projectId: string, fileId: string) => {
+  try {
+    const response = await api.get(`/projects/${projectId}/files/${fileId}/download`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error downloading additional file ${fileId}:`, error);
     throw error;
   }
 };

@@ -5,7 +5,14 @@ import { Toast } from "../../Components/Toast/Toast";
 import SectionHeader from "../../Components/SectionHeader/SectionHeader";
 import { Modal } from "../../Components/Modal/Modal";
 import { GeometryManager } from "../../Features/DataManger/GeometryManager/GeometryManager";
-import { getProjectById, getPicks, getSgyFilesByProject } from "../../services/api";
+import { 
+  getProjectById, 
+  getPicks, 
+  getSgyFilesByProject, 
+  downloadSgyFile, 
+  downloadAllSgyFiles, 
+  downloadAdditionalFile 
+} from "../../services/api";
 import { addToast } from "../../store/slices/toastSlice";
 import { useAppDispatch } from "../../hooks/useAppDispatch";
 import { GeometryItem } from "../../types/geometry";
@@ -102,15 +109,8 @@ const DataManagementPage: React.FC = () => {
 
   const handleDownloadSgyFile = async (fileId: string, fileName: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'}/sgy-files/download_file/${fileId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const blob = await downloadSgyFile(fileId);
       
-      if (!response.ok) throw new Error('Download failed');
-      
-      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -139,19 +139,16 @@ const DataManagementPage: React.FC = () => {
     if (!projectId) return;
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'}/sgy-files/download_project_sgy/${projectId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const blob = await downloadAllSgyFiles(projectId);
       
-      if (!response.ok) throw new Error('Download failed');
-      
-      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `project_${projectId}_records.zip`;
+      
+      // Use project name for filename
+      const projectName = project?.name || projectId;
+      link.download = `${projectName}_records.zip`;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -176,15 +173,8 @@ const DataManagementPage: React.FC = () => {
     if (!projectId) return;
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'}/projects/${projectId}/files/${fileId}/download`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const blob = await downloadAdditionalFile(projectId, fileId);
       
-      if (!response.ok) throw new Error('Download failed');
-      
-      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
