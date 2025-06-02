@@ -3,7 +3,7 @@ import logging
 import os
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Query, Request, Form
@@ -838,3 +838,16 @@ async def create_new_project(
         raise HTTPException(status_code=500, detail=f"Error creating project: {str(e)}")
 
 # endregion
+
+#region Send results email
+@project_router.post("/{project_id}/generate-results-email")
+async def generate_results_email(
+        velocity_model: Annotated[UploadFile, File(...)],
+        client_name: Annotated[str, Form(...)],
+        client_email: Annotated[str, Form(...)],
+        current_user: User = Depends(get_current_user)
+):
+    check_permissions(current_user, 1)
+    logger.warning("Should send email, but this function has not been fully written yet.")
+
+#endregion

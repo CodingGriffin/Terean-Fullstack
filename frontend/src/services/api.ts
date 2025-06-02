@@ -403,3 +403,43 @@ export const updateProject = async (projectId: string, updates: {
     throw error;
   }
 };
+
+export const generateResultsEmail = async (
+  projectId: string, 
+  velocityModelFile: File, 
+  clientName: string, 
+  clientEmail: string
+) => {
+  try {
+    const formData = new FormData();
+    
+    formData.append('velocity_model', velocityModelFile);
+    formData.append('client_name', clientName);
+    formData.append('client_email', clientEmail);
+    
+    console.log('=== GENERATE RESULTS EMAIL REQUEST ===');
+    console.log('Project ID:', projectId);
+    console.log('Velocity Model File:', velocityModelFile.name);
+    console.log('Client Name:', clientName);
+    console.log('Client Email:', clientEmail);
+    
+    const response = await api.post(`/project/${projectId}/generate-results-email`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    console.log('=== GENERATE RESULTS EMAIL RESPONSE ===');
+    console.log('Response Status:', response.status);
+    console.log('Response Data:', response.data);
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error generating results email for project ${projectId}:`, error);
+    if (error.response) {
+      console.error('Error response:', error.response.data);
+      console.error('Error status:', error.response.status);
+    }
+    throw error;
+  }
+};
