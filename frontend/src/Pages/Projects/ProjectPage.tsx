@@ -12,6 +12,8 @@ interface Project {
   name: string;
   status?: string;
   priority?: string;
+  survey_date?: string;
+  received_date?: string;
   records?: any[];
   additional_files?: any[];
 }
@@ -26,8 +28,17 @@ const ProjectPage: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({
     status: '',
-    priority: ''
+    priority: '',
+    survey_date: '',
+    received_date: ''
   });
+  const [originalForm, setOriginalForm] = useState({
+    status: '',
+    priority: '',
+    survey_date: '',
+    received_date: ''
+  });
+
 
   useEffect(() => {
     fetchProject();
@@ -40,10 +51,14 @@ const ProjectPage: React.FC = () => {
     try {
       const data = await getProjectById(projectId);
       setProject(data);
-      setEditForm({
+      const formData = {
         status: data.status || 'not_started',
-        priority: data.priority || 'medium'
-      });
+        priority: data.priority || 'medium',
+        survey_date: data.survey_date ? data.survey_date.split('T')[0] : '',
+        received_date: data.received_date ? data.received_date.split('T')[0] : ''
+      };
+      setEditForm(formData);
+      setOriginalForm(formData);
     } catch (error) {
       console.error("Error fetching project:", error);
       dispatch(addToast({
@@ -56,13 +71,48 @@ const ProjectPage: React.FC = () => {
     }
   };
 
+  const hasChanges = () => {
+    return JSON.stringify(editForm) !== JSON.stringify(originalForm);
+  };
+
   const handleSaveChanges = async () => {
-    if (!project || updating) return;
-    
+    if (!project || updating || !hasChanges()) {
+      if (!hasChanges()) {
+        setShowEditModal(false);
+        return;
+      }
+      return;
+    }
+
     setUpdating(true);
     try {
-      const updated = await updateProject(projectId!, editForm);
+      // Prepare the update payload, converting empty date strings to null
+      const updatePayload: any = {
+        status: editForm.status,
+        priority: editForm.priority
+      };
+
+      // Only include dates if they have changed
+      if (editForm.survey_date !== originalForm.survey_date) {
+        updatePayload.survey_date = editForm.survey_date || null;
+      }
+      if (editForm.received_date !== originalForm.received_date) {
+        updatePayload.received_date = editForm.received_date || null;
+      }
+
+      const updated = await updateProject(projectId!, updatePayload);
       setProject(updated);
+
+      // Update the original form values after successful save
+      const newFormData = {
+        status: updated.status || 'not_started',
+        priority: updated.priority || 'medium',
+        survey_date: updated.survey_date ? updated.survey_date.split('T')[0] : '',
+        received_date: updated.received_date ? updated.received_date.split('T')[0] : ''
+      };
+      setEditForm(newFormData);
+      setOriginalForm(newFormData);
+
       setShowEditModal(false);
       dispatch(addToast({
         message: "Project updated successfully",
@@ -95,6 +145,16 @@ const ProjectPage: React.FC = () => {
     ).join(' ');
   };
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "Not set";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+  
   if (loading) {
     return (
       <>
@@ -171,18 +231,35 @@ const ProjectPage: React.FC = () => {
                             </p>
                           </div>
                           <div className="col-md-3">
-                        <p className="mb-2">
-                          <strong>Additional Files:</strong>
-                          <span className="ms-2">{project?.additional_files?.length || 0}</span>
-                        </p>
-                      </div>
+                            <p className="mb-2">
+                              <strong>Additional Files:</strong>
+                              <span className="ms-2">{project?.additional_files?.length || 0}</span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="row text-center mt-3">
+                          <div className="col-md-6">
+                            <p className="mb-2">
+                              <strong>Survey Date:</strong>
+                              <span className="ms-2">{formatDate(project?.survey_date)}</span>
+                            </p>
+                          </div>
+                          <div className="col-md-6">
+                            <p className="mb-2">
+                              <strong>Received Date:</strong>
+                              <span className="ms-2">{formatDate(project?.received_date)}</span>
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                   <button
                     className="btn btn-primary btn-sm position-absolute top-0 end-0 m-3"
-                    onClick={() => setShowEditModal(true)}
+                    onClick={() => {
+                      setEditForm(originalForm);
+                      setShowEditModal(true);
+                    }}
                   >
                     <i className="bi bi-pencil me-1"></i>
                     Edit
@@ -231,7 +308,10 @@ const ProjectPage: React.FC = () => {
                 <button
                   type="button"
                   className="btn-close"
-                  onClick={() => setShowEditModal(false)}
+                  onClick={() => {
+                    setEditForm(originalForm);
+                    setShowEditModal(false);
+                  }}
                   disabled={updating}
                 ></button>
               </div>
@@ -267,12 +347,37 @@ const ProjectPage: React.FC = () => {
                     <option value="very_low">Very Low</option>
                   </select>
                 </div>
+                <div className="mb-3">
+                  <label htmlFor="edit-survey-date" className="form-label">Survey Date</label>
+                  <input
+                    id="edit-survey-date"
+                    type="date"
+                    className="form-control"
+                    value={editForm.survey_date}
+                    onChange={(e) => setEditForm({...editForm, survey_date: e.target.value})}
+                    disabled={updating}
+                  />
+                </div>
+                <div className="mb-3">
+                  <label htmlFor="edit-received-date" className="form-label">Received Date</label>
+                  <input
+                    id="edit-received-date"
+                    type="date"
+                    className="form-control"
+                    value={editForm.received_date}
+                    onChange={(e) => setEditForm({...editForm, received_date: e.target.value})}
+                    disabled={updating}
+                  />
+                </div>
               </div>
               <div className="modal-footer">
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  onClick={() => setShowEditModal(false)}
+                  onClick={() => {
+                    setEditForm(originalForm);
+                    setShowEditModal(false);
+                  }}
                   disabled={updating}
                 >
                   Cancel
@@ -281,7 +386,7 @@ const ProjectPage: React.FC = () => {
                   type="button"
                   className="btn btn-primary"
                   onClick={handleSaveChanges}
-                  disabled={updating}
+                  disabled={updating || !hasChanges()}
                 >
                   {updating ? (
                     <>
