@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
 class ContactBase(BaseModel):
     name: str
@@ -14,3 +15,9 @@ class Contact(ContactBase):
 
     class Config:
         from_attributes = True 
+
+class ContactUpdate(BaseModel):
+    name: Optional[str] = None
+    phone_number: Optional[str] = None
+    email: Optional[EmailStr] = None
+    client_id: Optional[int] = None 

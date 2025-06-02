@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from crud import client_crud
-from schemas.client_schema import Client, ClientCreate, ClientUpdate, ClientWithProjects
+from schemas.client_schema import Client, ClientCreate, ClientUpdate
 from schemas.user_schema import User
 from utils.authentication import get_current_user, check_permissions
 
@@ -53,7 +53,7 @@ async def get_clients(
             detail=f"Error fetching clients: {str(e)}"
         )
 
-@client_router.get("/{client_id}", response_model=ClientWithProjects)
+@client_router.get("/{client_id}", response_model=Client)
 async def get_client(
     client_id: int,
     include_projects: bool = Query(False),

@@ -23,13 +23,3 @@ class Client(ClientBase):
 
     class Config:
         from_attributes = True
-
-class ClientWithProjects(Client):
-    projects: List["ProjectBase"] = []
-    
-    class Config:
-        from_attributes = True
-
-# Avoid circular imports
-from schemas.project_schema import ProjectBase
-ClientWithProjects.model_rebuild()
