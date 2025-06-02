@@ -437,15 +437,16 @@ async def update_project_fields(
                 detail=f"Project with ID {project_id} not found"
             )
         
-        # Update only provided fields
-        update_data = project_update.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(project, field, value)
+        # Use the project CRUD update function which includes client_id validation
+        project_create = ProjectCreate(**project_update.model_dump(exclude_unset=True))
         
-        db.commit()
-        db.refresh(project)
+        try:
+            updated_project = update_project(db=db, project_id=project_id, project=project_create)
+        except ValueError as e:
+            # Handle client not found error
+            raise HTTPException(status_code=400, detail=str(e))
         
-        return Project.from_db(project)
+        return Project.from_db(updated_project)
     except HTTPException:
         raise
     except Exception as e:

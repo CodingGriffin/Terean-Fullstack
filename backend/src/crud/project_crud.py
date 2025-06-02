@@ -70,6 +70,14 @@ def create_project(db: Session, project: ProjectCreate | Project) -> ProjectDBMo
     project_data = project.model_dump()
     logger.info(f"Received initial project data:\n{project_data}")
     
+    # Handle client_id if provided
+    if project_data.get("client_id"):
+        # Verify client exists
+        from crud.client_crud import get_client
+        client = get_client(db, project_data["client_id"])
+        if not client:
+            raise ValueError(f"Client with ID {project_data['client_id']} not found")
+    
     # Apply defaults for None values
     if project_data.get("name") is None:
         project_data["name"] = DEFAULT_PROJECT_NAME
@@ -126,7 +134,16 @@ def create_default_project(
 def update_project(db: Session, project_id: str, project: ProjectCreate) -> Optional[ProjectDBModel]:
     db_project = get_project(db, project_id)
     if db_project:
-        for key, value in project.model_dump().items():
+        update_data = project.model_dump()
+        
+        # If updating client_id, verify client exists
+        if "client_id" in update_data and update_data["client_id"]:
+            from crud.client_crud import get_client
+            client = get_client(db, update_data["client_id"])
+            if not client:
+                raise ValueError(f"Client with ID {update_data['client_id']} not found")
+        
+        for key, value in update_data.items():
             setattr(db_project, key, value)
         db.commit()
         db.refresh(db_project)

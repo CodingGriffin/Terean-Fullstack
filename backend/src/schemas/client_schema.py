@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -11,9 +11,25 @@ class ClientBase(BaseModel):
 class ClientCreate(ClientBase):
     pass
 
+class ClientUpdate(BaseModel):
+    name: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
 class Client(ClientBase):
     id: int
     contacts: List[Contact] = []
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+class ClientWithProjects(Client):
+    projects: List["ProjectBase"] = []
+    
+    class Config:
+        from_attributes = True
+
+# Avoid circular imports
+from schemas.project_schema import ProjectBase
+ClientWithProjects.model_rebuild()

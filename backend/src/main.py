@@ -32,6 +32,8 @@ from router.authentication import authentication_router
 from router.process_router import process_router
 from router.project_router import project_router
 from router.sgy_file_router import sgy_file_router
+from router.client_router import client_router
+from router.contact_router import contact_router
 from schemas.user_schema import UserCreate, User
 from utils.authentication import check_permissions, get_current_user
 from utils.consumer_utils import get_user_info
@@ -102,6 +104,8 @@ app.include_router(admin_router)
 app.include_router(sgy_file_router)
 app.include_router(project_router)
 app.include_router(process_router)
+app.include_router(client_router)
+app.include_router(contact_router)
 
 app.add_middleware(
     CORSMiddleware,

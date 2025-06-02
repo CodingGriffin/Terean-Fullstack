@@ -23,6 +23,7 @@ class ProjectBase(BaseModel):
     slow: Optional[str] = None
     picks: Optional[str] = None
     disper_settings: Optional[str] = None
+    client_id: Optional[int] = None
 
 
 class Project(ProjectBase):
@@ -42,7 +43,7 @@ class Project(ProjectBase):
         # Add all fields from ProjectBase
         for field in ['name', 'status', 'priority', 'survey_date', 'received_date', 
                       'geometry', 'record_options', 'plot_limits', 'freq', 'slow', 
-                      'picks', 'disper_settings']:
+                      'picks', 'disper_settings', 'client_id']:
             if hasattr(db_project, field):
                 project_data[field] = getattr(db_project, field)
         
@@ -87,3 +88,4 @@ class ProjectUpdate(BaseModel):
     priority: Optional[Priority] = None
     survey_date: Optional[datetime.datetime] = None
     received_date: Optional[datetime.datetime] = None
+    client_id: Optional[int] = None

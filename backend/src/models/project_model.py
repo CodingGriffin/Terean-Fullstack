@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, String, DateTime
+from sqlalchemy import Enum, String, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -29,6 +29,9 @@ class ProjectDBModel(Base):
     slow: Mapped[str | None] = mapped_column(String, index=False)
     picks: Mapped[str | None] = mapped_column(String, index=False)
     disper_settings: Mapped[str | None] = mapped_column(String, index=False)
-    client: Mapped["ClientDBModel"] = relationship("ClientDBModel", back_populates="project")
+    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), index=True)
+    
+    # Relationships
+    client: Mapped["ClientDBModel | None"] = relationship("ClientDBModel", back_populates="projects")
     records: Mapped[list["SgyFileDBModel"]] = relationship("SgyFileDBModel", back_populates="project")
     additional_files: Mapped[list["FileDBModel"]] = relationship("FileDBModel", back_populates="project")
