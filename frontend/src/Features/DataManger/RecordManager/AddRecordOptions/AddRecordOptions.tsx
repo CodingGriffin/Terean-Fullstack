@@ -35,7 +35,12 @@ const AddRecordOptions: React.FC<AddRecordOptionsProps> = ({
     
     console.log('=== AddRecordOptions File Upload ===');
     console.log("Files selected:", files);
-    console.log("File Attributes:", files[0]);
+    console.log("Number of files:", files.length);
+    console.log("File details:", Array.from(files).map(f => ({
+      name: f.name,
+      size: f.size,
+      type: f.type
+    })));
     
     const filesArray = Array.from(files);
     setSelectedFiles(filesArray);
