@@ -135,49 +135,53 @@ const ProjectPage: React.FC = () => {
             <div className="col-12">
               <div className="card shadow-sm p-4">
                 <div className="d-flex justify-content-between align-items-start">
-                  <div>
-                    <h5 className="card-title mb-3">Project Summary</h5>
-                    <div className="row">
-                      <div className="col-md-3">
-                        <p className="mb-2">
-                          <strong>Status:</strong>
-                          <span className={`ms-2 badge bg-${
-                            project?.status === 'completed' ? 'success' :
-                              project?.status === 'in_progress' ? 'primary' :
-                                project?.status === 'blocked' ? 'danger' : 'secondary'
-                          }`}>
-                            {formatStatus(project?.status)}
-                          </span>
-                        </p>
-                      </div>
-                      <div className="col-md-3">
-                        <p className="mb-2">
-                          <strong>Priority:</strong>
-                          <span className={`ms-2 badge bg-${
-                            project?.priority === 'very_high' ? 'danger' :
-                              project?.priority === 'high' ? 'warning' :
-                                project?.priority === 'low' || project?.priority === 'very_low' ? 'info' : 'secondary'
-                          }`}>
-                            {formatPriority(project?.priority)}
-                          </span>
-                        </p>
-                      </div>
-                      <div className="col-md-3">
-                        <p className="mb-2">
-                          <strong>SGY Files:</strong>
-                          <span className="ms-2">{project?.records?.length || 0}</span>
-                        </p>
-                      </div>
-                      <div className="col-md-3">
+                  <div className="w-100">
+                    <h5 className="card-title mb-3 text-center">Project Summary</h5>
+                    <div className="row justify-content-center">
+                      <div className="col-md-10">
+                        <div className="row text-center">
+                          <div className="col-md-3">
+                            <p className="mb-2">
+                              <strong>Status:</strong>
+                              <span className={`ms-2 badge bg-${
+                                project?.status === 'completed' ? 'success' :
+                                  project?.status === 'in_progress' ? 'primary' :
+                                    project?.status === 'blocked' ? 'danger' : 'secondary'
+                              }`}>
+                                {formatStatus(project?.status)}
+                              </span>
+                            </p>
+                          </div>
+                          <div className="col-md-3">
+                            <p className="mb-2">
+                              <strong>Priority:</strong>
+                              <span className={`ms-2 badge bg-${
+                                project?.priority === 'very_high' ? 'danger' :
+                                  project?.priority === 'high' ? 'warning' :
+                                    project?.priority === 'low' || project?.priority === 'very_low' ? 'info' : 'secondary'
+                              }`}>
+                                {formatPriority(project?.priority)}
+                              </span>
+                            </p>
+                          </div>
+                          <div className="col-md-3">
+                            <p className="mb-2">
+                              <strong>SGY Files:</strong>
+                              <span className="ms-2">{project?.records?.length || 0}</span>
+                            </p>
+                          </div>
+                          <div className="col-md-3">
                         <p className="mb-2">
                           <strong>Additional Files:</strong>
                           <span className="ms-2">{project?.additional_files?.length || 0}</span>
                         </p>
                       </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <button
-                    className="btn btn-primary btn-sm"
+                    className="btn btn-primary btn-sm position-absolute top-0 end-0 m-3"
                     onClick={() => setShowEditModal(true)}
                   >
                     <i className="bi bi-pencil me-1"></i>
