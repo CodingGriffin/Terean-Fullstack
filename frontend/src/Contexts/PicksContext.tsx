@@ -344,19 +344,36 @@ export function PicksProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const handleUploadFiles = useCallback((files: RecordUploadFile[] | null) => {
+        console.log('=== PicksContext handleUploadFiles ===');
+        console.log('Received files:', JSON.stringify(files, null, 2));
+        console.log('Current uploadFiles state keys:', Object.keys(state.uploadFiles));
+        
         const newUploadFiles = { ...state.uploadFiles };
+        
         if (files === null) {
+            console.log('Files is null, clearing all upload files');
             setUploadFiles({});
         } else if (files.length === 1 && files[0].file === null) {
+            console.log('Single file deletion, removing ID:', files[0].id);
             delete newUploadFiles[files[0].id];
             setUploadFiles(newUploadFiles);
         } else {
-            files.forEach((uploadFile) => newUploadFiles[uploadFile.id] = uploadFile.file);
+            console.log('Adding/updating files:');
+            files.forEach((uploadFile) => {
+                console.log(`  - ID: ${uploadFile.id}, File: ${uploadFile.file?.name}`);
+                newUploadFiles[uploadFile.id] = uploadFile.file;
+            });
+            console.log('New upload files object keys:', Object.keys(newUploadFiles));
+            console.log('Number of files in object:', Object.keys(newUploadFiles).length);
             setUploadFiles(newUploadFiles);
         }
     }, [state.uploadFiles, setUploadFiles]);
 
     const handleApplyChanges = useCallback(async () => {
+        console.log('=== PicksContext handleApplyChanges ===');
+        console.log('Saved record options to apply:', JSON.stringify(state.savedRecordOptions, null, 2));
+        console.log('Record IDs:', state.savedRecordOptions.map(opt => ({ id: opt.id, fileName: opt.fileName })));
+        
         const validationErrors = [];
 
         if (state.savedRecordOptions.length === 0) {
@@ -389,6 +406,8 @@ export function PicksProvider({ children }: { children: ReactNode }) {
         reduxDispatch(updateMaxFreq(state.savedFreqSettings.maxFreq));
         reduxDispatch(setNumSlow(state.savedSlowSettings.numSlow));
         reduxDispatch(updateMaxSlow(state.savedSlowSettings.maxSlow));
+        
+        console.log('Dispatching setOptions with record options:', JSON.stringify(state.savedRecordOptions, null, 2));
         reduxDispatch(setOptions(state.savedRecordOptions));
 
         if (projectId && state.savedRecordOptions.length > 0 && state.savedGeometry.length > 0) {
@@ -431,12 +450,22 @@ export function PicksProvider({ children }: { children: ReactNode }) {
     ]);
 
     const handleDiscardChanges = useCallback(() => {
-        console.log("Discarding changes");
+        console.log("=== PicksContext handleDiscardChanges ===");
+        console.log("Current state before discard:");
+        console.log("  - geometry length:", state.geometry.length);
+        console.log("  - savedGeometry length:", state.savedGeometry.length);
+        console.log("  - recordOptions:", JSON.stringify(state.recordOptions, null, 2));
+        console.log("  - savedRecordOptions:", JSON.stringify(state.savedRecordOptions, null, 2));
+        console.log("  - uploadFiles keys:", Object.keys(state.uploadFiles));
+        
         setSavedGeometry(state.geometry);
         setSavedFreqSettings(state.freqSettings);
         setSavedSlowSettings(state.slowSettings);
         setSavedRecordOptions(state.recordOptions);
         setUploadFiles({});
+        
+        console.log("State after discard:");
+        console.log("  - savedRecordOptions set to:", JSON.stringify(state.recordOptions, null, 2));
 
         reduxDispatch(addToast({
             message: "Changes discarded",
@@ -533,6 +562,8 @@ export function PicksProvider({ children }: { children: ReactNode }) {
                 // Initialize record options
                 setRecordOptions(records);
                 setSavedRecordOptions(records);
+                console.log('=== PicksContext loadSettings ===');
+                console.log('Initialized record options from backend:', JSON.stringify(records, null, 2));
 
                 // Process grids for preview with initialized settings
                 await reduxDispatch(processGridsForPreview({
@@ -605,13 +636,26 @@ export function PicksProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         console.log('=== PicksContext Upload Files Effect ===');
-        console.log('state.uploadFiles:', state.uploadFiles);
+        console.log('state.uploadFiles keys:', Object.keys(state.uploadFiles));
         console.log('projectId:', projectId);
+        console.log('Upload files entries:', Object.entries(state.uploadFiles).map(([key, file]) => ({
+            key,
+            fileName: file?.name,
+            fileSize: file?.size
+        })));
         
         const uploadFilesArray = Object.values(state.uploadFiles).filter(file => file !== null) as File[];
+        console.log('Filtered upload files array:', uploadFilesArray.map(f => f.name));
+        console.log('Number of files to upload:', uploadFilesArray.length);
         
         if (uploadFilesArray.length > 0 && projectId) {
-            console.log('Dispatching upload with files:', uploadFilesArray);
+            console.log('Dispatching upload with files:', uploadFilesArray.map(f => f.name));
+            console.log('Current savedRecordOptions before upload:', JSON.stringify(state.savedRecordOptions, null, 2));
+            console.log('Temp IDs in savedRecordOptions:', state.savedRecordOptions
+                .filter(opt => opt.id.startsWith('temp-'))
+                .map(opt => ({ id: opt.id, fileName: opt.fileName }))
+            );
+            
             reduxDispatch(uploadSgyFilesToProjectThunk({
                 uploadFiles: uploadFilesArray,
                 projectId: projectId
