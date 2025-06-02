@@ -49,13 +49,20 @@ export const DataManager = ({ projectId }: { projectId?: string }) => {
   };
 
   const handleApply = async () => {
+    console.log('=== DataManager handleApply ===');
+    console.log('Current state savedRecordOptions:', JSON.stringify(state.savedRecordOptions, null, 2));
+    console.log('Upload files keys:', Object.keys(state.uploadFiles));
+    
     if (projectId) {
       try {
+        console.log('Calling handleApplyChanges with projectId:', projectId);
         await handleApplyChanges();
+        console.log('handleApplyChanges completed successfully');
       } catch (error) {
         console.error("Error applying changes:", error);
       }
     } else {
+      console.log('No projectId, calling handleApplyChanges without async');
       handleApplyChanges();
     }
     setShowDataManager(false);
