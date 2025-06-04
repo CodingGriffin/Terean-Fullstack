@@ -80,7 +80,13 @@ const SendResultsEmailPage: React.FC = () => {
       // Check for project velocity model (you may need to adjust this logic based on your data structure)
       setHasProjectVelocityModel(true); // Assume all projects have velocity models for now
       
-      // Parse contact options
+      // Set default velocity model option to project
+      setFormData(prev => ({
+        ...prev,
+        velocityModelOption: 'project'
+      }));
+      
+      // Parse contact options and set defaults
       await parseContactOptions(data);
       
     } catch (error) {
@@ -96,15 +102,12 @@ const SendResultsEmailPage: React.FC = () => {
   };
 
   const parseContactOptions = async (projectData: Project) => {
-    const options: ContactOption[] = [];
+    const userCfgOptions: ContactOption[] = [];
+    const clientContactOptions: ContactOption[] = [];
     
-    // Parse user.cfg if it exists
-    // Log what project data is present - I'm guessing this is erroring out because it hasn't hit the backend yet?
+    // Parse user.cfg if it exists (highest priority)
     const userCfgFile = projectData.additional_files?.find(
       file => {
-        console.log("Trying to parse file: ", JSON.stringify(file))
-        console.log("As object:", file)
-        console.log("Original name:", file.original_name)
         return file.original_name.toLowerCase() === 'user.cfg'
       }
     );
@@ -114,7 +117,7 @@ const SendResultsEmailPage: React.FC = () => {
         const fileContent = await getAdditionalFileContent(projectId!, userCfgFile.id);
         const userCfgData = parseUserCfg(fileContent);
         if (userCfgData.name && userCfgData.email) {
-          options.push({
+          userCfgOptions.push({
             name: userCfgData.name,
             email: userCfgData.email,
             source: 'user_cfg'
@@ -125,10 +128,10 @@ const SendResultsEmailPage: React.FC = () => {
       }
     }
     
-    // Add client contacts if available
+    // Add client contacts if available (second priority)
     if (projectData.client?.contacts) {
       projectData.client.contacts.forEach(contact => {
-        options.push({
+        clientContactOptions.push({
           name: contact.name,
           email: contact.email,
           source: 'client_contact'
@@ -136,13 +139,28 @@ const SendResultsEmailPage: React.FC = () => {
       });
     }
     
-    setContactOptions(options);
+    // Combine options with user.cfg first, then client contacts
+    const allOptions = [...userCfgOptions, ...clientContactOptions];
+    setContactOptions(allOptions);
     
-    // Set default selection to first option if available
-    if (options.length > 0) {
+    // Set default selection based on priority: user.cfg > client contacts > manual
+    if (userCfgOptions.length > 0) {
+      // Use first user.cfg option (highest priority)
       setFormData(prev => ({
         ...prev,
-        clientContactOption: `${options[0].name}|${options[0].email}`
+        clientContactOption: `${userCfgOptions[0].name}|${userCfgOptions[0].email}`
+      }));
+    } else if (clientContactOptions.length > 0) {
+      // Use first client contact (second priority)
+      setFormData(prev => ({
+        ...prev,
+        clientContactOption: `${clientContactOptions[0].name}|${clientContactOptions[0].email}`
+      }));
+    } else {
+      // Default to manual entry (lowest priority)
+      setFormData(prev => ({
+        ...prev,
+        clientContactOption: 'manual'
       }));
     }
   };
@@ -163,6 +181,20 @@ const SendResultsEmailPage: React.FC = () => {
     });
     
     return data;
+  };
+
+  const getDefaultClientContactOption = () => {
+    // Priority: user.cfg > client contacts > manual
+    const userCfgOptions = contactOptions.filter(opt => opt.source === 'user_cfg');
+    const clientContactOptions = contactOptions.filter(opt => opt.source === 'client_contact');
+    
+    if (userCfgOptions.length > 0) {
+      return `${userCfgOptions[0].name}|${userCfgOptions[0].email}`;
+    } else if (clientContactOptions.length > 0) {
+      return `${clientContactOptions[0].name}|${clientContactOptions[0].email}`;
+    } else {
+      return 'manual';
+    }
   };
 
   const validateForm = () => {
@@ -272,9 +304,9 @@ const SendResultsEmailPage: React.FC = () => {
 
       // Reset form
       setFormData({
-        velocityModelOption: '',
+        velocityModelOption: 'project',
         velocityModelFile: null,
-        clientContactOption: contactOptions.length > 0 ? `${contactOptions[0].name}|${contactOptions[0].email}` : '',
+        clientContactOption: getDefaultClientContactOption(),
         manualClientName: '',
         manualClientEmail: ''
       });

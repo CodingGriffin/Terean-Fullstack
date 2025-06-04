@@ -607,7 +607,7 @@ export function PicksProvider({ children }: { children: ReactNode }) {
                 reduxDispatch(addToast({
                     message: "Data initialized successfully",
                     type: "success",
-                    duration: 3000
+                    duration: 1000
                 }));
             }
         } catch (error) {

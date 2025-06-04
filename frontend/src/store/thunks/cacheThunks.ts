@@ -96,10 +96,10 @@ export const processGridsForPreview = createAsyncThunk(
       });
 
       dispatch(setRecords(recordDataArray))
-      dispatch(addToast({
-        message: "Record Data updated successfully 97",
-        type: "success"
-      }));
+      // dispatch(addToast({
+      //   message: "Record Data updated successfully 97",
+      //   type: "success"
+      // }));
 
       return recordDataArray;
     } catch (error) {
