@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {useProject} from "../../Contexts/ProjectContext.tsx";
-import {updateProject} from "../../services/api.ts";
 import {addToast} from "../../store/slices/toastSlice.ts";
+import { useAppDispatch } from "../../hooks/useAppDispatch";
 
 interface EditFormData {
   status: string;
@@ -12,6 +12,7 @@ interface EditFormData {
 
 const ProjectSummary: React.FC = () => {
   const {project} = useProject();
+  const dispatch = useAppDispatch();
   const [updating, setUpdating] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState<EditFormData>({
@@ -43,31 +44,10 @@ const ProjectSummary: React.FC = () => {
     setUpdating(true);
     try {
       // Prepare the update payload, converting empty date strings to null
-      const updatePayload: EditFormData = {
-        status: editForm.status,
-        priority: editForm.priority
-      };
-
-      // Only include dates if they have changed
-      if (editForm.survey_date !== originalForm.survey_date) {
-        updatePayload.survey_date = editForm.survey_date || undefined;
-      }
-      if (editForm.received_date !== originalForm.received_date) {
-        updatePayload.received_date = editForm.received_date || undefined;
-      }
-
-      const updated = await updateProject(projectId!, updatePayload);
-      setProject(updated);
-
-      // Update the original form values after successful save
-      const newFormData = {
-        status: updated.status || 'not_started',
-        priority: updated.priority || 'medium',
-        survey_date: updated.survey_date ? updated.survey_date.split('T')[0] : '',
-        received_date: updated.received_date ? updated.received_date.split('T')[0] : ''
-      };
-      setEditForm(newFormData);
-      setOriginalForm(newFormData);
+      // Ensure that data is only included in the payload if it has been changed!
+      // Send the API request, and only update the UI on confirmation from the backend 
+      // (API First / Pessimistic updating)
+      // TODO: Implement the update using a modal here.
 
       setShowEditModal(false);
       dispatch(addToast({
@@ -272,8 +252,8 @@ const ProjectSummary: React.FC = () => {
               <button
                 className="btn btn-primary btn-sm position-absolute top-0 end-0 m-3"
                 onClick={() => {
-                  console.log("Edit project:", project.id);
-                  // TODO: Implement edit functionality
+                  setEditForm(originalForm);
+                  setShowEditModal(true)
                 }}
               >
                 <i className="bi bi-pencil me-1"></i>
