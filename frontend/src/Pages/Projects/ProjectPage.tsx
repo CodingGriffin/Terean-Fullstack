@@ -39,7 +39,6 @@ const ProjectPage: React.FC = () => {
     received_date: ''
   });
 
-
   useEffect(() => {
     fetchProject();
   }, [projectId]);
