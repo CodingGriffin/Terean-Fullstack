@@ -2,6 +2,7 @@ import { useState } from "react";
 import {useProject} from "../../Contexts/ProjectContext.tsx";
 import {addToast} from "../../store/slices/toastSlice.ts";
 import { useAppDispatch } from "../../hooks/useAppDispatch";
+import { ProjectUpdate } from "../../types/project.ts";
 
 interface EditFormData {
   status: string;
@@ -11,7 +12,7 @@ interface EditFormData {
 }
 
 const ProjectSummary: React.FC = () => {
-  const {project} = useProject();
+  const {project, updateProject} = useProject();
   const dispatch = useAppDispatch();
   const [updating, setUpdating] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -32,6 +33,19 @@ const ProjectSummary: React.FC = () => {
     return JSON.stringify(editForm) !== JSON.stringify(originalForm);
   };
 
+  const initializeForm = () => {
+    if (project) {
+      const formData: EditFormData = {
+        status: project.status || 'not_started',
+        priority: project.priority || 'medium',
+        survey_date: project.survey_date ? project.survey_date.split('T')[0] : '',
+        received_date: project.received_date ? project.received_date.split('T')[0] : ''
+      };
+      setEditForm(formData);
+      setOriginalForm(formData);
+    }
+  };
+
   const handleSaveChanges = async () => {
     if (!project || updating || !hasChanges()) {
       if (!hasChanges()) {
@@ -45,11 +59,32 @@ const ProjectSummary: React.FC = () => {
     try {
       // Prepare the update payload, converting empty date strings to null
       // Ensure that data is only included in the payload if it has been changed!
+      const updatePayload: ProjectUpdate = {};
+      
+      if (editForm.status !== originalForm.status) {
+        updatePayload.status = editForm.status;
+      }
+      
+      if (editForm.priority !== originalForm.priority) {
+        updatePayload.priority = editForm.priority;
+      }
+      
+      if (editForm.survey_date !== originalForm.survey_date) {
+        updatePayload.survey_date = editForm.survey_date || null;
+      }
+      
+      if (editForm.received_date !== originalForm.received_date) {
+        updatePayload.received_date = editForm.received_date || null;
+      }
+
       // Send the API request, and only update the UI on confirmation from the backend 
       // (API First / Pessimistic updating)
-      // TODO: Implement the update using a modal here.
+      await updateProject(updatePayload);
 
+      // Update the form values after successful save
+      setOriginalForm(editForm);
       setShowEditModal(false);
+      
       dispatch(addToast({
         message: "Project updated successfully",
         type: "success",
@@ -252,7 +287,7 @@ const ProjectSummary: React.FC = () => {
               <button
                 className="btn btn-primary btn-sm position-absolute top-0 end-0 m-3"
                 onClick={() => {
-                  setEditForm(originalForm);
+                  initializeForm();
                   setShowEditModal(true)
                 }}
               >
@@ -275,7 +310,7 @@ const ProjectSummary: React.FC = () => {
                   type="button"
                   className="btn-close"
                   onClick={() => {
-                    setEditForm(originalForm);
+                    initializeForm();
                     setShowEditModal(false);
                   }}
                   disabled={updating}
@@ -341,7 +376,7 @@ const ProjectSummary: React.FC = () => {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => {
-                    setEditForm(originalForm);
+                    initializeForm();
                     setShowEditModal(false);
                   }}
                   disabled={updating}

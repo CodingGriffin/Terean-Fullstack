@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from models import SgyFileDBModel
 from models.project_model import ProjectDBModel
-from schemas.project_schema import ProjectCreate, Project
+from schemas.project_schema import ProjectCreate, Project, ProjectUpdate
 from utils.custom_types.Priority import Priority
 from utils.custom_types.ProjectStatus import ProjectStatus
 from utils.custom_types.LengthUnit import LengthUnit
@@ -141,7 +141,7 @@ def create_default_project(
     return created_project
 
 
-def update_project(db: Session, project_id: str, project: ProjectCreate) -> Optional[ProjectDBModel]:
+def update_project(db: Session, project_id: str, project: ProjectUpdate) -> Optional[ProjectDBModel]:
     db_project = get_project(db, project_id)
     if db_project:
         update_data = project.model_dump()
@@ -154,6 +154,12 @@ def update_project(db: Session, project_id: str, project: ProjectCreate) -> Opti
                 raise ValueError(f"Client with ID {update_data['client_id']} not found")
         
         for key, value in update_data.items():
+            if key not in ["survey_date", "received_date"]:
+                if value is None:
+                    continue
+            else:
+                if value is not None and value == datetime.datetime.fromtimestamp(0, datetime.timezone.utc):
+                    continue
             setattr(db_project, key, value)
         db.commit()
         db.refresh(db_project)
