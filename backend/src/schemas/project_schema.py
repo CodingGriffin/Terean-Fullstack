@@ -8,6 +8,8 @@ from schemas.file_schema import FileBase
 from schemas.sgy_file_schema import SgyFileBase
 from utils.custom_types.Priority import Priority
 from utils.custom_types.ProjectStatus import ProjectStatus
+from utils.custom_types.LengthUnit import LengthUnit
+from utils.custom_types.AsceVersion import AsceVersion
 
 
 class ProjectBase(BaseModel):
@@ -23,6 +25,8 @@ class ProjectBase(BaseModel):
     slow: Optional[str] = None
     picks: Optional[str] = None
     disper_settings: Optional[str] = None
+    display_units: Optional[LengthUnit] = LengthUnit.meters
+    asce_version: Optional[AsceVersion] = AsceVersion.asce_722
     client_id: Optional[int] = None
 
 
@@ -43,7 +47,7 @@ class Project(ProjectBase):
         # Add all fields from ProjectBase
         for field in ['name', 'status', 'priority', 'survey_date', 'received_date', 
                       'geometry', 'record_options', 'plot_limits', 'freq', 'slow', 
-                      'picks', 'disper_settings', 'client_id']:
+                      'picks', 'disper_settings', 'display_units', 'asce_version', 'client_id']:
             if hasattr(db_project, field):
                 project_data[field] = getattr(db_project, field)
         
@@ -88,4 +92,6 @@ class ProjectUpdate(BaseModel):
     priority: Optional[Priority] = None
     survey_date: Optional[datetime.datetime] = None
     received_date: Optional[datetime.datetime] = None
+    display_units: Optional[LengthUnit] = None
+    asce_version: Optional[AsceVersion] = None
     client_id: Optional[int] = None

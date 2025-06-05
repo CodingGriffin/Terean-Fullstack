@@ -10,6 +10,8 @@ from models.project_model import ProjectDBModel
 from schemas.project_schema import ProjectCreate, Project
 from utils.custom_types.Priority import Priority
 from utils.custom_types.ProjectStatus import ProjectStatus
+from utils.custom_types.LengthUnit import LengthUnit
+from utils.custom_types.AsceVersion import AsceVersion
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_PROJECT_NAME = "Untitled Project"
 DEFAULT_PROJECT_STATUS = ProjectStatus.not_started
 DEFAULT_PRIORITY = Priority.medium
+DEFAULT_DISPLAY_UNITS = LengthUnit.meters
+DEFAULT_ASCE_VERSION = AsceVersion.asce_722
 DEFAULT_GEOMETRY = []
 DEFAULT_RECORD_OPTIONS = []
 DEFAULT_PLOT_LIMITS = {
@@ -85,6 +89,10 @@ def create_project(db: Session, project: ProjectCreate | Project) -> ProjectDBMo
         project_data["status"] = DEFAULT_PROJECT_STATUS
     if project_data.get("priority") is None:
         project_data["priority"] = DEFAULT_PRIORITY
+    if project_data.get("display_units") is None:
+        project_data["display_units"] = DEFAULT_DISPLAY_UNITS
+    if project_data.get("asce_version") is None:
+        project_data["asce_version"] = DEFAULT_ASCE_VERSION
     if project_data.get("received_date") is None:
         project_data["received_date"] = datetime.datetime.now()
     if project_data.get("geometry") is None:
@@ -119,6 +127,8 @@ def create_default_project(
     default_project_create = Project(
         id=project_id,
         name=DEFAULT_PROJECT_NAME,
+        display_units=DEFAULT_DISPLAY_UNITS,
+        asce_version=DEFAULT_ASCE_VERSION,
         geometry=json.dumps(DEFAULT_GEOMETRY),
         record_options=json.dumps(DEFAULT_RECORD_OPTIONS),
         plot_limits=json.dumps(DEFAULT_PLOT_LIMITS),

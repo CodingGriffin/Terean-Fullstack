@@ -12,7 +12,7 @@ const DisperPageContent = () => {
     const { state: { isLoading } } = useDisper();
 
     const navigate = useNavigate();
-    const { projectId } = useParams();
+    const { projectId } = useParams<{ projectId: string }>();
 
     if (isLoading) {
         return (
@@ -40,7 +40,7 @@ const DisperPageContent = () => {
                 <div className="container-fluid">
                     <div className="row mb-4">
                         <div className="col-12">
-                            <SectionHeader title="Dispersion Analysis">
+                            <SectionHeader title={`Data Management - ${project?.name || projectId}`}>
                                 <div className='d-flex gap-2'>
                                     <UnitsSelector />
                                     <DisperSettingsSave />

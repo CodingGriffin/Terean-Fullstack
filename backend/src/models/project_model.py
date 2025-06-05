@@ -7,9 +7,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
 from utils.custom_types.Priority import Priority
 from utils.custom_types.ProjectStatus import ProjectStatus
+from utils.custom_types.LengthUnit import LengthUnit
+from utils.custom_types.AsceVersion import AsceVersion
 
 if TYPE_CHECKING:
-    from models.client_model import ClientDBModel
     from models.sgy_file_model import SgyFileDBModel
     from models.file_model import FileDBModel
 
@@ -29,6 +30,8 @@ class ProjectDBModel(Base):
     slow: Mapped[str | None] = mapped_column(String, index=False)
     picks: Mapped[str | None] = mapped_column(String, index=False)
     disper_settings: Mapped[str | None] = mapped_column(String, index=False)
+    display_units: Mapped[LengthUnit] = mapped_column(Enum(LengthUnit), default=LengthUnit.meters, server_default="m")
+    asce_version: Mapped[AsceVersion] = mapped_column(Enum(AsceVersion), default=AsceVersion.asce_722, server_default="ASCE 7-22")
     client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), index=True)
     
     # Relationships
