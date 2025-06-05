@@ -40,7 +40,7 @@ const DisperPageContent = () => {
                 <div className="container-fluid">
                     <div className="row mb-4">
                         <div className="col-12">
-                            <SectionHeader title={`Data Management - ${project?.name || projectId}`}>
+                            <SectionHeader title={`Dispersion Analysis - ${projectId}`}>
                                 <div className='d-flex gap-2'>
                                     <UnitsSelector />
                                     <DisperSettingsSave />
