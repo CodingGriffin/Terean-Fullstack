@@ -23,7 +23,6 @@ import ProjectPage from "./Pages/Projects/ProjectPage.tsx";
 import ProjectsPage from "./Pages/Projects/ProjectsPage.tsx";
 import DataManagementPage from "./Pages/Projects/DataManagementPage.tsx";
 import SendResultsEmailPage from "./Pages/Projects/SendResultsEmailPage.tsx";
-import ProjectPage_v2 from "./Pages/Projects_v2/ProjectPage_v2.tsx";
 
 export default function App() {
   return (
@@ -103,14 +102,6 @@ export default function App() {
           element={
             <ProtectedRoute minAuthLevel={2}>
               <ProjectPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/projects2/:projectId"
-          element={
-            <ProtectedRoute minAuthLevel={2}>
-              <ProjectPage_v2 />
             </ProtectedRoute>
           }
         />
