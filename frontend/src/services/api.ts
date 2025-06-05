@@ -271,7 +271,7 @@ export const getAllProjects = async (params: {
       cleanParams[key] = value;
     });
     
-    const response = await api.get('/project', {
+    const response = await api.get('/project/', {
       params: cleanParams,
       paramsSerializer: {
         indexes: null 
