@@ -24,7 +24,7 @@ const ProtectedAdminRoute = ({ children }: ProtectedAdminRouteProps) => {
     )
   }
 
-  if (userData.auth_level < 3) {
+  if (userData.auth_level < 4) {
     return <Navigate to="/403" />;
   }
 

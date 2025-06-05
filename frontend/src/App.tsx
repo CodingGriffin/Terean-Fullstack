@@ -21,6 +21,8 @@ import PicksPage from "./Pages/Projects/PicksPage.tsx";
 import DisperPage from "./Pages/Projects/DisperPage.tsx";
 import ProjectPage from "./Pages/Projects/ProjectPage.tsx";
 import ProjectsPage from "./Pages/Projects/ProjectsPage.tsx";
+import DataManagementPage from "./Pages/Projects/DataManagementPage.tsx";
+import SendResultsEmailPage from "./Pages/Projects/SendResultsEmailPage.tsx";
 
 export default function App() {
   return (
@@ -76,6 +78,22 @@ export default function App() {
           element={
             <ProtectedRoute minAuthLevel={2}>
               <DisperPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/data"
+          element={
+            <ProtectedRoute minAuthLevel={2}>
+              <DataManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/email"
+          element={
+            <ProtectedRoute minAuthLevel={2}>
+              <SendResultsEmailPage />
             </ProtectedRoute>
           }
         />

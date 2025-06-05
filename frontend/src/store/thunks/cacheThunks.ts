@@ -19,9 +19,10 @@ import {
   getPicks,
   processGrids,
   savePicks,
-  saveOptions
+  saveOptions,
+  saveRecordOptions,
+  uploadSgyFilesToProject
 } from "../../services/api";
-import { uploadSgyFilesWithIds } from "../../services/api";
 
 export const processGridsForPreview = createAsyncThunk(
   "cache/processGridsForPreview",
@@ -60,7 +61,10 @@ export const processGridsForPreview = createAsyncThunk(
         returnFreqAndSlow
       );
 
-      const {grids, freq, slow} = response.data.data;
+      console.log('=== Process Grids Response ===');
+      console.log('Full response:', response.data);
+
+      const {grids, freq, slow} = response.data;
 
       if (freq) {
         dispatch(setPreviewFreqData(freq.data));
@@ -92,10 +96,10 @@ export const processGridsForPreview = createAsyncThunk(
       });
 
       dispatch(setRecords(recordDataArray))
-      dispatch(addToast({
-        message: "Record Data updated successfully 97",
-        type: "success"
-      }));
+      // dispatch(addToast({
+      //   message: "Record Data updated successfully 97",
+      //   type: "success"
+      // }));
 
       return recordDataArray;
     } catch (error) {
@@ -282,30 +286,87 @@ export const saveOptionsByProjectId = createAsyncThunk(
   }
 );
 
-export const uploadSgyFilesWithIdsThunk = createAsyncThunk(
-  "cache/uploadSgyFilesWithIds",
+export const saveRecordOptionsByProjectId = createAsyncThunk(
+  "cache/saveRecordOptionsByProjectId",
   async (
-    uploadFiles: { [key: string]: File | null },
+    projectId: string | undefined,
+    {dispatch, getState}
+  ) => {
+    if (!projectId) {
+      dispatch(addToast({
+        message: "No project ID available",
+        type: "error",
+        duration: 5000
+      }));
+      return;
+    }
+
+    try {
+      const state = getState() as RootState;
+      const records = state.record.options;
+
+      console.log('Saving record options to backend:', records);
+      const response = await saveRecordOptions(projectId, records);
+      dispatch(addToast({
+        message: "Record options saved successfully",
+        type: "success",
+        duration: 3000
+      }));
+      return response.data;
+    } catch (error) {
+      console.error("Error saving record options:", error);
+      dispatch(addToast({
+        message: "Failed to save record options",
+        type: "error",
+        duration: 5000
+      }));
+      throw error;
+    }
+  }
+);
+
+export const uploadSgyFilesToProjectThunk = createAsyncThunk(
+  "cache/uploadSgyFilesToProject",
+  async (
+    { uploadFiles, projectId }: { uploadFiles: File[], projectId: string },
     {dispatch}
   ) => {
+    console.log('=== uploadSgyFilesToProjectThunk START ===');
+    console.log('Upload files:', uploadFiles);
+    console.log('Project ID:', projectId);
+    
     try {
       dispatch(setIsLoading(true));
 
-      const recordUploadFiles = Object.entries(uploadFiles).map(([id, file]) => ({
-        id,
-        file
-      }));
-      const response = await uploadSgyFilesWithIds(recordUploadFiles);
+      const response = await uploadSgyFilesToProject(uploadFiles, projectId);
       const fileInfos = response.data.file_infos;
 
+      console.log('=== File Upload Thunk Response ===');
+      console.log('File infos received:', fileInfos);
+
+      // Convert file infos to RecordOption format with backend-generated IDs
+      const recordOptions = fileInfos.map((fileInfo: any) => ({
+        id: fileInfo.id, // Use backend-generated ID
+        enabled: false,
+        weight: 100,
+        fileName: fileInfo.original_name
+      }));
+
+      console.log('Converted record options:', recordOptions);
+
       dispatch(addToast({
-        message: "Files uploaded successfully",
+        message: `${fileInfos.length} files uploaded successfully`,
         type: "success",
         duration: 3000
       }));
 
-      return fileInfos;
+      // Return both file infos and record options for flexibility
+      return {
+        fileInfos,
+        recordOptions
+      };
     } catch (error) {
+      console.error("=== Upload Thunk Error ===");
       console.error("Error uploading files:", error);
       dispatch(addToast({
         message: `Error uploading files: ${error instanceof Error ? error.message : 'Unknown error'}`,

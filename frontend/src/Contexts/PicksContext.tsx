@@ -3,7 +3,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { addToast } from '../store/slices/toastSlice';
 import { useParams } from 'react-router-dom';
 import { PickData } from '../types/data';
-import { savePicksByProjectId, fetchPicksByProjectId, processGridsForPreview, uploadSgyFilesWithIdsThunk, fetchOptionsByProjectId } from '../store/thunks/cacheThunks';
+import { savePicksByProjectId, fetchPicksByProjectId, processGridsForPreview, uploadSgyFilesToProjectThunk, fetchOptionsByProjectId, saveRecordOptionsByProjectId } from '../store/thunks/cacheThunks';
 import { GeometryItem } from '../types/geometry';
 import { RecordOption, RecordUploadFile } from '../types/record';
 import { setGeometrySlice } from '../store/slices/geometrySlice';
@@ -12,6 +12,7 @@ import { setNumSlow, updateMaxSlow } from '../store/slices/slowSlice';
 import { setOptions } from '../store/slices/recordSlice';
 import { setInitialized } from '../store/slices/initializationSlice';
 import { autoGeneratePicks } from '../services/api';
+import { useAppSelector } from '../hooks/useAppSelector';
 
 const initialState = {
     points: [] as PickData[],
@@ -269,7 +270,10 @@ export function PicksProvider({ children }: { children: ReactNode }) {
     const reduxDispatch = useAppDispatch();
     const { projectId } = useParams<{ projectId: string }>();
     const initialFetchDone = useRef(false);
-
+    
+    // Get record options from Redux store
+    const reduxRecordOptions = useAppSelector((state) => state.record.options);
+    
     const addPoint = useCallback((point: PickData) => {
         dispatch({ type: 'ADD_POINT', payload: point });
     }, []);
@@ -358,20 +362,54 @@ export function PicksProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_UPLOAD_FILES', payload: files });
     }, []);
 
+    // Sync savedRecordOptions with Redux store when DataManager opens
+    useEffect(() => {
+        console.log('=== Sync Effect Check ===');
+        console.log('state.showDataManager:', state.showDataManager);
+        console.log('reduxRecordOptions.length:', reduxRecordOptions.length);
+        console.log('reduxRecordOptions:', JSON.stringify(reduxRecordOptions, null, 2));
+        
+        if (state.showDataManager && reduxRecordOptions.length > 0) {
+            console.log('=== Syncing savedRecordOptions with Redux ===');
+            console.log('Redux record options:', JSON.stringify(reduxRecordOptions, null, 2));
+            console.log('Current saved record options:', JSON.stringify(state.savedRecordOptions, null, 2));
+            console.log('Current record options:', JSON.stringify(state.recordOptions, null, 2));
+            setSavedRecordOptions(reduxRecordOptions);
+            setRecordOptions(reduxRecordOptions);
+        }
+    }, [state.showDataManager, reduxRecordOptions, state.savedRecordOptions, setSavedRecordOptions, setRecordOptions]);
+
     const handleUploadFiles = useCallback((files: RecordUploadFile[] | null) => {
+        console.log('=== PicksContext handleUploadFiles ===');
+        console.log('Received files:', JSON.stringify(files, null, 2));
+        console.log('Current uploadFiles state keys:', Object.keys(state.uploadFiles));
+        
         const newUploadFiles = { ...state.uploadFiles };
+        
         if (files === null) {
+            console.log('Files is null, clearing all upload files');
             setUploadFiles({});
         } else if (files.length === 1 && files[0].file === null) {
+            console.log('Single file deletion, removing ID:', files[0].id);
             delete newUploadFiles[files[0].id];
             setUploadFiles(newUploadFiles);
         } else {
-            files.forEach((uploadFile) => newUploadFiles[uploadFile.id] = uploadFile.file);
+            console.log('Adding/updating files:');
+            files.forEach((uploadFile) => {
+                console.log(`  - ID: ${uploadFile.id}, File: ${uploadFile.file?.name}`);
+                newUploadFiles[uploadFile.id] = uploadFile.file;
+            });
+            console.log('New upload files object keys:', Object.keys(newUploadFiles));
+            console.log('Number of files in object:', Object.keys(newUploadFiles).length);
             setUploadFiles(newUploadFiles);
         }
     }, [state.uploadFiles, setUploadFiles]);
 
     const handleApplyChanges = useCallback(async () => {
+        console.log('=== PicksContext handleApplyChanges ===');
+        console.log('Saved record options to apply:', JSON.stringify(state.savedRecordOptions, null, 2));
+        console.log('Record IDs:', state.savedRecordOptions.map(opt => ({ id: opt.id, fileName: opt.fileName })));
+        
         const validationErrors = [];
 
         if (state.savedRecordOptions.length === 0) {
@@ -404,10 +442,17 @@ export function PicksProvider({ children }: { children: ReactNode }) {
         reduxDispatch(updateMaxFreq(state.savedFreqSettings.maxFreq));
         reduxDispatch(setNumSlow(state.savedSlowSettings.numSlow));
         reduxDispatch(updateMaxSlow(state.savedSlowSettings.maxSlow));
+        
+        console.log('Dispatching setOptions with record options:', JSON.stringify(state.savedRecordOptions, null, 2));
         reduxDispatch(setOptions(state.savedRecordOptions));
 
         if (projectId && state.savedRecordOptions.length > 0 && state.savedGeometry.length > 0) {
             try {
+                // Save record options to backend
+                console.log('Saving record options to backend for project:', projectId);
+                await reduxDispatch(saveRecordOptionsByProjectId(projectId)).unwrap();
+                console.log('Record options saved successfully to backend');
+                
                 await reduxDispatch(processGridsForPreview({
                     projectId,
                     recordOptions: JSON.stringify(state.savedRecordOptions),
@@ -446,12 +491,22 @@ export function PicksProvider({ children }: { children: ReactNode }) {
     ]);
 
     const handleDiscardChanges = useCallback(() => {
-        console.log("Discarding changes");
+        console.log("=== PicksContext handleDiscardChanges ===");
+        console.log("Current state before discard:");
+        console.log("  - geometry length:", state.geometry.length);
+        console.log("  - savedGeometry length:", state.savedGeometry.length);
+        console.log("  - recordOptions:", JSON.stringify(state.recordOptions, null, 2));
+        console.log("  - savedRecordOptions:", JSON.stringify(state.savedRecordOptions, null, 2));
+        console.log("  - uploadFiles keys:", Object.keys(state.uploadFiles));
+        
         setSavedGeometry(state.geometry);
         setSavedFreqSettings(state.freqSettings);
         setSavedSlowSettings(state.slowSettings);
         setSavedRecordOptions(state.recordOptions);
         setUploadFiles({});
+        
+        console.log("State after discard:");
+        console.log("  - savedRecordOptions set to:", JSON.stringify(state.recordOptions, null, 2));
 
         reduxDispatch(addToast({
             message: "Changes discarded",
@@ -548,6 +603,8 @@ export function PicksProvider({ children }: { children: ReactNode }) {
                 // Initialize record options
                 setRecordOptions(records);
                 setSavedRecordOptions(records);
+                console.log('=== PicksContext loadSettings ===');
+                console.log('Initialized record options from backend:', JSON.stringify(records, null, 2));
 
                 // Process grids for preview with initialized settings
                 await reduxDispatch(processGridsForPreview({
@@ -565,7 +622,7 @@ export function PicksProvider({ children }: { children: ReactNode }) {
                 reduxDispatch(addToast({
                     message: "Data initialized successfully",
                     type: "success",
-                    duration: 3000
+                    duration: 1000
                 }));
             }
         } catch (error) {
@@ -657,10 +714,75 @@ export function PicksProvider({ children }: { children: ReactNode }) {
     }, [projectId, loadSettings]);
 
     useEffect(() => {
-        if (Object.values(state.uploadFiles).length > 0) {
-            reduxDispatch(uploadSgyFilesWithIdsThunk(state.uploadFiles));
+        console.log('=== PicksContext Upload Files Effect ===');
+        console.log('state.uploadFiles keys:', Object.keys(state.uploadFiles));
+        console.log('projectId:', projectId);
+        console.log('Upload files entries:', Object.entries(state.uploadFiles).map(([key, file]) => ({
+            key,
+            fileName: file?.name,
+            fileSize: file?.size
+        })));
+        
+        const uploadFilesArray = Object.values(state.uploadFiles).filter(file => file !== null) as File[];
+        console.log('Filtered upload files array:', uploadFilesArray.map(f => f.name));
+        console.log('Number of files to upload:', uploadFilesArray.length);
+        
+        if (uploadFilesArray.length > 0 && projectId) {
+            console.log('Dispatching upload with files:', uploadFilesArray.map(f => f.name));
+            console.log('Current savedRecordOptions before upload:', JSON.stringify(state.savedRecordOptions, null, 2));
+            console.log('Temp IDs in savedRecordOptions:', state.savedRecordOptions
+                .filter(opt => opt.id.startsWith('temp-'))
+                .map(opt => ({ id: opt.id, fileName: opt.fileName }))
+            );
+            
+            reduxDispatch(uploadSgyFilesToProjectThunk({
+                uploadFiles: uploadFilesArray,
+                projectId: projectId
+            })).then((result: any) => {
+                console.log('Upload thunk result:', result);
+                if (result.meta.requestStatus === 'fulfilled' && result.payload) {
+                    // Update saved record options with backend-generated IDs
+                    const newRecordOptions = result.payload.recordOptions;
+                    console.log('New record options from backend:', JSON.stringify(newRecordOptions, null, 2));
+                    console.log('Current saved record options:', JSON.stringify(state.savedRecordOptions, null, 2));
+                    
+                    // Find which temp IDs correspond to which files
+                    const tempIdMapping: { [fileName: string]: string } = {};
+                    state.savedRecordOptions.forEach(opt => {
+                        if (opt.id.startsWith('temp-')) {
+                            tempIdMapping[opt.fileName] = opt.id;
+                        }
+                    });
+                    console.log('Temp ID mapping:', JSON.stringify(tempIdMapping, null, 2));
+                    
+                    // Replace temp records with backend records instead of appending
+                    const updatedRecordOptions = state.savedRecordOptions.map(existingOption => {
+                        // If this is a temp record and we have a backend replacement, use the backend version
+                        if (existingOption.id.startsWith('temp-')) {
+                            const backendOption = newRecordOptions.find(
+                                (newOpt: RecordOption) => newOpt.fileName === existingOption.fileName
+                            );
+                            if (backendOption) {
+                                console.log(`Replacing temp ID ${existingOption.id} with backend ID ${backendOption.id} for file ${existingOption.fileName}`);
+                                return backendOption;
+                            }
+                        }
+                        // Otherwise keep the existing option
+                        return existingOption;
+                    });
+                    
+                    console.log('Updated record options (replaced):', JSON.stringify(updatedRecordOptions, null, 2));
+                    console.log('Total records after replacement:', updatedRecordOptions.length);
+                    
+                    setSavedRecordOptions(updatedRecordOptions);
+                    // Clear upload files since they're now on the backend
+                    setUploadFiles({});
+                }
+            }).catch((error) => {
+                console.error('Upload thunk error:', error);
+            });
         }
-    }, [state.uploadFiles, reduxDispatch]);
+    }, [state.uploadFiles, projectId, reduxDispatch, setSavedRecordOptions, setUploadFiles, state.savedRecordOptions]);
 
     return (
         <PicksContext.Provider

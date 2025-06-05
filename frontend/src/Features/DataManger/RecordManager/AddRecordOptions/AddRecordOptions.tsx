@@ -1,7 +1,6 @@
 import React, { useState, useEffect, ChangeEvent } from "react";
 import { RecordOption, RecordUploadFile } from "../../../../types/record";
 import { Button } from "../../../../Components/Button/Button";
-import { generateRecordId } from "../../../../utils/record-util";
 import { FileControls } from "../../../../Components/FileControls/FileControls";
 
 interface AddRecordOptionsProps {
@@ -22,6 +21,7 @@ const AddRecordOptions: React.FC<AddRecordOptionsProps> = ({
 
   const [previewData, setPreviewData] = useState<RecordOption[]>([]);
   const [uploadfiles, setUploadFiles] = useState<RecordUploadFile[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   useEffect(() => {
     if (selectedRecord) {
@@ -32,24 +32,50 @@ const AddRecordOptions: React.FC<AddRecordOptionsProps> = ({
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
-    console.log("Files:", files)
-    console.log("File Attributes:", files[0])
-    let newRecordOptions:any = [];
-    let newUploadFiles:any = [];
-    Array.from(files).forEach(file => {
-      const id = mode === "edit" && selectedRecord ? selectedRecord.id : generateRecordId();
-      newRecordOptions.push({
-        id,
+    
+    console.log('=== AddRecordOptions File Upload ===');
+    console.log("Files selected:", files);
+    console.log("Number of files:", files.length);
+    console.log("File details:", Array.from(files).map(f => ({
+      name: f.name,
+      size: f.size,
+      type: f.type
+    })));
+    
+    const filesArray = Array.from(files);
+    setSelectedFiles(filesArray);
+    
+    // Create preview data without IDs (will be added by backend)
+    const newRecordOptions = filesArray.map((file, index) => {
+      const tempId = `temp-${Date.now()}-${index}-${file.name}`;
+      console.log(`Creating record option for file ${index}: ${file.name} with temp ID: ${tempId}`);
+      
+      return {
+        id: tempId, // Use temporary unique ID
         enabled: false,
         weight: 100,
-        fileName:file.name,
-      })
-      newUploadFiles.push({
-        id,
-        file
-      })
+        fileName: file.name,
+      };
     });
+    
+    console.log('Preview record options:', JSON.stringify(newRecordOptions, null, 2));
     setPreviewData(newRecordOptions);
+    
+    // Store files for upload with matching temporary IDs
+    const newUploadFiles = filesArray.map((file, index) => {
+      const tempId = `temp-${Date.now()}-${index}-${file.name}`;
+      console.log(`Creating upload file for ${file.name} with temp ID: ${tempId}`);
+      
+      return {
+        id: tempId, // Use same temporary unique ID
+        file
+      };
+    });
+    
+    console.log('Upload files created:', JSON.stringify(newUploadFiles.map(uf => ({
+      id: uf.id,
+      fileName: uf.file.name
+    })), null, 2));
     setUploadFiles(newUploadFiles);
   };
 
@@ -85,6 +111,7 @@ const AddRecordOptions: React.FC<AddRecordOptionsProps> = ({
                   <div className="small text-muted">
                     <div>Weight: {data.weight}</div>
                     <div>Enabled: {data.enabled ? "Yes" : "No"}</div>
+                    <div>Temp ID: {data.id}</div>
                   </div>
                 </div>
               ))}
@@ -98,9 +125,19 @@ const AddRecordOptions: React.FC<AddRecordOptionsProps> = ({
           Cancel
         </Button>
         <Button variant="primary" onClick={() => {
+          console.log('=== AddRecordOptions Submit ===');
+          console.log('Upload files to submit:', JSON.stringify(uploadfiles.map(uf => ({
+            id: uf.id,
+            fileName: uf.file?.name
+          })), null, 2));
+          console.log('Selected files:', selectedFiles.map(f => f.name));
+          console.log('Preview data:', JSON.stringify(previewData, null, 2));
+          
+          // Pass the actual files for upload
           onUploadFiles(uploadfiles);
-          onAddRecordOptions(previewData)
-          onClose()
+          // Pass empty record options that will be populated with backend IDs
+          onAddRecordOptions(previewData);
+          onClose();
         }}>
           {mode === "add" ? "Add" : "Save Changes"}
         </Button>

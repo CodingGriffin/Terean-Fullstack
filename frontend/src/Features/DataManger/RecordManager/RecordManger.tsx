@@ -15,6 +15,10 @@ interface RecordManagerProps {
 }
 
 export default function RecordManager({ recordOptions, recordUploadFiles, onFilesChange, onUploadFiles, onRecordOptionsChange }: RecordManagerProps) {
+  console.log('=== RecordManager Render ===');
+  console.log('Record options:', JSON.stringify(recordOptions, null, 2));
+  console.log('Record upload files keys:', Object.keys(recordUploadFiles));
+  
   const [modals, setModals] = useState({
     addRecordOptions: false,
     editRecordOptions: false
@@ -22,6 +26,8 @@ export default function RecordManager({ recordOptions, recordUploadFiles, onFile
   const [isUpdated, setIsUpdated] = useState<boolean>(false);
 
   const handleRecordOptionsChange = (newRecordOptions: RecordOption[]) => {
+    console.log('=== RecordManager handleRecordOptionsChange ===');
+    console.log('New record options:', JSON.stringify(newRecordOptions, null, 2));
     onRecordOptionsChange(newRecordOptions);
     setIsUpdated(true);
   };

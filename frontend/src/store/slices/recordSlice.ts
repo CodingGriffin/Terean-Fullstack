@@ -56,6 +56,10 @@ const recordSlice = createSlice({
       state.options = newOptions;
     },
     setOptions: (state, action: PayloadAction<RecordOption[]>) => {
+      console.log('=== Redux recordSlice setOptions ===');
+      console.log('Previous options:', JSON.stringify(state.options, null, 2));
+      console.log('New options:', JSON.stringify(action.payload, null, 2));
+      console.log('New option IDs:', action.payload.map(opt => ({ id: opt.id, fileName: opt.fileName })));
       state.options = action.payload;
     },
     setDataMap: (state, action: PayloadAction<{ [key: string]: RecordData }>) => {

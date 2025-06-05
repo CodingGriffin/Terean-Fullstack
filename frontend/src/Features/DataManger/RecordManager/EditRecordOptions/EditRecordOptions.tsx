@@ -43,19 +43,33 @@ const EditRecordOptions: React.FC<EditRecordOptionsProps> = ({
   );
 
   const handleUploadFiles = (files: RecordUploadFile[]|null) => {
+    console.log('=== EditRecordOptions handleUploadFiles ===');
+    console.log('Files:', JSON.stringify(files, null, 2));
+    console.log('Current recordUploadFiles:', JSON.stringify(recordUploadFiles, null, 2));
+    
     let newUploadFiles:{[key:string]:File|null} = {...recordUploadFiles};
     if (files === null) {
+      console.log('Clearing all upload files');
       setRecordUploadFiles({});
       return;
     } else if (files.length === 1 && files[0].file === null) {
+      console.log('Deleting single file with ID:', files[0].id);
       delete newUploadFiles[files[0].id];
     } else {
-      files.forEach((uploadFile) => newUploadFiles[uploadFile.id] = uploadFile.file)
+      console.log('Adding/updating files:');
+      files.forEach((uploadFile) => {
+        console.log(`  - ID: ${uploadFile.id}, File: ${uploadFile.file?.name}`);
+        newUploadFiles[uploadFile.id] = uploadFile.file;
+      });
     }
+    console.log('New upload files keys:', Object.keys(newUploadFiles));
     setRecordUploadFiles(newUploadFiles);
   }
 
   const handleRecordOptionsChange = (updatedOptions: RecordOption[]) => {
+    console.log('=== EditRecordOptions handleRecordOptionsChange ===');
+    console.log('Updated options:', JSON.stringify(updatedOptions, null, 2));
+    console.log('Previous options:', JSON.stringify(recordOptions, null, 2));
     setRecordOptions(updatedOptions);
     setHasChanges(true);
   };
@@ -109,6 +123,11 @@ const EditRecordOptions: React.FC<EditRecordOptionsProps> = ({
   };
 
   const handleAddRecordOptions = (newOptions: RecordOption[]) => {
+    console.log('=== EditRecordOptions handleAddRecordOptions ===');
+    console.log('Mode:', addMode);
+    console.log('New options:', JSON.stringify(newOptions, null, 2));
+    console.log('Current record options:', JSON.stringify(recordOptions, null, 2));
+    
     let updatedOptions: RecordOption[] = [];
 
     if (addMode === 'edit' && newOptions.length === 1) {
@@ -122,6 +141,8 @@ const EditRecordOptions: React.FC<EditRecordOptionsProps> = ({
     } else {
       updatedOptions = [...recordOptions, ...newOptions];
     }
+    
+    console.log('Updated options after merge:', JSON.stringify(updatedOptions, null, 2));
     handleRecordOptionsChange(updatedOptions);
     setAddMode(null);
   };
@@ -134,6 +155,9 @@ const EditRecordOptions: React.FC<EditRecordOptionsProps> = ({
   };
 
   const handleApplyChanges = () => {
+    console.log('=== EditRecordOptions handleApplyChanges ===');
+    console.log('Record options to apply:', JSON.stringify(recordOptions, null, 2));
+    console.log('Upload files to apply keys:', Object.keys(recordUploadFiles));
     onRecordOptionsChange?.(recordOptions);
     onFilesChange(recordUploadFiles);
     setHasChanges(false);
