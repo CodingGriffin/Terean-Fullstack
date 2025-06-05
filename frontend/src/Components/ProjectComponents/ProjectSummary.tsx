@@ -44,7 +44,6 @@ const ProjectSummary: React.FC = () => {
 
   const initializeForm = () => {
     if (project) {
-      console.log("Project is ", project)
       const formData: EditFormData = {
         name: project.name || '',
         status: project.status || 'not_started',
@@ -54,7 +53,6 @@ const ProjectSummary: React.FC = () => {
         display_units: project.display_units || 'meters',
         asce_version: project.asce_version || 'asce_722'
       };
-      console.log("Formdata is", formData)
       setEditForm(formData);
       setOriginalForm(formData);
     }
