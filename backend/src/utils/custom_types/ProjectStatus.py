@@ -9,6 +9,14 @@ class ProjectStatus(str, Enum):
     completed = "completed"
     blocked = "blocked"
 
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            try:
+                return ProjectStatus.from_str(value)
+            except ValueError:
+                return None
+        return None
 
     @classmethod
     def list_values(cls) -> list[str]:
