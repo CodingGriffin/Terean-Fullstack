@@ -1,9 +1,5 @@
 import SectionHeader from "./SectionHeader/SectionHeader.tsx";
-
-interface ProjectData {
-  id?: string;
-  name?: string;
-}
+import { useProject } from "../Contexts/ProjectContext.tsx";
 
 interface ProjectSectionHeaderProps {
   buttons?: React.ReactNode;
@@ -13,23 +9,18 @@ const ProjectSectionHeader: React.FC<ProjectSectionHeaderProps> =
   ({
      buttons,
    }) => {
-    const projectData: ProjectData = {
-      id: "testID",
-      name: "testName",
-    }
+    const { project } = useProject();
 
     return (
-      <>
-        <SectionHeader
-          title={`Project Main Page - ${projectData.name || "Unknown Project"}`}
-          actions={
-            <div className="d-flex gap-2">
-              {buttons}
-            </div>
-          }
-        />
-      </>
-    )
+      <SectionHeader
+        title={`Project Main Page - ${project?.name || "Unknown Project"}`}
+        actions={
+          <div className="d-flex gap-2">
+            {buttons}
+          </div>
+        }
+      />
+    );
   }
 
 export default ProjectSectionHeader;

@@ -1,25 +1,7 @@
-interface Project {
-  id: string;
-  name: string;
-  status?: string;
-  priority?: string;
-  survey_date?: string;
-  received_date?: string;
-  records?: any[];
-  additional_files?: any[];
-}
+import { useProject } from "../../Contexts/ProjectContext.tsx";
 
 const ProjectSummary: React.FC = () => {
-  const project: Project = {
-    id: "asdfg",
-    name: "testName",
-    status: undefined,
-    priority: undefined,
-    survey_date: undefined,
-    received_date: undefined,
-    records: undefined,
-    additional_files: undefined,
-  }
+  const { project, loading, error } = useProject();
 
   const formatStatus = (status?: string) => {
     if (!status) return "Not Started";
@@ -45,6 +27,74 @@ const ProjectSummary: React.FC = () => {
     });
   };
 
+  const getStatusBadgeColor = (status?: string) => {
+    switch (status) {
+      case 'completed': return 'success';
+      case 'in_progress': return 'primary';
+      case 'blocked': return 'danger';
+      case 'on_hold': return 'warning';
+      case 'not_started': return 'secondary';
+      default: return 'secondary';
+    }
+  };
+
+  const getPriorityBadgeColor = (priority?: string) => {
+    switch (priority) {
+      case 'very_high': return 'danger';
+      case 'high': return 'warning';
+      case 'medium': return 'secondary';
+      case 'low': return 'info';
+      case 'very_low': return 'light';
+      default: return 'secondary';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card shadow-sm p-4">
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card shadow-sm p-4">
+            <div className="alert alert-danger" role="alert">
+              <i className="bi bi-exclamation-triangle me-2"></i>
+              Error loading project data: {error}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card shadow-sm p-4">
+            <div className="alert alert-warning" role="alert">
+              <i className="bi bi-info-circle me-2"></i>
+              No project data available
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="row mb-4">
       <div className="col-12">
@@ -58,37 +108,29 @@ const ProjectSummary: React.FC = () => {
                     <div className="col-md-3">
                       <p className="mb-2">
                         <strong>Status:</strong>
-                        <span className={`ms-2 badge bg-${
-                          project?.status === 'completed' ? 'success' :
-                            project?.status === 'in_progress' ? 'primary' :
-                              project?.status === 'blocked' ? 'danger' : 'secondary'
-                        }`}>
-                                {formatStatus(project?.status)}
+                        <span className={`ms-2 badge bg-${getStatusBadgeColor(project.status)}`}>
+                          {formatStatus(project.status)}
                         </span>
                       </p>
                     </div>
                     <div className="col-md-3">
                       <p className="mb-2">
                         <strong>Priority:</strong>
-                        <span className={`ms-2 badge bg-${
-                          project?.priority === 'very_high' ? 'danger' :
-                            project?.priority === 'high' ? 'warning' :
-                              project?.priority === 'low' || project?.priority === 'very_low' ? 'info' : 'secondary'
-                        }`}>
-                                {formatPriority(project?.priority)}
-                              </span>
+                        <span className={`ms-2 badge bg-${getPriorityBadgeColor(project.priority)}`}>
+                          {formatPriority(project.priority)}
+                        </span>
                       </p>
                     </div>
                     <div className="col-md-3">
                       <p className="mb-2">
                         <strong>SGY Files:</strong>
-                        <span className="ms-2">{project?.records?.length || 0}</span>
+                        <span className="ms-2">{project.records?.length || 0}</span>
                       </p>
                     </div>
                     <div className="col-md-3">
                       <p className="mb-2">
                         <strong>Additional Files:</strong>
-                        <span className="ms-2">{project?.additional_files?.length || 0}</span>
+                        <span className="ms-2">{project.additional_files?.length || 0}</span>
                       </p>
                     </div>
                   </div>
@@ -96,25 +138,75 @@ const ProjectSummary: React.FC = () => {
                     <div className="col-md-6">
                       <p className="mb-2">
                         <strong>Survey Date:</strong>
-                        <span className="ms-2">{formatDate(project?.survey_date)}</span>
+                        <span className="ms-2">{formatDate(project.survey_date)}</span>
                       </p>
                     </div>
                     <div className="col-md-6">
                       <p className="mb-2">
                         <strong>Received Date:</strong>
-                        <span className="ms-2">{formatDate(project?.received_date)}</span>
+                        <span className="ms-2">{formatDate(project.received_date)}</span>
                       </p>
                     </div>
                   </div>
+                  {project.client && (
+                    <div className="row text-center mt-3">
+                      <div className="col-12">
+                        <p className="mb-2">
+                          <strong>Client:</strong>
+                          <span className="ms-2">{project.client.name}</span>
+                          {project.client.company && (
+                            <span className="text-muted ms-1">({project.client.company})</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="row text-center mt-3">
+                    <div className="col-md-6">
+                      <p className="mb-2">
+                        <strong>Display Units:</strong>
+                        <span className="ms-2 text-capitalize">{project.display_units || 'meters'}</span>
+                      </p>
+                    </div>
+                    <div className="col-md-6">
+                      <p className="mb-2">
+                        <strong>ASCE Version:</strong>
+                        <span className="ms-2">{project.asce_version?.replace('_', ' ').toUpperCase() || 'ASCE 7-22'}</span>
+                      </p>
+                    </div>
+                  </div>
+                  {(project.created_at || project.updated_at) && (
+                    <div className="row text-center mt-3">
+                      {project.created_at && (
+                        <div className="col-md-6">
+                          <p className="mb-2 text-muted">
+                            <small>
+                              <strong>Created:</strong>
+                              <span className="ms-2">{formatDate(project.created_at)}</span>
+                            </small>
+                          </p>
+                        </div>
+                      )}
+                      {project.updated_at && (
+                        <div className="col-md-6">
+                          <p className="mb-2 text-muted">
+                            <small>
+                              <strong>Last Updated:</strong>
+                              <span className="ms-2">{formatDate(project.updated_at)}</span>
+                            </small>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
             <button
               className="btn btn-primary btn-sm position-absolute top-0 end-0 m-3"
               onClick={() => {
-                console.log("Need to implement this!")
-                // setEditForm(originalForm);
-                // setShowEditModal(true);
+                console.log("Edit project:", project.id);
+                // TODO: Implement edit functionality
               }}
             >
               <i className="bi bi-pencil me-1"></i>
@@ -124,7 +216,7 @@ const ProjectSummary: React.FC = () => {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default ProjectSummary
+export default ProjectSummary;
