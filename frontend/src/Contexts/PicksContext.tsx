@@ -11,6 +11,7 @@ import { setNumFreq, updateMaxFreq } from '../store/slices/freqSlice';
 import { setNumSlow, updateMaxSlow } from '../store/slices/slowSlice';
 import { setOptions } from '../store/slices/recordSlice';
 import { setInitialized } from '../store/slices/initializationSlice';
+import { autoGeneratePicks } from '../services/api';
 import { useAppSelector } from '../hooks/useAppSelector';
 
 const initialState = {
@@ -58,7 +59,8 @@ const initialState = {
     },
     recordOptions: [] as RecordOption[],
     savedRecordOptions: [] as RecordOption[],
-    uploadFiles: {} as { [key: string]: File | null }
+    uploadFiles: {} as { [key: string]: File | null },
+    isAutoPickLoading: false
 };
 
 type PicksAction = 
@@ -84,7 +86,9 @@ type PicksAction =
     | { type: 'SET_SAVED_SLOW_SETTINGS'; payload: { numSlow: number; maxSlow: number } }
     | { type: 'SET_RECORD_OPTIONS'; payload: RecordOption[] }
     | { type: 'SET_SAVED_RECORD_OPTIONS'; payload: RecordOption[] }
-    | { type: 'SET_UPLOAD_FILES'; payload: { [key: string]: File | null } };
+    | { type: 'SET_UPLOAD_FILES'; payload: { [key: string]: File | null } }
+    | { type: 'SET_AUTO_PICK_LOADING'; payload: boolean }
+    | { type: 'SET_AUTO_GENERATED_PICKS'; payload: PickData[] };
 
 type PicksContextType = {
     state: typeof initialState;
@@ -115,6 +119,7 @@ type PicksContextType = {
     handleUploadFiles: (files: RecordUploadFile[] | null) => void;
     handleApplyChanges: () => void;
     handleDiscardChanges: () => void;
+    autoGeneratePicksForProject: () => Promise<void>;
 };
 
 function reducer(state: typeof initialState, action: PicksAction): typeof initialState {
@@ -236,6 +241,16 @@ function reducer(state: typeof initialState, action: PicksAction): typeof initia
             return {
                 ...state,
                 uploadFiles: action.payload
+            };
+        case 'SET_AUTO_PICK_LOADING':
+            return {
+                ...state,
+                isAutoPickLoading: action.payload
+            };
+        case 'SET_AUTO_GENERATED_PICKS':
+            return {
+                ...state,
+                points: action.payload
             };
         default:
             return state;
@@ -648,6 +663,44 @@ export function PicksProvider({ children }: { children: ReactNode }) {
         }
     }, [state.points, dispatch]);
 
+    const autoGeneratePicksForProject = useCallback(async () => {
+        if (!projectId) {
+            reduxDispatch(addToast({
+                message: "Project ID is required to auto-generate picks",
+                type: "error",
+                duration: 5000
+            }));
+            return;
+        }
+        
+        try {
+            dispatch({ type: 'SET_AUTO_PICK_LOADING', payload: true });
+            
+            const response = await autoGeneratePicks(projectId);
+            
+            if (response.data) {
+                dispatch({ type: 'SET_AUTO_GENERATED_PICKS', payload: response.data });
+                
+                reduxDispatch(addToast({
+                    message: "Picks auto-generated successfully",
+                    type: "success",
+                    duration: 3000
+                }));
+                
+                await reduxDispatch(savePicksByProjectId(projectId)).unwrap();
+            }
+        } catch (error) {
+            console.error("Error auto-generating picks:", error);
+            reduxDispatch(addToast({
+                message: "Failed to auto-generate picks",
+                type: "error",
+                duration: 5000
+            }));
+        } finally {
+            dispatch({ type: 'SET_AUTO_PICK_LOADING', payload: false });
+        }
+    }, [projectId, reduxDispatch]);
+
     useEffect(() => {
         updateDataLimits();
     }, [updateDataLimits]);
@@ -761,7 +814,8 @@ export function PicksProvider({ children }: { children: ReactNode }) {
                 setUploadFiles,
                 handleUploadFiles,
                 handleApplyChanges,
-                handleDiscardChanges
+                handleDiscardChanges,
+                autoGeneratePicksForProject
             }}
         >
             {children}
