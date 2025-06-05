@@ -5,10 +5,13 @@ import { useAppDispatch } from "../../hooks/useAppDispatch";
 import { ProjectUpdate } from "../../types/project.ts";
 
 interface EditFormData {
+  name: string;
   status: string;
   priority: string;
   survey_date?: string;
   received_date?: string;
+  display_units: string;
+  asce_version: string;
 }
 
 const ProjectSummary: React.FC = () => {
@@ -17,16 +20,22 @@ const ProjectSummary: React.FC = () => {
   const [updating, setUpdating] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState<EditFormData>({
+    name: '',
     status: '',
     priority: '',
     survey_date: '',
-    received_date: ''
+    received_date: '',
+    display_units: '',
+    asce_version: ''
   });
   const [originalForm, setOriginalForm] = useState<EditFormData>({
+    name: '',
     status: '',
     priority: '',
     survey_date: '',
-    received_date: ''
+    received_date: '',
+    display_units: '',
+    asce_version: ''
   });
 
   const hasChanges = () => {
@@ -35,12 +44,17 @@ const ProjectSummary: React.FC = () => {
 
   const initializeForm = () => {
     if (project) {
+      console.log("Project is ", project)
       const formData: EditFormData = {
+        name: project.name || '',
         status: project.status || 'not_started',
         priority: project.priority || 'medium',
         survey_date: project.survey_date ? project.survey_date.split('T')[0] : '',
-        received_date: project.received_date ? project.received_date.split('T')[0] : ''
+        received_date: project.received_date ? project.received_date.split('T')[0] : '',
+        display_units: project.display_units || 'meters',
+        asce_version: project.asce_version || 'asce_722'
       };
+      console.log("Formdata is", formData)
       setEditForm(formData);
       setOriginalForm(formData);
     }
@@ -55,11 +69,25 @@ const ProjectSummary: React.FC = () => {
       return;
     }
 
+    // Validate required fields
+    if (!editForm.name.trim()) {
+      dispatch(addToast({
+        message: "Project name is required",
+        type: "error",
+        duration: 3000
+      }));
+      return;
+    }
+
     setUpdating(true);
     try {
       // Prepare the update payload, converting empty date strings to null
       // Ensure that data is only included in the payload if it has been changed!
       const updatePayload: ProjectUpdate = {};
+      
+      if (editForm.name !== originalForm.name) {
+        updatePayload.name = editForm.name.trim();
+      }
       
       if (editForm.status !== originalForm.status) {
         updatePayload.status = editForm.status;
@@ -75,6 +103,14 @@ const ProjectSummary: React.FC = () => {
       
       if (editForm.received_date !== originalForm.received_date) {
         updatePayload.received_date = editForm.received_date || null;
+      }
+      
+      if (editForm.display_units !== originalForm.display_units) {
+        updatePayload.display_units = editForm.display_units as 'meters' | 'feet';
+      }
+      
+      if (editForm.asce_version !== originalForm.asce_version) {
+        updatePayload.asce_version = editForm.asce_version as 'asce_716' | 'asce_722';
       }
 
       // Send the API request, and only update the UI on confirmation from the backend 
@@ -318,6 +354,17 @@ const ProjectSummary: React.FC = () => {
               </div>
               <div className="modal-body">
                 <div className="mb-3">
+                  <label htmlFor="edit-name" className="form-label">Name</label>
+                  <input
+                    id="edit-name"
+                    type="text"
+                    className="form-control"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                    disabled={updating}
+                  />
+                </div>
+                <div className="mb-3">
                   <label htmlFor="edit-status" className="form-label">Status</label>
                   <select
                     id="edit-status"
@@ -369,6 +416,32 @@ const ProjectSummary: React.FC = () => {
                     onChange={(e) => setEditForm({...editForm, received_date: e.target.value})}
                     disabled={updating}
                   />
+                </div>
+                <div className="mb-3">
+                  <label htmlFor="edit-display-units" className="form-label">Display Units</label>
+                  <select
+                    id="edit-display-units"
+                    className="form-select"
+                    value={editForm.display_units}
+                    onChange={(e) => setEditForm({...editForm, display_units: e.target.value})}
+                    disabled={updating}
+                  >
+                    <option value="m">Meters</option>
+                    <option value="ft">Feet</option>
+                  </select>
+                </div>
+                <div className="mb-3">
+                  <label htmlFor="edit-asce-version" className="form-label">ASCE Version</label>
+                  <select
+                    id="edit-asce-version"
+                    className="form-select"
+                    value={editForm.asce_version}
+                    onChange={(e) => setEditForm({...editForm, asce_version: e.target.value})}
+                    disabled={updating}
+                  >
+                    <option value="ASCE 7-16">ASCE 7-16</option>
+                    <option value="ASCE 7-22">ASCE 7-22</option>
+                  </select>
                 </div>
               </div>
               <div className="modal-footer">
