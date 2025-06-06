@@ -1,6 +1,6 @@
 import {extend} from "@pixi/react";
 import {Graphics, Container} from "pixi.js";
-import {useState, useRef, useEffect, useMemo, useCallback} from "react";
+import {useState, useRef, useEffect, useMemo, useCallback, DragEvent} from "react";
 import {Point} from "../../types/data";
 import {PickData} from "../../types/data";
 import {CalcCurve} from "../../utils/disper-util";
@@ -89,7 +89,7 @@ export const DisperCurveManager = () => {
     height: 480,
   });
 
-  const plotRef = useRef<any>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
 
   const coordinateHelpers = useMemo(
     () => ({
@@ -221,29 +221,31 @@ export const DisperCurveManager = () => {
   // };
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleDrop = (e: any) => {
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    readFiles(droppedFiles);
+    if (e.dataTransfer != null) {
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      readFiles(droppedFiles);
+    }
   };
 
-  const handleDragOver = (e: any) => {
+  const handleDragOver = (e: DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
   };
 
-  const handleDragEnter = (e: any) => {
+  const handleDragEnter = (e: DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
   };
 
-  const handleDragLeave = (e: any) => {
+  const handleDragLeave = (e: DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
   };
 
-  const readFiles = (files: any[]) => {
+  const readFiles = (files: File[]) => {
     for (const file of files) {
       if (!file.name.includes('.pck')) {
         dispatch(addToast({
@@ -258,13 +260,15 @@ export const DisperCurveManager = () => {
     const fileReadPromises = files.map((file) => {
       return new Promise<PickData[]>((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = (event: any) => {
+        reader.onload = (event: ProgressEvent<FileReader>) => {
+          console.log("LoadEvent: ", event)
           const content = event.target?.result as string;
-          const lines = content.trim().split('\n');
+          const lines: string[] = content.trim().split('\n');
           const filePoints: PickData[] = [];
 
+          console.log("Lines:", lines)
           for (const line of lines) {
-            const values = line.split(' ').map((val: any) => parseFloat(val.trim()));
+            const values = line.split(' ').map((val: string) => parseFloat(val.trim()));
 
             if (values.length >= 7) {
               const point: PickData = {
@@ -324,6 +328,7 @@ export const DisperCurveManager = () => {
 
   const handleUploadPoints = useCallback(async () => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
       const [fileHandle] = await (window as unknown as Window & { showOpenFilePicker: Function }).showOpenFilePicker({
         types: [
           {
@@ -339,11 +344,11 @@ export const DisperCurveManager = () => {
       const file = await fileHandle.getFile();
       const content = await file.text();
 
-      const lines = content.trim().split('\n');
+      const lines: string[] = content.trim().split('\n');
       const newPoints: PickData[] = [];
 
       for (const line of lines) {
-        const values = line.split(' ').map((val: any) => parseFloat(val.trim()));
+        const values = line.split(' ').map((val: string) => parseFloat(val.trim()));
 
         if (values.length >= 7) {
           const point: PickData = {

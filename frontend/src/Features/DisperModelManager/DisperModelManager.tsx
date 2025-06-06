@@ -899,7 +899,6 @@ export const DisperModelManager = () => {
                       )
                     }
                     onPointerDown={(e: FederatedPointerEvent) => {
-                      console.log("Event 1 e is: ", e)
                       handlePointerDown(e, index + 1, "boundary")
                     }
                     }
@@ -960,7 +959,6 @@ export const DisperModelManager = () => {
                       )
                     }
                     onPointerDown={(e: FederatedPointerEvent) => {
-                      console.log("Event 2 e is: ", e)
                       handlePointerDown(e, index, "velocity")
                     }
                     }
