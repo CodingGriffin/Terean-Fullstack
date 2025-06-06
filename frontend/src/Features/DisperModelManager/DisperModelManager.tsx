@@ -19,7 +19,7 @@ import {useAppDispatch} from "../../hooks/useAppDispatch";
 import {addToast} from "../../store/slices/toastSlice";
 import {autoFitVelocityModel} from '../../services/api';
 import {FeetToMeters, MetersToFeet} from "../../utils/unit-util.tsx";
-import {FederatedEventHandler, FederatedPointerEvent} from "@pixi/events";
+import { FederatedPointerEvent} from "@pixi/events";
 
 extend({Container, Sprite, Graphics, Text});
 
@@ -49,6 +49,38 @@ export const DisperModelManager = () => {
   } = useDisper();
 
   const dispatch = useAppDispatch();
+  const handleAutoFitLayers = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      const picks = pickData || [];
+
+      const response = await autoFitVelocityModel(picks);
+
+      if (response.data) {
+        setLayers(response.data.layers);
+
+        if (response.data.modelAxisLimits) {
+          setModelAxisLimits(response.data.modelAxisLimits);
+        }
+
+        dispatch(addToast({
+          message: "Velocity model auto-fitted successfully",
+          type: "success",
+          duration: 3000
+        }));
+      }
+    } catch (error) {
+      console.error("Error auto-fitting velocity model:", error);
+      dispatch(addToast({
+        message: "Failed to auto-fit velocity model",
+        type: "error",
+        duration: 5000
+      }));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pickData, setLayers, setModelAxisLimits, dispatch]);
 
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [tooltipContent, setTooltipContent] = useState<string>("");
@@ -476,41 +508,7 @@ export const DisperModelManager = () => {
       URL.revokeObjectURL(url);
     }
   }, [layers, modelAxisLimits.ymax]);
-
-  const handleAutoFitLayers = useCallback(async () => {
-    const dispatch = useAppDispatch();
-
-    try {
-      setIsLoading(true);
-
-      const picks = pickData || [];
-
-      const response = await autoFitVelocityModel(picks);
-
-      if (response.data) {
-        setLayers(response.data.layers);
-
-        if (response.data.modelAxisLimits) {
-          setModelAxisLimits(response.data.modelAxisLimits);
-        }
-
-        dispatch(addToast({
-          message: "Velocity model auto-fitted successfully",
-          type: "success",
-          duration: 3000
-        }));
-      }
-    } catch (error) {
-      console.error("Error auto-fitting velocity model:", error);
-      dispatch(addToast({
-        message: "Failed to auto-fit velocity model",
-        type: "error",
-        duration: 5000
-      }));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [pickData, setLayers, setModelAxisLimits]);
+  
 
   // Add click handler for the plot area
   const handlePlotClick = (event: React.PointerEvent) => {
