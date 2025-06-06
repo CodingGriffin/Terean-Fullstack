@@ -192,33 +192,6 @@ export const DisperCurveManager = () => {
     return Array.from({length: count}, (_, i) => min + step * i);
   };
 
-  // const handleFileSelect = async (
-  //   event: React.ChangeEvent<HTMLInputElement>
-  // ) => {
-  //   const file = event.target.files?.[0];
-  //   if (!file) return;
-
-  //   const text = await file.text();
-  //   const rawData: PickData[] = text
-  //     .split("\n")
-  //     .map((line) => line.trim())
-  //     .filter((line) => line.length > 0)
-  //     .map((line) => {
-  //       const [d1, d2, frequency, d3, slowness, d4, d5] = line
-  //         .split(/\s+/)
-  //         .map((num) => parseFloat(num.trim()));
-  //       return {
-  //         d1,
-  //         d2,
-  //         frequency,
-  //         d3,
-  //         slowness,
-  //         d4,
-  //         d5,
-  //       };
-  //     });
-  //   setPickData(rawData);
-  // };
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -438,55 +411,101 @@ export const DisperCurveManager = () => {
     }
   };
 
+  const getAxisUnit = useCallback((
+    axis: "x" | "y" | "xmin" | "xmax" | "ymin" | "ymax",
+    axesSwapped: boolean,
+    velocityUnit: "velocity" | "slowness",
+    periodUnit: "period" | "frequency"
+  ) => {
+    let unit: "velocity" | "slowness" | "period" | "frequency";
+    if (axis.startsWith("x")) {
+      if (!axesSwapped) {
+        unit = periodUnit === "period" ? "period" : "frequency"
+      } else {
+        unit = velocityUnit === "velocity" ? "velocity" : "slowness"
+      }
+    } else {
+      if (!axesSwapped) {
+        unit = velocityUnit === "velocity" ? "velocity" : "slowness"
+      } else {
+        unit = periodUnit === "period" ? "period" : "frequency"
+      }
+    }
+    return unit
+  }, [])
+
   const handleAxisLimitChange = useCallback((
     axis: "xmin" | "xmax" | "ymin" | "ymax",
-    axisSwapped: boolean,
-    value: string
+    axesSwapped: boolean,
+    value: string,
   ) => {
+    // Convert value to a number, failing early if invalid.
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return;
-    console.log("axisSwapped", axisSwapped)
+    
+    // Get the unit
+    const unit = getAxisUnit(axis, axesSwapped, velocityUnit, periodUnit)
 
-    // Different validation rules based on unit type and axis
-    if (axis.startsWith("x")) {
-      // Period/Frequency limits
-      const minLimit = periodUnit === "period" ? ABS_MIN_PERIOD : ABS_MIN_FREQUENCY;
+    // Get existing values 
+    const newLimits = {...curveAxisLimits};
+    let newValue: number;
 
-      const newLimits = {...curveAxisLimits};
-
-      if (axis === "xmin") {
-        newLimits.xmin = Math.max(minLimit, numValue);
-        if (newLimits.xmin >= newLimits.xmax) {
-          newLimits.xmax =
-            newLimits.xmin + (periodUnit === "period" ? ABS_MIN_PERIOD : ABS_MIN_FREQUENCY);
-        }
-      } else {
-        const minDelta = periodUnit === "period" ? ABS_MIN_PERIOD : ABS_MIN_FREQUENCY;
-        newLimits.xmax = Math.max(newLimits.xmin + minDelta, numValue);
+    // Branch: Handle min or max
+    if (axis.endsWith("min")) {
+      let minLimit: number;
+      switch (unit) {
+        case "frequency":
+          minLimit = ABS_MIN_FREQUENCY;
+          break;
+        case "period":
+          minLimit = ABS_MIN_PERIOD;
+          break;
+        case "slowness":
+          minLimit = ABS_MIN_SLOWNESS
+          break;
+        case "velocity":
+          minLimit = ABS_MIN_VELOCITY
+          break;
       }
-
-      setCurveAxisLimits(newLimits);
+      newValue = Math.max(minLimit, numValue)
     } else {
-      // Velocity/Slowness limits
-      const minLimit = velocityUnit === "velocity" ? ABS_MIN_VELOCITY : ABS_MIN_SLOWNESS;
-      const valueInMeters =
-        displayUnits === "ft" ? FeetToMeters(numValue) : numValue;
-
-      const newLimits = {...curveAxisLimits};
-
-      if (axis === "ymin") {
-        newLimits.ymin = Math.max(minLimit, valueInMeters);
-        if (newLimits.ymin >= newLimits.ymax) {
-          newLimits.ymax =
-            newLimits.ymin + (velocityUnit === "velocity" ? ABS_MIN_VELOCITY : ABS_MIN_SLOWNESS);
-        }
-      } else {
-        const minDelta = velocityUnit === "velocity" ? ABS_MIN_VELOCITY : ABS_MIN_SLOWNESS;
-        newLimits.ymax = Math.max(newLimits.ymin + minDelta, valueInMeters);
+      let maxLimit: number;
+      switch (unit) {
+        case "frequency":
+          maxLimit = ABS_MAX_FREQUENCY;
+          break;
+        case "period":
+          maxLimit = ABS_MAX_PERIOD;
+          break;
+        case "slowness":
+          maxLimit = ABS_MAX_SLOWNESS
+          break;
+        case "velocity":
+          maxLimit = ABS_MAX_VELOCITY
+          break;
       }
-      setCurveAxisLimits(newLimits);
+      newValue = Math.min(maxLimit, numValue)
     }
-  }, [curveAxisLimits, displayUnits, periodUnit, setCurveAxisLimits, velocityUnit]);
+
+    // Set axis value
+    switch (axis) {
+      case "xmax":
+        newLimits.xmax = newValue
+        break;
+      case "xmin":
+        newLimits.xmin = newValue
+        break;
+      case "ymax":
+        newLimits.ymax = newValue
+        break;
+      case "ymin":
+        newLimits.ymin = newValue
+        break;
+    }
+    setCurveAxisLimits(newLimits)
+
+  }, [curveAxisLimits, getAxisUnit, periodUnit, setCurveAxisLimits, velocityUnit])
+
 
   const displayRMSE = () => {
     if (rmseVel !== null) {
