@@ -5,10 +5,10 @@ import {
   Text,
   Rectangle,
   TextStyle,
+  FederatedPointerEvent,
 } from "pixi.js";
 import {useState, useRef, useEffect, useCallback, useMemo} from "react";
 import {extend} from "@pixi/react";
-import "@pixi/events";
 import {Layer} from "../../types/data";
 import {useDisper, VelocityModelLayer} from "../../Contexts/DisperContext";
 import {Window} from "../../types";
@@ -19,7 +19,6 @@ import {useAppDispatch} from "../../hooks/useAppDispatch";
 import {addToast} from "../../store/slices/toastSlice";
 import {autoFitVelocityModel} from '../../services/api';
 import {FeetToMeters, MetersToFeet} from "../../utils/unit-util.tsx";
-import { FederatedPointerEvent} from "@pixi/events";
 
 extend({Container, Sprite, Graphics, Text});
 
@@ -960,7 +959,7 @@ export const DisperModelManager = () => {
                         coordinateHelpers.toScreenY(layer.startDepth)
                       )
                     }
-                    onPointerDown={(e: any) => {
+                    onPointerDown={(e: FederatedPointerEvent) => {
                       console.log("Event 2 e is: ", e)
                       handlePointerDown(e, index, "velocity")
                     }
