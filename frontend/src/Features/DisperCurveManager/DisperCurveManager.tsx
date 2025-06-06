@@ -59,7 +59,7 @@ export const DisperCurveManager = () => {
     setAxesSwapped
   } = useDisper();
 
-  const { projectId } = useParams();
+  const {projectId} = useParams();
   const dispatch = useAppDispatch();
   const [curvePoints, setCurvePoints] = useState<Point[]>([]);
   const [pickPoints, setPickPoints] = useState<Point[]>([]);
