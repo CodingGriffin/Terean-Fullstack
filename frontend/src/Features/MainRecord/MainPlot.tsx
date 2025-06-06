@@ -431,134 +431,152 @@ export default function MainPlot() {
   }, [points, dispatch]);
 
   const handleUploadPoints = useCallback(async () => {
-    try {
-      const [fileHandle] = await (window as unknown as { showOpenFilePicker: (options: FilePickerOptions) => Promise<FileHandle[]> })
-        .showOpenFilePicker({
-          types: [
-            {
-              description: "Picked Points",
-              accept: {
-                "text/plain": [".pck"],
-              },
-            },
-          ],
-          multiple: false,
-        });
-      
-      const file = await fileHandle.getFile();
-      const content = await file.text();
-      
-      const lines = content.trim().split('\n');
-      const newPoints: PickData[] = [];
-      
-      for (const line of lines) {
-        const values = line.split(' ').map((val) => parseFloat(val.trim()));
-        
-        if (values.length >= 7) {
-          const point: PickData = {
-            d1: values[0],
-            d2: values[1],
-            frequency: values[2],
-            d3: values[3],
-            slowness: values[4],
-            d4: values[5],
-            d5: values[6]
-          };
-          newPoints.push(point);
-        }
-      }
-      
-      if (newPoints.length === 0) {
-        dispatch(addToast({
-          message: "No valid points found in file",
-          type: "warning",
-          duration: 5000
-        }));
-        return;
-      }
-      
-      if (points.length > 0) {
-        setPendingNewPoints(newPoints);
-        setShowUploadConfirmation(true);
-      } else {
-        dispatch(setPoints(newPoints));
-        dispatch(addToast({
-          message: `Successfully loaded ${newPoints.length} points`,
-          type: "success",
-          duration: 5000
-        }));
-      }
-      
-    } catch (err) {
-      console.error("Error uploading file:", err);
-      
-      if ((err as Error).name !== 'AbortError') {
-        dispatch(addToast({
-          message: "Failed to upload file. Please try again.",
-          type: "error",
-          duration: 5000
-        }));
-      }
-      
+    // Check if File System Access API is supported (requires secure context)
+    if ('showOpenFilePicker' in window && window.isSecureContext) {
       try {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.pck';
+        const [fileHandle] = await (window as unknown as { showOpenFilePicker: (options: FilePickerOptions) => Promise<FileHandle[]> })
+          .showOpenFilePicker({
+            types: [
+              {
+                description: "Picked Points",
+                accept: {
+                  "text/plain": [".pck"],
+                },
+              },
+            ],
+            multiple: false,
+          });
         
-        input.onchange = async (e) => {
-          const target = e.target as HTMLInputElement;
-          if (!target.files || target.files.length === 0) return;
+        const file = await fileHandle.getFile();
+        const content = await file.text();
+        
+        const lines = content.trim().split('\n');
+        const newPoints: PickData[] = [];
+        
+        for (const line of lines) {
+          const values = line.split(' ').map((val) => parseFloat(val.trim()));
           
-          const file = target.files[0];
-          const reader = new FileReader();
+          if (values.length >= 7) {
+            const point: PickData = {
+              d1: values[0],
+              d2: values[1],
+              frequency: values[2],
+              d3: values[3],
+              slowness: values[4],
+              d4: values[5],
+              d5: values[6]
+            };
+            newPoints.push(point);
+          }
+        }
+        
+        if (newPoints.length === 0) {
+          dispatch(addToast({
+            message: "No valid points found in file",
+            type: "warning",
+            duration: 5000
+          }));
+          return;
+        }
+        
+        if (points.length > 0) {
+          setPendingNewPoints(newPoints);
+          setShowUploadConfirmation(true);
+        } else {
+          dispatch(setPoints(newPoints));
+          dispatch(addToast({
+            message: `Successfully loaded ${newPoints.length} points`,
+            type: "success",
+            duration: 5000
+          }));
+        }
+        
+        return; // Success, exit early
+        
+      } catch (err) {
+        console.error("Error with native file picker:", err);
+        
+        // Don't show error for user cancellation
+        if ((err as Error).name === 'AbortError') {
+          return;
+        }
+        
+        // Log and fall through to fallback for other errors
+        console.log("Falling back to traditional file input...");
+      }
+    }
+    
+    // Fallback method for:
+    // 1. Browsers without File System Access API support
+    // 2. Non-secure contexts (HTTP instead of HTTPS)
+    // 3. When the modern API fails
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.pck';
+      
+      input.onchange = async (e) => {
+        const target = e.target as HTMLInputElement;
+        if (!target.files || target.files.length === 0) return;
+        
+        const file = target.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = (event) => {
+          const content = event.target?.result as string;
+          const lines = content.trim().split('\n');
+          const newPoints: PickData[] = [];
           
-          reader.onload = (event) => {
-            const content = event.target?.result as string;
-            const lines = content.trim().split('\n');
-            const newPoints: PickData[] = [];
+          for (const line of lines) {
+            const values = line.split(' ').map(val => parseFloat(val.trim()));
             
-            for (const line of lines) {
-              const values = line.split(',').map(val => parseFloat(val.trim()));
-              
-              if (values.length >= 7) {
-                const point: PickData = {
-                  d1: values[0],
-                  d2: values[1],
-                  frequency: values[2],
-                  d3: values[3],
-                  slowness: values[4],
-                  d4: values[5],
-                  d5: values[6]
-                };
-                newPoints.push(point);
-              }
+            if (values.length >= 7) {
+              const point: PickData = {
+                d1: values[0],
+                d2: values[1],
+                frequency: values[2],
+                d3: values[3],
+                slowness: values[4],
+                d4: values[5],
+                d5: values[6]
+              };
+              newPoints.push(point);
             }
-            
-            if (newPoints.length === 0) {
-              dispatch(addToast({
-                message: "No valid points found in file",
-                type: "warning",
-                duration: 5000
-              }));
-              return;
-            }
+          }
+          
+          if (newPoints.length === 0) {
+            dispatch(addToast({
+              message: "No valid points found in file",
+              type: "warning",
+              duration: 5000
+            }));
+            return;
+          }
 
-            dispatch(setPoints(newPoints))
-
+          if (points.length > 0) {
+            setPendingNewPoints(newPoints);
+            setShowUploadConfirmation(true);
+          } else {
+            dispatch(setPoints(newPoints));
             dispatch(addToast({
               message: `Successfully loaded ${newPoints.length} points`,
               type: "success",
               duration: 5000
             }));
-          };
-          
-          reader.readAsText(file);
+          }
         };
         
-        input.click();
-      } catch (fallbackErr) {
-        console.error("Fallback upload method failed:", fallbackErr);
-      }
+        reader.readAsText(file);
+      };
+      
+      input.click();
+    } catch (fallbackErr) {
+      console.error("Fallback upload method failed:", fallbackErr);
+      dispatch(addToast({
+        message: "Failed to upload file. Please try again.",
+        type: "error",
+        duration: 5000
+      }));
     }
   }, [dispatch, points]);
 

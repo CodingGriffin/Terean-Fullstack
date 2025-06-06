@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode, useState, useEffect } from "react";
+import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Project, ProjectUpdate } from "../types/project.ts";
 import { getProjectById, updateProject as updateProjectAPI } from "../services/api";
@@ -32,7 +32,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProject = async () => {
+  const fetchProject = useCallback(async () => {
     if (!projectId) {
       setError("No project ID provided");
       setLoading(false);
@@ -51,7 +51,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
 
   const refetchProject = async () => {
     await fetchProject();
@@ -103,7 +103,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   useEffect(() => {
     fetchProject();
-  }, [projectId]);
+  }, [fetchProject, projectId]);
 
   const contextValue: ProjectContextType = {
     project,
