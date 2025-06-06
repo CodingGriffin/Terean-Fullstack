@@ -916,7 +916,7 @@ export const DisperModelManager = () => {
                 <pixiContainer key={`velocity-container-${index}-${Date.now()}`}>
                   <pixiGraphics
                     draw={(g) => {
-                      console.log("Layer:", layer);
+                      // console.log("Layer:", layer);
                       g.clear();
                       // Fill the region to the left of the velocity line with light red
                       g.setFillStyle({ color: 0xff0000, alpha: 0.1 });
