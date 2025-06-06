@@ -27,12 +27,12 @@ const ABS_MIN_FREQUENCY = 0.0000000001;
 
 export const DisperCurveManager = () => {
   const {
-    state: { 
-      layers, 
-      displayUnits, 
-      pickData, 
-      asceVersion, 
-      dataLimits, 
+    state: {
+      layers,
+      displayUnits,
+      pickData,
+      asceVersion,
+      dataLimits,
       curveAxisLimits,
       numPoints,
       rmseVel,
