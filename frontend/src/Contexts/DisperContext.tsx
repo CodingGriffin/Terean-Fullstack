@@ -52,6 +52,14 @@ const initialState = {
     isLoading: false
 };
 
+export interface VelocityModelLayer {
+  startDepth: number;
+  endDepth: number;
+  density: number;
+  ignore: number;
+  velocity: number;
+}
+
 // Define the context type
 type DisperContextType = {
     state: typeof initialState;
