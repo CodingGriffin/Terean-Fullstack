@@ -78,8 +78,6 @@ type DisperContextType = {
     setAxesSwapped: (value: boolean) => void;
     saveSettings: (projectId: string) => Promise<void>;
     loadSettings: (projectId: string) => Promise<void>;
-    ToFeet: (value: number) => number;
-    ToMeter: (value: number) => number;
     setIsLoading: (value: boolean) => void;
 };
 
@@ -284,13 +282,6 @@ export function DisperProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_LAYERS', payload: newLayers });
     }, [state.layers]);
 
-    const ToFeet = useCallback((value: number) => {
-        return value * 3.28084; // Convert meters to feet
-    }, []);
-
-    const ToMeter = useCallback((value: number) => {
-        return value / 3.28084; // Convert feet to meters
-    }, []);
 
     const calculateVs30 = useCallback(() => {
         const num_layers = state.layers.length;
@@ -564,8 +555,6 @@ export function DisperProvider({ children }: { children: ReactNode }) {
                 setAxesSwapped,
                 saveSettings,
                 loadSettings,
-                ToFeet,
-                ToMeter,
                 setIsLoading
             }}
         >

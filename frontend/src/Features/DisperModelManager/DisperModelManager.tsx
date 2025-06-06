@@ -7,7 +7,7 @@ import {
   TextStyle,
 } from "pixi.js";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { extend, useApp } from "@pixi/react";
+import { extend } from "@pixi/react";
 import "@pixi/events";
 import { Layer } from "../../types/data";
 import { useDisper } from "../../Contexts/DisperContext";
@@ -18,6 +18,7 @@ import SectionHeader from "../../Components/SectionHeader/SectionHeader";
 import { useAppDispatch } from "../../hooks/useAppDispatch";
 import { addToast } from "../../store/slices/toastSlice";
 import { autoFitVelocityModel } from '../../services/api';
+import {FeetToMeters, MetersToFeet} from "../../utils/unit-util.tsx";
 
 extend({ Container, Sprite, Graphics, Text });
 
@@ -37,8 +38,6 @@ export const DisperModelManager = () => {
     deleteLayer,
     setAsceVersion,
     setModelAxisLimits,
-    ToFeet,
-    ToMeter,
   } = useDisper();
 
   const dispatch = useAppDispatch();
@@ -293,7 +292,7 @@ export const DisperModelManager = () => {
   
         setTooltipContent(
           `Velocity: ${displayUnits === "ft"
-            ? ToFeet(constrainedVelocity).toFixed(1)
+            ? MetersToFeet(constrainedVelocity).toFixed(1)
             : constrainedVelocity.toFixed(1)
           } ${displayUnits}/s`
         );
@@ -349,13 +348,13 @@ export const DisperModelManager = () => {
         
         setTooltipContent(
           `Depth: ${displayUnits === "ft"
-            ? ToFeet(constrainedDepth).toFixed(1)
+            ? MetersToFeet(constrainedDepth).toFixed(1)
             : constrainedDepth.toFixed(1)
           } ${displayUnits}`
         );
       }
     },
-    [dragState, layers, coordinateHelpers, modelAxisLimits, displayUnits, ToFeet]
+    [dragState, layers, coordinateHelpers, modelAxisLimits, displayUnits]
   );
 
   const handleHover = useCallback(
@@ -368,7 +367,7 @@ export const DisperModelManager = () => {
         if (Math.abs(x - screenX) < 10) {
           setTooltipContent(
             `Velocity: ${displayUnits === "ft"
-              ? ToFeet(layer.velocity).toFixed(1)
+              ? MetersToFeet(layer.velocity).toFixed(1)
               : layer.velocity.toFixed(1)
             } ${displayUnits}/s`
           );
@@ -383,7 +382,7 @@ export const DisperModelManager = () => {
           if (Math.abs(y - screenY) < 10) {
             setTooltipContent(
               `Depth: ${displayUnits === "ft"
-                ? ToFeet(layer.endDepth).toFixed(1)
+                ? MetersToFeet(layer.endDepth).toFixed(1)
                 : layer.endDepth.toFixed(1)
               } ${displayUnits}`
             );
@@ -686,14 +685,14 @@ export const DisperModelManager = () => {
                   type="number"
                   value={
                     displayUnits === "ft"
-                      ? ToFeet(modelAxisLimits.ymax)
+                      ? MetersToFeet(modelAxisLimits.ymax)
                       : modelAxisLimits.ymax
                   }
                   onChange={(e) => {
                     const value = parseFloat(e.target.value);
                     if (value < 0) return;
                     const valueInMeters =
-                      displayUnits === "ft" ? ToMeter(value) : value;
+                      displayUnits === "ft" ? FeetToMeters(value) : value;
                     setModelAxisLimits({
                       ...modelAxisLimits,
                       ymax: valueInMeters,
@@ -711,14 +710,14 @@ export const DisperModelManager = () => {
                   type="number"
                   value={
                     displayUnits === "ft"
-                      ? ToFeet(modelAxisLimits.ymin)
+                      ? MetersToFeet(modelAxisLimits.ymin)
                       : modelAxisLimits.ymin
                   }
                   onChange={(e) => {
                     const value = parseFloat(e.target.value);
                     if (value < 0) return;
                     const valueInMeters =
-                      displayUnits === "ft" ? ToMeter(value) : value;
+                      displayUnits === "ft" ? FeetToMeters(value) : value;
                     setModelAxisLimits({
                       ...modelAxisLimits,
                       ymin: valueInMeters,
@@ -738,14 +737,14 @@ export const DisperModelManager = () => {
                   type="number"
                   value={
                     displayUnits === "ft"
-                      ? ToFeet(modelAxisLimits.xmax)
+                      ? MetersToFeet(modelAxisLimits.xmax)
                       : modelAxisLimits.xmax
                   }
                   onChange={(e) => {
                     const value = parseFloat(e.target.value);
                     if (value < 0) return;
                     const valueInMeters =
-                      displayUnits === "ft" ? ToMeter(value) : value;
+                      displayUnits === "ft" ? FeetToMeters(value) : value;
                     setModelAxisLimits({
                       ...modelAxisLimits,
                       xmax: valueInMeters,
@@ -763,14 +762,14 @@ export const DisperModelManager = () => {
                   type="number"
                   value={
                     displayUnits === "ft"
-                      ? ToFeet(modelAxisLimits.xmin)
+                      ? MetersToFeet(modelAxisLimits.xmin)
                       : modelAxisLimits.xmin
                   }
                   onChange={(e) => {
                     const value = parseFloat(e.target.value);
                     if (value < 0) return;
                     const valueInMeters =
-                      displayUnits === "ft" ? ToMeter(value) : value;
+                      displayUnits === "ft" ? FeetToMeters(value) : value;
                     setModelAxisLimits({
                       ...modelAxisLimits,
                       xmin: valueInMeters,
@@ -812,7 +811,7 @@ export const DisperModelManager = () => {
             yMin={modelAxisLimits.ymax}
             yMax={modelAxisLimits.ymin}
             display={(value) =>
-              displayUnits === "ft" ? ToFeet(value).toFixed(3) : value.toFixed(3)
+              displayUnits === "ft" ? MetersToFeet(value).toFixed(3) : value.toFixed(3)
             }
             tooltipContent={tooltipContent}
             onPointerMove={handlePointerMove}
@@ -897,7 +896,7 @@ export const DisperModelManager = () => {
                   />
                   <pixiText
                     text={`${displayUnits === "ft"
-                      ? ToFeet(layer.endDepth).toFixed(1)
+                      ? MetersToFeet(layer.endDepth).toFixed(1)
                       : layer.endDepth.toFixed(1)
                     }`}
                     x={5}
@@ -957,7 +956,7 @@ export const DisperModelManager = () => {
                   />
                   <pixiText
                     text={`${displayUnits === "ft"
-                        ? ToFeet(layer.velocity).toFixed(0)
+                        ? MetersToFeet(layer.velocity).toFixed(0)
                         : layer.velocity.toFixed(0)
                       }`}
                     x={coordinateHelpers.toScreenX(layer.velocity) + 5}

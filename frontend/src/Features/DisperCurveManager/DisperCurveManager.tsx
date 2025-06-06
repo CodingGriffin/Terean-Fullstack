@@ -1,29 +1,34 @@
-import { extend } from "@pixi/react";
-import { Graphics, Container } from "pixi.js";
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { Point } from "../../types/data";
-import { PickData } from "../../types/data";
-import { CalcCurve } from "../../utils/disper-util";
+import {extend} from "@pixi/react";
+import {Graphics, Container} from "pixi.js";
+import {useState, useRef, useEffect, useMemo, useCallback} from "react";
+import {Point} from "../../types/data";
+import {PickData} from "../../types/data";
+import {CalcCurve} from "../../utils/disper-util";
 import VelModel from "../../utils/disper-util";
-import { useDisper } from "../../Contexts/DisperContext";
-import { BasePlot } from "../../Components/BasePlot/BasePlot";
+import {useDisper} from "../../Contexts/DisperContext";
+import {BasePlot} from "../../Components/BasePlot/BasePlot";
 // import { FileControls } from "../../Components/FileControls/FileControls";
 import SectionHeader from "../../Components/SectionHeader/SectionHeader";
-import { useAppDispatch } from "../../hooks/useAppDispatch";
-import { addToast } from "../../store/slices/toastSlice";
-import { useParams } from "react-router-dom";
-import { savePicksByProjectId } from "../../store/thunks/cacheThunks";
+import {useAppDispatch} from "../../hooks/useAppDispatch";
+import {addToast} from "../../store/slices/toastSlice";
+import {useParams} from "react-router-dom";
+import {savePicksByProjectId} from "../../store/thunks/cacheThunks";
 import ConfirmationModal from "../../Components/ConfirmationModal/ConfirmationModal";
-import { setPoints } from "../../store/slices/plotSlice";
+import {setPoints} from "../../store/slices/plotSlice";
+import {FeetToMeters, MetersToFeet} from "../../utils/unit-util.tsx";
 
-extend({ Graphics, Container });
+extend({Graphics, Container});
 
 const VELOCITY_MAX_MARGIN_FACTOR = 1.1; // 110% of max velocity
 const VELOCITY_MIN_MARGIN_FACTOR = 0.9; // 90% of min velocity
-const ABS_MIN_VELOCITY = 0.0000000001;
-const ABS_MIN_PERIOD = 0.0000000001;
-const ABS_MIN_SLOWNESS = 0.0000000001;
-const ABS_MIN_FREQUENCY = 0.0000000001;
+const ABS_MAX_VELOCITY = 100000;
+const ABS_MIN_VELOCITY = 10.0;
+const ABS_MAX_SLOWNESS = 1 / ABS_MIN_VELOCITY;
+const ABS_MIN_SLOWNESS = 1 / ABS_MAX_VELOCITY;
+const ABS_MAX_FREQUENCY = 250;
+const ABS_MIN_FREQUENCY = 0.5;
+const ABS_MAX_PERIOD = 1 / ABS_MIN_FREQUENCY;
+const ABS_MIN_PERIOD = 1 / ABS_MAX_FREQUENCY;
 
 export const DisperCurveManager = () => {
   const {
@@ -44,8 +49,6 @@ export const DisperCurveManager = () => {
       periodReversed,
       axesSwapped
     },
-    ToMeter,
-    ToFeet,
     // setPickData,
     setCurveAxisLimits,
     setNumPoints,
@@ -71,12 +74,21 @@ export const DisperCurveManager = () => {
   const [hoveredPoint, setHoveredPoint] = useState<Point | undefined>(
     undefined
   );
-  
+
+  // Add local state for input values to prevent onChange firing on every keystroke
+  const [localInputs, setLocalInputs] = useState({
+    numPoints: numPoints,
+    yMax: displayUnits === "ft" ? MetersToFeet(curveAxisLimits.ymax) : curveAxisLimits.ymax,
+    yMin: displayUnits === "ft" ? MetersToFeet(curveAxisLimits.ymin) : curveAxisLimits.ymin,
+    xMax: curveAxisLimits.xmax,
+    xMin: curveAxisLimits.xmin,
+  });
+
   const [plotDimensions, setPlotDimensions] = useState({
     width: 640,
     height: 480,
   });
-  
+
   const plotRef = useRef<any>(null);
 
   const coordinateHelpers = useMemo(
@@ -160,8 +172,8 @@ export const DisperCurveManager = () => {
             : convertUnit(data.slowness, "slowness", "velocity");
 
         return axesSwapped
-          ? { x: velocityValue, y: periodValue }
-          : { x: periodValue, y: velocityValue };
+          ? {x: velocityValue, y: periodValue}
+          : {x: periodValue, y: velocityValue};
       })
       .filter(
         (point) =>
@@ -177,7 +189,7 @@ export const DisperCurveManager = () => {
     count: number
   ): number[] => {
     const step = (max - min) / (count - 1);
-    return Array.from({ length: count }, (_, i) => min + step * i);
+    return Array.from({length: count}, (_, i) => min + step * i);
   };
 
   // const handleFileSelect = async (
@@ -195,7 +207,6 @@ export const DisperCurveManager = () => {
   //       const [d1, d2, frequency, d3, slowness, d4, d5] = line
   //         .split(/\s+/)
   //         .map((num) => parseFloat(num.trim()));
-
   //       return {
   //         d1,
   //         d2,
@@ -210,29 +221,29 @@ export const DisperCurveManager = () => {
   // };
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleDrop = (e:any) => {
+  const handleDrop = (e: any) => {
     e.preventDefault();
     setIsDragging(false);
     const droppedFiles = Array.from(e.dataTransfer.files);
     readFiles(droppedFiles);
   };
 
-  const handleDragOver = (e:any) => {
+  const handleDragOver = (e: any) => {
     e.preventDefault();
     setIsDragging(true);
   };
 
-  const handleDragEnter = (e:any) => {
+  const handleDragEnter = (e: any) => {
     e.preventDefault();
     setIsDragging(true);
   };
 
-  const handleDragLeave = (e:any) => {
+  const handleDragLeave = (e: any) => {
     e.preventDefault();
     setIsDragging(false);
   };
 
-  const readFiles = (files:any[]) => {
+  const readFiles = (files: any[]) => {
     for (const file of files) {
       if (!file.name.includes('.pck')) {
         dispatch(addToast({
@@ -243,18 +254,18 @@ export const DisperCurveManager = () => {
         return;
       }
     }
-    
+
     const fileReadPromises = files.map((file) => {
       return new Promise<PickData[]>((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = (event:any) => {
+        reader.onload = (event: any) => {
           const content = event.target?.result as string;
           const lines = content.trim().split('\n');
           const filePoints: PickData[] = [];
-          
+
           for (const line of lines) {
-            const values = line.split(' ').map((val:any) => parseFloat(val.trim()));
-            
+            const values = line.split(' ').map((val: any) => parseFloat(val.trim()));
+
             if (values.length >= 7) {
               const point: PickData = {
                 d1: values[0],
@@ -268,7 +279,7 @@ export const DisperCurveManager = () => {
               filePoints.push(point);
             }
           }
-          
+
           resolve(filePoints);
         };
         reader.onerror = (error) => reject(error);
@@ -279,7 +290,7 @@ export const DisperCurveManager = () => {
     Promise.all(fileReadPromises)
       .then((pointsArrays) => {
         const allNewPoints = pointsArrays.flat();
-        
+
         if (allNewPoints.length === 0) {
           dispatch(addToast({
             message: "No valid points found in files",
@@ -288,7 +299,7 @@ export const DisperCurveManager = () => {
           }));
           return;
         }
-        
+
         if (pickData.length > 0) {
           setPendingNewPoints(allNewPoints);
           setShowUploadConfirmation(true);
@@ -324,16 +335,16 @@ export const DisperCurveManager = () => {
         ],
         multiple: false,
       });
-      
+
       const file = await fileHandle.getFile();
       const content = await file.text();
-      
+
       const lines = content.trim().split('\n');
       const newPoints: PickData[] = [];
-      
+
       for (const line of lines) {
-        const values = line.split(' ').map((val:any) => parseFloat(val.trim()));
-        
+        const values = line.split(' ').map((val: any) => parseFloat(val.trim()));
+
         if (values.length >= 7) {
           const point: PickData = {
             d1: values[0],
@@ -347,7 +358,7 @@ export const DisperCurveManager = () => {
           newPoints.push(point);
         }
       }
-      
+
       if (newPoints.length === 0) {
         dispatch(addToast({
           message: "No valid points found in file",
@@ -375,12 +386,12 @@ export const DisperCurveManager = () => {
       //   type: "success",
       //   duration: 5000
       // }));
-      
+
     } catch (err) {
       console.error("Error uploading file:", err);
     }
   }, [dispatch]);
-  
+
   const handleMergePoints = useCallback(() => {
     if (pendingNewPoints.length > 0) {
       const mergedPoints = [...pickData, ...pendingNewPoints];
@@ -422,19 +433,21 @@ export const DisperCurveManager = () => {
     }
   };
 
-  const handleAxisLimitChange = (
+  const handleAxisLimitChange = useCallback((
     axis: "xmin" | "xmax" | "ymin" | "ymax",
+    axisSwapped: boolean,
     value: string
   ) => {
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return;
+    console.log("axisSwapped", axisSwapped)
 
     // Different validation rules based on unit type and axis
     if (axis.startsWith("x")) {
       // Period/Frequency limits
       const minLimit = periodUnit === "period" ? ABS_MIN_PERIOD : ABS_MIN_FREQUENCY;
 
-      let newLimits = { ...curveAxisLimits };
+      const newLimits = {...curveAxisLimits};
 
       if (axis === "xmin") {
         newLimits.xmin = Math.max(minLimit, numValue);
@@ -452,9 +465,9 @@ export const DisperCurveManager = () => {
       // Velocity/Slowness limits
       const minLimit = velocityUnit === "velocity" ? ABS_MIN_VELOCITY : ABS_MIN_SLOWNESS;
       const valueInMeters =
-        displayUnits === "ft" ? ToMeter(numValue) : numValue;
+        displayUnits === "ft" ? FeetToMeters(numValue) : numValue;
 
-      let newLimits = { ...curveAxisLimits };
+      const newLimits = {...curveAxisLimits};
 
       if (axis === "ymin") {
         newLimits.ymin = Math.max(minLimit, valueInMeters);
@@ -468,7 +481,7 @@ export const DisperCurveManager = () => {
       }
       setCurveAxisLimits(newLimits);
     }
-  };
+  }, [curveAxisLimits, displayUnits, periodUnit, setCurveAxisLimits, velocityUnit]);
 
   const displayRMSE = () => {
     if (rmseVel !== null) {
@@ -520,7 +533,7 @@ export const DisperCurveManager = () => {
           (coordinateHelpers.toScreenX(point.x) - screenX) ** 2 +
           (coordinateHelpers.toScreenY(point.y) - screenY) ** 2
         );
-        return { ...point, dist };
+        return {...point, dist};
       })
       .filter((point) => point.dist < 5)
       .sort((a, b) => a.dist - b.dist)[0];
@@ -602,7 +615,7 @@ export const DisperCurveManager = () => {
           // Convert to display units if needed
           if (displayUnits === "ft") {
             if (velocityUnit === "velocity") {
-              yValue = ToFeet(yValue);
+              yValue = MetersToFeet(yValue);
             } else {
               // slowness
               yValue = yValue / 3.28084; // Convert s/m to s/ft
@@ -611,10 +624,10 @@ export const DisperCurveManager = () => {
 
           // Format the display string
           return `(${xValue.toFixed(4)} ${periodUnit === "period" ? "s" : "Hz"
-            }, ${yValue.toFixed(4)} ${velocityUnit === "velocity"
-              ? `${displayUnits}/s`
-              : `s/${displayUnits}`
-            })`;
+          }, ${yValue.toFixed(4)} ${velocityUnit === "velocity"
+            ? `${displayUnits}/s`
+            : `s/${displayUnits}`
+          })`;
         })()
       )
       : setTooltipContent("");
@@ -822,7 +835,7 @@ export const DisperCurveManager = () => {
   ]);
 
   const updateDimensions = useCallback(() => {
-    
+
     if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
       const rect = plotContainerRef.current.getBoundingClientRect();
       const windowRect = window.innerHeight;
@@ -840,6 +853,54 @@ export const DisperCurveManager = () => {
     dispatch(savePicksByProjectId(projectId))
   }
 
+  // Update local inputs when global state or display units change
+  useEffect(() => {
+    setLocalInputs({
+      numPoints: numPoints,
+      yMax: displayUnits === "ft" ? MetersToFeet(curveAxisLimits.ymax) : curveAxisLimits.ymax,
+      yMin: displayUnits === "ft" ? MetersToFeet(curveAxisLimits.ymin) : curveAxisLimits.ymin,
+      xMax: curveAxisLimits.xmax,
+      xMin: curveAxisLimits.xmin,
+    });
+  }, [curveAxisLimits, displayUnits, numPoints]);
+
+  // Handler functions for input changes
+  const handleNumPointsChange = useCallback((value: string) => {
+    const numValue = parseInt(value);
+    if (!isNaN(numValue) && numValue > 0 && numValue <= 100) {
+      setNumPoints(numValue);
+    }
+  }, [setNumPoints]);
+
+  const handleYMaxChange = useCallback((value: string) => {
+    handleAxisLimitChange("ymax", axesSwapped, value);
+  }, [handleAxisLimitChange, axesSwapped]);
+
+  const handleYMinChange = useCallback((value: string) => {
+    handleAxisLimitChange("ymin", axesSwapped, value);
+  }, [handleAxisLimitChange, axesSwapped]);
+
+  const handleXMaxChange = useCallback((value: string) => {
+    handleAxisLimitChange("xmax", axesSwapped, value);
+  }, [handleAxisLimitChange, axesSwapped]);
+
+  const handleXMinChange = useCallback((value: string) => {
+    handleAxisLimitChange("xmin", axesSwapped, value);
+  }, [handleAxisLimitChange, axesSwapped]);
+
+  // Generic handler for input events
+  const handleInputEvent = useCallback((event: React.KeyboardEvent<HTMLInputElement> | React.FocusEvent<HTMLInputElement>, handler: (value: string) => void) => {
+    if (event.type === 'keydown') {
+      const keyEvent = event as React.KeyboardEvent<HTMLInputElement>;
+      if (keyEvent.key === 'Enter') {
+        handler(keyEvent.currentTarget.value);
+      }
+    } else if (event.type === 'blur') {
+      const blurEvent = event as React.FocusEvent<HTMLInputElement>;
+      handler(blurEvent.target.value);
+    }
+  }, []);
+
   useEffect(() => {
     updateDimensions();
     const resizeObserver = new ResizeObserver(updateDimensions);
@@ -856,19 +917,19 @@ export const DisperCurveManager = () => {
   }, [plotContainerRef]);
 
   return (
-    <div 
-      className={`card p-0 shadow-sm ${isDragging ? 'border border-primary' : ''}`} 
+    <div
+      className={`card p-0 shadow-sm ${isDragging ? 'border border-primary' : ''}`}
       style={{
-        height:'calc(100vh - 70px - 42px  - 2.5rem)',
+        height: 'calc(100vh - 70px - 42px  - 2.5rem)',
         position: 'relative'
-      }} 
-      onDrop={handleDrop} 
+      }}
+      onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
     >
       {isDragging && (
-        <div 
+        <div
           style={{
             position: 'absolute',
             top: 0,
@@ -883,7 +944,7 @@ export const DisperCurveManager = () => {
             pointerEvents: 'none'
           }}
         >
-          <div 
+          <div
             style={{
               padding: '20px',
               backgroundColor: 'white',
@@ -895,18 +956,18 @@ export const DisperCurveManager = () => {
           </div>
         </div>
       )}
-      <SectionHeader title="Dispersion Curve" />
+      <SectionHeader title="Dispersion Curve"/>
       <div className="card-body d-flex flex-column justify-content-space-between">
-        <div className="w-full" style={{minHeight:'250px'}}>
+        <div className="w-full" style={{minHeight: '250px'}}>
           <div className="row g-4 mb-2">
             <div className="col-md-6 d-flex gap-2">
-              <button 
+              <button
                 className="btn btn-outline-secondary btn-sm"
                 onClick={handleUploadPoints}
               >
                 Upload Picks
               </button>
-              <button 
+              <button
                 className="btn btn-outline-secondary btn-sm"
                 onClick={handleSavePoints}
               >
@@ -918,13 +979,10 @@ export const DisperCurveManager = () => {
                 <label className="form-label w-50">Num of Points:</label>
                 <input
                   type="number"
-                  value={numPoints}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value);
-                    if (!isNaN(value) && value > 0 && value <= 100) {
-                      setNumPoints(value);
-                    }
-                  }}
+                  value={localInputs.numPoints}
+                  onChange={(e) => setLocalInputs(prev => ({...prev, numPoints: parseInt(e.target.value) || 0}))}
+                  onBlur={(e) => handleInputEvent(e, handleNumPointsChange)}
+                  onKeyDown={(e) => handleInputEvent(e, handleNumPointsChange)}
                   className="form-control form-control-sm w-50"
                   min="1"
                   max="100"
@@ -970,8 +1028,10 @@ export const DisperCurveManager = () => {
                   </label>
                   <input
                     type="number"
-                    value={displayUnits === "ft" ? ToFeet(curveAxisLimits.ymax) : curveAxisLimits.ymax}
-                    onChange={(e) => handleAxisLimitChange("ymax", e.target.value)}
+                    value={localInputs.yMax}
+                    onChange={(e) => setLocalInputs(prev => ({...prev, yMax: parseFloat(e.target.value) || 0}))}
+                    onBlur={(e) => handleInputEvent(e, handleYMaxChange)}
+                    onKeyDown={(e) => handleInputEvent(e, handleYMaxChange)}
                     className="form-control form-control-sm w-50"
                     step={velocityUnit === "velocity" ? "1" : "0.0001"}
                   />
@@ -982,8 +1042,10 @@ export const DisperCurveManager = () => {
                   </label>
                   <input
                     type="number"
-                    value={displayUnits === "ft" ? ToFeet(curveAxisLimits.ymin) : curveAxisLimits.ymin}
-                    onChange={(e) => handleAxisLimitChange("ymin", e.target.value)}
+                    value={localInputs.yMin}
+                    onChange={(e) => setLocalInputs(prev => ({...prev, yMin: parseFloat(e.target.value) || 0}))}
+                    onBlur={(e) => handleInputEvent(e, handleYMinChange)}
+                    onKeyDown={(e) => handleInputEvent(e, handleYMinChange)}
                     className="form-control form-control-sm w-50"
                     step={velocityUnit === "velocity" ? "1" : "0.0001"}
                   />
@@ -1036,8 +1098,10 @@ export const DisperCurveManager = () => {
                   </label>
                   <input
                     type="number"
-                    value={curveAxisLimits.xmax}
-                    onChange={(e) => handleAxisLimitChange("xmax", e.target.value)}
+                    value={localInputs.xMax}
+                    onChange={(e) => setLocalInputs(prev => ({...prev, xMax: parseFloat(e.target.value) || 0}))}
+                    onBlur={(e) => handleInputEvent(e, handleXMaxChange)}
+                    onKeyDown={(e) => handleInputEvent(e, handleXMaxChange)}
                     className="form-control form-control-sm w-50"
                     step={periodUnit === "period" ? "0.001" : "0.1"}
                   />
@@ -1048,8 +1112,10 @@ export const DisperCurveManager = () => {
                   </label>
                   <input
                     type="number"
-                    value={curveAxisLimits.xmin}
-                    onChange={(e) => handleAxisLimitChange("xmin", e.target.value)}
+                    value={localInputs.xMin}
+                    onChange={(e) => setLocalInputs(prev => ({...prev, xMin: parseFloat(e.target.value) || 0}))}
+                    onBlur={(e) => handleInputEvent(e, handleXMinChange)}
+                    onKeyDown={(e) => handleInputEvent(e, handleXMinChange)}
                     className="form-control form-control-sm w-50"
                     step={periodUnit === "period" ? "0.001" : "0.1"}
                   />
@@ -1063,7 +1129,7 @@ export const DisperCurveManager = () => {
               <span className="fw-bold">
                 {vs30
                   ? displayUnits === "ft"
-                    ? `${ToFeet(vs30).toFixed(3)} ft/s`
+                    ? `${MetersToFeet(vs30).toFixed(3)} ft/s`
                     : `${vs30.toFixed(3)} m/s`
                   : "N/A"}
               </span>
@@ -1093,7 +1159,7 @@ export const DisperCurveManager = () => {
             yMax={axesSwapped ? curveAxisLimits.xmax : curveAxisLimits.ymax}
             display={(value) =>
               displayUnits === "ft"
-                ? ToFeet(value).toFixed(3)
+                ? MetersToFeet(value).toFixed(3)
                 : value.toFixed(3)
             }
             tooltipContent={tooltipContent}
@@ -1114,7 +1180,7 @@ export const DisperCurveManager = () => {
                   // g.fill();
 
                   // Draw grid lines
-                  g.setStrokeStyle({ width: 1, color: 0xeeeeee, alpha: 0.8 });
+                  g.setStrokeStyle({width: 1, color: 0xeeeeee, alpha: 0.8});
 
                   // Vertical grid lines (velocity)
                   const velocityStep = (curveAxisLimits.xmax - curveAxisLimits.xmin) / 10;
@@ -1158,10 +1224,10 @@ export const DisperCurveManager = () => {
                     }
 
                     if (point === hoveredPoint) {
-                      g.fill({ color: 0xff0000 });
+                      g.fill({color: 0xff0000});
                       g.circle(x, y, 5);
                     } else {
-                      g.fill({ color: 0xff0000 });
+                      g.fill({color: 0xff0000});
                       g.circle(x, y, 3);
                     }
                     g.fill();
