@@ -1,10 +1,8 @@
 import {extend} from "@pixi/react";
-import {Graphics, Container} from "pixi.js";
-import {useState, useRef, useEffect, useMemo, useCallback, DragEvent} from "react";
-import {Point} from "../../types/data";
-import {PickData} from "../../types/data";
-import {CalcCurve} from "../../utils/disper-util";
-import VelModel from "../../utils/disper-util";
+import {Container, Graphics} from "pixi.js";
+import {DragEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {PickData, Point} from "../../types/data";
+import VelModel, {CalcCurve} from "../../utils/disper-util";
 import {useDisper} from "../../Contexts/DisperContext";
 import {BasePlot} from "../../Components/BasePlot/BasePlot";
 // import { FileControls } from "../../Components/FileControls/FileControls";
@@ -15,7 +13,7 @@ import {useParams} from "react-router-dom";
 import {savePicksByProjectId} from "../../store/thunks/cacheThunks";
 import ConfirmationModal from "../../Components/ConfirmationModal/ConfirmationModal";
 import {setPoints} from "../../store/slices/plotSlice";
-import {FeetToMeters, MetersToFeet} from "../../utils/unit-util.tsx";
+import {MetersToFeet} from "../../utils/unit-util.tsx";
 
 extend({Graphics, Container});
 
@@ -23,12 +21,16 @@ const VELOCITY_MAX_MARGIN_FACTOR = 1.1; // 110% of max velocity
 const VELOCITY_MIN_MARGIN_FACTOR = 0.9; // 90% of min velocity
 const ABS_MAX_VELOCITY = 100000;
 const ABS_MIN_VELOCITY = 10.0;
+const VELOCITY_STEP = 1;
 const ABS_MAX_SLOWNESS = 1 / ABS_MIN_VELOCITY;
 const ABS_MIN_SLOWNESS = 1 / ABS_MAX_VELOCITY;
+const SLOWNESS_STEP = 0.0001;
 const ABS_MAX_FREQUENCY = 250;
 const ABS_MIN_FREQUENCY = 0.5;
+const FREQUENCY_STEP = 1;
 const ABS_MAX_PERIOD = 1 / ABS_MIN_FREQUENCY;
 const ABS_MIN_PERIOD = 1 / ABS_MAX_FREQUENCY;
+const PERIOD_STEP = 0.01;
 
 export const DisperCurveManager = () => {
   const {
@@ -416,7 +418,7 @@ export const DisperCurveManager = () => {
     axesSwapped: boolean,
     velocityUnit: "velocity" | "slowness",
     periodUnit: "period" | "frequency"
-  ) => {
+  ): "velocity" | "slowness" | "period" | "frequency" => {
     let unit: "velocity" | "slowness" | "period" | "frequency";
     if (axis.startsWith("x")) {
       if (!axesSwapped) {
@@ -434,6 +436,41 @@ export const DisperCurveManager = () => {
     return unit
   }, [])
 
+  const getAxisUnitDisplay = useCallback((
+    axis: "x" | "y" | "xmin" | "xmax" | "ymin" | "ymax",
+    axesSwapped: boolean,
+    velocityUnit: "velocity" | "slowness",
+    periodUnit: "period" | "frequency"
+  ) => {
+    const rawUnit = getAxisUnit(axis, axesSwapped, velocityUnit, periodUnit)
+    return rawUnit.charAt(0).toUpperCase() + rawUnit.slice(1) 
+  }, [getAxisUnit])
+
+  const getAxisStep = useCallback((
+    axis: "x" | "y" | "xmin" | "xmax" | "ymin" | "ymax",
+    axesSwapped: boolean,
+    velocityUnit: "velocity" | "slowness",
+    periodUnit: "period" | "frequency"
+  ) => {
+    const axisUnit: "velocity" | "slowness" | "period" | "frequency" = getAxisUnit(axis, axesSwapped, velocityUnit, periodUnit)
+    let step: number;
+    switch (axisUnit) {
+      case "frequency":
+        step = FREQUENCY_STEP;
+        break;
+      case "period":
+        step = PERIOD_STEP;
+        break;
+      case "slowness":
+        step = SLOWNESS_STEP
+        break;
+      case "velocity":
+        step = VELOCITY_STEP
+        break;
+    }
+    return step;
+  }, [getAxisUnit])
+
   const handleAxisLimitChange = useCallback((
     axis: "xmin" | "xmax" | "ymin" | "ymax",
     axesSwapped: boolean,
@@ -442,7 +479,7 @@ export const DisperCurveManager = () => {
     // Convert value to a number, failing early if invalid.
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return;
-    
+
     // Get the unit
     const unit = getAxisUnit(axis, axesSwapped, velocityUnit, periodUnit)
 
@@ -1042,13 +1079,13 @@ export const DisperCurveManager = () => {
                     className={`btn btn-sm ${velocityReversed ? "btn-primary" : "btn-outline-secondary"}`}
                     title={`Reverse ${axesSwapped ? "Horizontal" : "Vertical"} Axis`}
                   >
-                    {axesSwapped ? "←→" : "↑↓"}
+                    ↑↓
                   </button>
                 </div>
 
                 <div className="mb-2 d-flex">
                   <label className="form-label w-50">
-                    Max {axesSwapped ? periodUnit === "period" ? "Period" : "Frequency" : velocityUnit === "velocity" ? "Velocity" : "Slowness"}:
+                    Max {getAxisUnitDisplay("ymax", axesSwapped, velocityUnit, periodUnit)}:
                   </label>
                   <input
                     type="number"
@@ -1057,12 +1094,12 @@ export const DisperCurveManager = () => {
                     onBlur={(e) => handleInputEvent(e, handleYMaxChange)}
                     onKeyDown={(e) => handleInputEvent(e, handleYMaxChange)}
                     className="form-control form-control-sm w-50"
-                    step={velocityUnit === "velocity" ? "1" : "0.0001"}
+                    step={getAxisStep("ymax", axesSwapped, velocityUnit, periodUnit)}
                   />
                 </div>
                 <div className="mb-2 d-flex">
                   <label className="form-label w-50">
-                    Min {axesSwapped ? periodUnit === "period" ? "Period" : "Frequency" : velocityUnit === "velocity" ? "Velocity" : "Slowness"}:
+                    Min {getAxisUnitDisplay("ymin", axesSwapped, velocityUnit, periodUnit)}:
                   </label>
                   <input
                     type="number"
@@ -1071,7 +1108,7 @@ export const DisperCurveManager = () => {
                     onBlur={(e) => handleInputEvent(e, handleYMinChange)}
                     onKeyDown={(e) => handleInputEvent(e, handleYMinChange)}
                     className="form-control form-control-sm w-50"
-                    step={velocityUnit === "velocity" ? "1" : "0.0001"}
+                    step={getAxisStep("ymin", axesSwapped, velocityUnit, periodUnit)}
                   />
                 </div>
               </div>
@@ -1113,12 +1150,12 @@ export const DisperCurveManager = () => {
                     className={`btn btn-sm ${periodReversed ? "btn-primary" : "btn-outline-secondary"}`}
                     title={`Reverse ${axesSwapped ? "Vertical" : "Horizontal"} Axis`}
                   >
-                    {axesSwapped ? "↑↓" : "←→"}
+                    ←→
                   </button>
                 </div>
                 <div className="mb-2 d-flex">
                   <label className="form-label w-50">
-                    Max {axesSwapped ? velocityUnit === "velocity" ? "Velocity" : "Slowness" : periodUnit === "period" ? "Period" : "Frequency"}:
+                    Max {getAxisUnitDisplay("xmax", axesSwapped, velocityUnit, periodUnit)}:
                   </label>
                   <input
                     type="number"
@@ -1127,12 +1164,12 @@ export const DisperCurveManager = () => {
                     onBlur={(e) => handleInputEvent(e, handleXMaxChange)}
                     onKeyDown={(e) => handleInputEvent(e, handleXMaxChange)}
                     className="form-control form-control-sm w-50"
-                    step={periodUnit === "period" ? "0.001" : "0.1"}
+                    step={getAxisStep("xmax", axesSwapped, velocityUnit, periodUnit)}
                   />
                 </div>
                 <div className="mb-2 d-flex">
                   <label className="form-label w-50">
-                    Min {axesSwapped ? velocityUnit === "velocity" ? "Velocity" : "Slowness" : periodUnit === "period" ? "Period" : "Frequency"}:
+                    Min {getAxisUnitDisplay("xmin", axesSwapped, velocityUnit, periodUnit)}:
                   </label>
                   <input
                     type="number"
@@ -1141,7 +1178,7 @@ export const DisperCurveManager = () => {
                     onBlur={(e) => handleInputEvent(e, handleXMinChange)}
                     onKeyDown={(e) => handleInputEvent(e, handleXMinChange)}
                     className="form-control form-control-sm w-50"
-                    step={periodUnit === "period" ? "0.001" : "0.1"}
+                    step={getAxisStep("xmin", axesSwapped, velocityUnit, periodUnit)}
                   />
                 </div>
               </div>
