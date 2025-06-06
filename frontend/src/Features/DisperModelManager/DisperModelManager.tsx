@@ -700,7 +700,7 @@ export const DisperModelManager = () => {
                     });
                   }}
                   className="form-control form-control-sm w-50"
-                  step={displayUnits === "ft" ? "0.5" : "0.1"}
+                  step="1"
                 />
               </div>
               <div className="mb-3 d-flex">
@@ -725,7 +725,7 @@ export const DisperModelManager = () => {
                     });
                   }}
                   className="form-control form-control-sm w-50"
-                  step={displayUnits === "ft" ? "0.5" : "0.1"}
+                  step="1"
                 />
               </div>
             </div>
@@ -752,7 +752,7 @@ export const DisperModelManager = () => {
                     });
                   }}
                   className="form-control form-control-sm w-50"
-                  step={displayUnits === "ft" ? "1.0" : "0.5"}
+                  step="1"
                 />
               </div>
               <div className="mb-3 d-flex">
@@ -778,7 +778,7 @@ export const DisperModelManager = () => {
                   }}
                   className="form-control form-control-sm w-50"
                   min="0"
-                  step={displayUnits === "ft" ? "1.0" : "0.5"}
+                  step="1"
                 />
               </div>
             </div>
