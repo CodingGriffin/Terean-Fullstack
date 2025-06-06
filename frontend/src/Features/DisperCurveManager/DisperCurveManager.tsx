@@ -43,7 +43,7 @@ export const DisperCurveManager = () => {
       velocityReversed,
       periodReversed,
       axesSwapped
-     },
+    },
     ToMeter,
     ToFeet,
     // setPickData,
