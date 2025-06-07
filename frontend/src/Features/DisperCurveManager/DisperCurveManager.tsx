@@ -2,7 +2,7 @@ import {extend} from "@pixi/react";
 import {Container, Graphics} from "pixi.js";
 import {DragEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {PickData, Point} from "../../types/data";
-import VelModel, {CalcCurve} from "../../utils/disper-util";
+import VelModel from "../../utils/disper-util";
 import {useDisper} from "../../Contexts/DisperContext";
 import {BasePlot} from "../../Components/BasePlot/BasePlot";
 // import { FileControls } from "../../Components/FileControls/FileControls";
@@ -74,6 +74,7 @@ export const DisperCurveManager = () => {
   const plotContainerRef = useRef<HTMLDivElement>(null);
 
   const handleResetAxes = useCallback(() => {
+    console.log("DataLimits:", dataLimits)
     //TODO - implement this based on the commented code - using datalimits + slack constants to automatically
     // determine the limits
 
@@ -719,7 +720,6 @@ export const DisperCurveManager = () => {
 
   // This useEffect updates the plotted curve, vs## and site class.
   useEffect(() => {
-    console.log("UseEffect DisperGen+")
     // Generate points that exactly match the axis limits
     // Get min and max frequency based on curveAxisLimits
     const minForP = axesSwapped ? curveAxisLimits.ymin : curveAxisLimits.xmin;
@@ -792,14 +792,20 @@ export const DisperCurveManager = () => {
       const densities = layers.map((layer) => layer.density);
       const vels_compression = vels_shear.map((v) => v * Math.sqrt(3));
 
+      // Get min and max slowness from curveAxisLimits
+      const minVorS = axesSwapped ? curveAxisLimits.xmin : curveAxisLimits.ymin;
+      const maxVorS = axesSwapped ? curveAxisLimits.xmax : curveAxisLimits.ymax;
+      const minSlowness = velocityUnit === "slowness" ? minVorS : 1 / maxVorS;
+      const maxSlowness = velocityUnit === "slowness" ? maxVorS : 1 / minVorS;      
+
       const model = new VelModel(
         num_layers,
         layer_thicknesses,
         densities,
         vels_compression,
         vels_shear,
-        1 / dataLimits.maxSlowness,
-        1 / dataLimits.minSlowness,
+        1 / maxSlowness,
+        1 / minSlowness,
         2.0
       );
 
@@ -815,21 +821,7 @@ export const DisperCurveManager = () => {
       setVs30(calculatedVs30);
       setSiteClass(calculatedSiteClass);
 
-      // Get min and max slowness from curveAxisLimits
-      const minVorS = axesSwapped ? curveAxisLimits.xmin : curveAxisLimits.ymin;
-      const maxVorS = axesSwapped ? curveAxisLimits.xmax : curveAxisLimits.ymax;
-      const minSlowness = velocityUnit === "slowness" ? minVorS : 1 / maxVorS;
-      const maxSlowness = velocityUnit === "slowness" ? maxVorS : 1 / minVorS;
-      const newVelocities = CalcCurve(
-        newPeriods,
-        num_layers,
-        layer_thicknesses,
-        vels_shear,
-        1 / maxSlowness * 0.9,
-        1 / minSlowness * 1.1,
-        2.0,
-        densities
-      );
+      const newVelocities = newPeriods.map((x) => model.getc_period(x))
 
       if (pointIdxs != null) {
         const curveVels = pointIdxs.map((i) => newVelocities[i]);
