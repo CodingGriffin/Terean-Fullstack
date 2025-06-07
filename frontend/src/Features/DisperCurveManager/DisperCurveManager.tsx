@@ -76,8 +76,8 @@ export const DisperCurveManager = () => {
   const handleResetAxes = useCallback(() => {
     //TODO - implement this based on the commented code - using datalimits + slack constants to automatically
     // determine the limits
-    
-    
+
+
     // const xmin = Math.max(
     //   0.0000000001,
     //   periodUnit === "frequency"
@@ -731,15 +731,9 @@ export const DisperCurveManager = () => {
       1 / maxFrequency,
       Math.max(2, numPoints)
     );
-    console.log("minFrequency:", minFrequency)
-    console.log("maxFrequency:", maxFrequency)
+
     // Convert periods based on current unit before calculation
-    const calcPeriods = (
-      periodUnit === "frequency"
-        ? xValues.map((p) => convertUnit(p, "frequency", "period"))
-        : xValues
-    ).sort((a, b) => a - b);
-    
+    const calcPeriods = (xValues).sort((a, b) => a - b);
 
     let newPeriods;
     let pointIdxs: number[] | null = null;
