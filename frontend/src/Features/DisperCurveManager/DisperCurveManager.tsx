@@ -73,6 +73,54 @@ export const DisperCurveManager = () => {
   const [pendingNewPoints, setPendingNewPoints] = useState<PickData[]>([]);
   const plotContainerRef = useRef<HTMLDivElement>(null);
 
+  const handleResetAxes = useCallback(() => {
+    //TODO - implement this based on the commented code - using datalimits + slack constants to automatically
+    // determine the limits
+    
+    
+    // const xmin = Math.max(
+    //   0.0000000001,
+    //   periodUnit === "frequency"
+    //     ? dataLimits.minFrequency
+    //     : 1 / dataLimits.maxFrequency
+    // );
+    // const xmax = Math.max(
+    //   0.0000000001,
+    //   periodUnit === "frequency"
+    //     ? dataLimits.maxFrequency
+    //     : 1 / dataLimits.minFrequency
+    // );
+    // const ymin = Math.max(
+    //   0.0000000001,
+    //   velocityUnit === "slowness"
+    //     ? dataLimits.minSlowness
+    //     : 1 / dataLimits.maxSlowness
+    // );
+    // const ymax = Math.max(
+    //   0.0000000001,
+    //   velocityUnit === "slowness"
+    //     ? dataLimits.maxSlowness
+    //     : 1 / dataLimits.minSlowness
+    // );
+    //
+    // setCurveAxisLimits(
+    //   axesSwapped
+    //     ? {
+    //       xmin: ymin,
+    //       xmax: ymax,
+    //       ymin: xmin * VELOCITY_MIN_MARGIN_FACTOR,
+    //       ymax: xmax * VELOCITY_MAX_MARGIN_FACTOR,
+    //     }
+    //     : {
+    //       xmin: xmin,
+    //       xmax: xmax,
+    //       ymin: ymin * VELOCITY_MIN_MARGIN_FACTOR,
+    //       ymax: ymax * VELOCITY_MAX_MARGIN_FACTOR,
+    //     }
+    // );
+    console.log("axesSwapped:", axesSwapped)
+  }, [axesSwapped])
+
   const [hoveredPoint, setHoveredPoint] = useState<Point | undefined>(
     undefined
   );
@@ -236,12 +284,10 @@ export const DisperCurveManager = () => {
       return new Promise<PickData[]>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (event: ProgressEvent<FileReader>) => {
-          console.log("LoadEvent: ", event)
           const content = event.target?.result as string;
           const lines: string[] = content.trim().split('\n');
           const filePoints: PickData[] = [];
 
-          console.log("Lines:", lines)
           for (const line of lines) {
             const values = line.split(' ').map((val: string) => parseFloat(val.trim()));
 
@@ -401,7 +447,7 @@ export const DisperCurveManager = () => {
     }
   }, [dispatch, pendingNewPoints]);
 
-  const handleUnitChange = (type: "velocity" | "period", newUnit: string) => {
+  const handleUnitChange = (type: "velocity" | "period", newUnit: string, axis: "x" | "y") => {
     const currentUnit = type === "velocity" ? velocityUnit : periodUnit;
 
     if (newUnit !== currentUnit) {
@@ -411,6 +457,21 @@ export const DisperCurveManager = () => {
         setPeriodUnit(newUnit as "period" | "frequency");
       }
     }
+
+    // Get current axis values
+    const newLimits = {...curveAxisLimits};
+    if (axis.startsWith("x")) {
+      const newMin = 1.0 / newLimits.xmax
+      const newMax = 1.0 / newLimits.xmin
+      newLimits.xmin = newMin
+      newLimits.xmax = newMax
+    } else {
+      const newMin = 1.0 / newLimits.ymax
+      const newMax = 1.0 / newLimits.ymin
+      newLimits.ymin = newMin
+      newLimits.ymax = newMax
+    }
+    setCurveAxisLimits(newLimits)
   };
 
   const getAxisUnit = useCallback((
@@ -443,7 +504,7 @@ export const DisperCurveManager = () => {
     periodUnit: "period" | "frequency"
   ) => {
     const rawUnit = getAxisUnit(axis, axesSwapped, velocityUnit, periodUnit)
-    return rawUnit.charAt(0).toUpperCase() + rawUnit.slice(1) 
+    return rawUnit.charAt(0).toUpperCase() + rawUnit.slice(1)
   }, [getAxisUnit])
 
   const getAxisStep = useCallback((
@@ -555,29 +616,25 @@ export const DisperCurveManager = () => {
 
   const handleSwapAxes = () => {
     setAxesSwapped(!axesSwapped);
-    // setCurveAxisLimits(prev => ({
-    //   xmin: prev.ymin,
-    //   xmax: prev.ymax,
-    //   ymin: prev.xmin,
-    //   ymax: prev.xmax
-    // }));
+
+    // Get current axis values
+    const newLimits = {...curveAxisLimits};
+    const newXMin = newLimits.ymin
+    const newXMax = newLimits.ymax
+    const newYMin = newLimits.xmin
+    const newYMax = newLimits.xmax
+    newLimits.xmin = newXMin
+    newLimits.xmax = newXMax
+    newLimits.ymin = newYMin
+    newLimits.ymax = newYMax
+    setCurveAxisLimits(newLimits)
   };
 
   const handleReverseAxis = (type: "velocity" | "period") => {
     if (type === "velocity") {
       setVelocityReversed(!velocityReversed);
-      // setCurveAxisLimits(prev => ({
-      //   ...prev,
-      //   ymin: prev.ymax,
-      //   ymax: prev.ymin
-      // }));
     } else {
       setPeriodReversed(!periodReversed);
-      // setCurveAxisLimits(prev => ({
-      //   ...prev,
-      //   xmin: prev.xmax,
-      //   xmax: prev.xmin
-      // }));
     }
   };
 
@@ -608,6 +665,7 @@ export const DisperCurveManager = () => {
     []
   );
 
+  // This effect updates the positions of picks when points are changed or the plot is modified.
   useEffect(() => {
     if (!pickData.length) return;
 
@@ -620,55 +678,13 @@ export const DisperCurveManager = () => {
     setPickPoints(newPickPoints);
   }, [pickData, periodUnit, velocityUnit, axesSwapped]);
 
-  useEffect(() => {
-    const xmin = Math.max(
-      0.0000000001,
-      periodUnit === "frequency"
-        ? dataLimits.minFrequency
-        : 1 / dataLimits.maxFrequency
-    );
-    const xmax = Math.max(
-      0.0000000001,
-      periodUnit === "frequency"
-        ? dataLimits.maxFrequency
-        : 1 / dataLimits.minFrequency
-    );
-    const ymin = Math.max(
-      0.0000000001,
-      velocityUnit === "slowness"
-        ? dataLimits.minSlowness
-        : 1 / dataLimits.maxSlowness
-    );
-    const ymax = Math.max(
-      0.0000000001,
-      velocityUnit === "slowness"
-        ? dataLimits.maxSlowness
-        : 1 / dataLimits.minSlowness
-    );
-
-    setCurveAxisLimits(
-      axesSwapped
-        ? {
-          xmin: ymin,
-          xmax: ymax,
-          ymin: xmin * VELOCITY_MIN_MARGIN_FACTOR,
-          ymax: xmax * VELOCITY_MAX_MARGIN_FACTOR,
-        }
-        : {
-          xmin: xmin,
-          xmax: xmax,
-          ymin: ymin * VELOCITY_MIN_MARGIN_FACTOR,
-          ymax: ymax * VELOCITY_MAX_MARGIN_FACTOR,
-        }
-    );
-  }, [dataLimits, axesSwapped, periodUnit, velocityUnit]);
-
+  // This effect shows content when hovering over a point.
   useEffect(() => {
     hoveredPoint
       ? setTooltipContent(
         (() => {
           // Handle x-axis (period/frequency) conversion
-          let xValue = hoveredPoint.x;
+          const xValue = hoveredPoint.x;
 
           // Handle y-axis (velocity/slowness) conversion
           let yValue = hoveredPoint.y;
@@ -701,7 +717,9 @@ export const DisperCurveManager = () => {
     velocityUnit,
   ]);
 
+  // This useEffect updates the plotted curve, vs## and site class.
   useEffect(() => {
+    console.log("UseEffect DisperGen+")
     // Generate points that exactly match the axis limits
     // Get min and max frequency based on curveAxisLimits
     const minForP = axesSwapped ? curveAxisLimits.ymin : curveAxisLimits.xmin;
@@ -713,12 +731,15 @@ export const DisperCurveManager = () => {
       1 / maxFrequency,
       Math.max(2, numPoints)
     );
+    console.log("minFrequency:", minFrequency)
+    console.log("maxFrequency:", maxFrequency)
     // Convert periods based on current unit before calculation
     const calcPeriods = (
       periodUnit === "frequency"
         ? xValues.map((p) => convertUnit(p, "frequency", "period"))
         : xValues
     ).sort((a, b) => a - b);
+    
 
     let newPeriods;
     let pointIdxs: number[] | null = null;
@@ -1059,7 +1080,7 @@ export const DisperCurveManager = () => {
                   {axesSwapped ?
                     (<select
                       value={periodUnit}
-                      onChange={(e) => handleUnitChange("period", e.target.value)}
+                      onChange={(e) => handleUnitChange("period", e.target.value, "y")}
                       className="form-select form-select-sm me-2"
                     >
                       <option value="period">Period (s)</option>
@@ -1067,7 +1088,7 @@ export const DisperCurveManager = () => {
                     </select>) :
                     (<select
                       value={velocityUnit}
-                      onChange={(e) => handleUnitChange("velocity", e.target.value)}
+                      onChange={(e) => handleUnitChange("velocity", e.target.value, "y")}
                       className="form-select form-select-sm me-2"
                     >
                       <option value="velocity">Velocity ({displayUnits}/s)</option>
@@ -1114,14 +1135,25 @@ export const DisperCurveManager = () => {
               </div>
             </div>
             <div className="col-md-2 d-flex justify-content-center align-items-center p-1">
-              <div>
-                <button
-                  onClick={handleSwapAxes}
-                  className={`btn flex-grow-1 ${axesSwapped ? "btn-primary" : "btn-outline-secondary"}`}
-                  title="Swap Axes"
-                >
-                  Swap Axes
-                </button>
+              <div className="mb-2">
+                <div className="pb-1">
+                  <button
+                    onClick={handleSwapAxes}
+                    className={`btn flex-grow-1 ${axesSwapped ? "btn-primary" : "btn-outline-secondary"}`}
+                    title="Swap Axes"
+                  >
+                    Swap Axes
+                  </button>
+                </div>
+                <div className="pt-1">
+                  <button
+                    onClick={handleResetAxes}
+                    className={`btn flex-grow-1 ${axesSwapped ? "btn-primary" : "btn-outline-secondary"}`}
+                    title="Calculate Axes"
+                  >
+                    Calc Axes
+                  </button>
+                </div>
               </div>
             </div>
             <div className="col-md-5">
@@ -1130,7 +1162,7 @@ export const DisperCurveManager = () => {
                   {!axesSwapped ?
                     (<select
                       value={periodUnit}
-                      onChange={(e) => handleUnitChange("period", e.target.value)}
+                      onChange={(e) => handleUnitChange("period", e.target.value, "x")}
                       className="form-select form-select-sm me-2"
                     >
                       <option value="period">Period (s)</option>
@@ -1138,7 +1170,7 @@ export const DisperCurveManager = () => {
                     </select>) :
                     (<select
                       value={velocityUnit}
-                      onChange={(e) => handleUnitChange("velocity", e.target.value)}
+                      onChange={(e) => handleUnitChange("velocity", e.target.value, "x")}
                       className="form-select form-select-sm me-2"
                     >
                       <option value="velocity">Velocity ({displayUnits}/s)</option>
