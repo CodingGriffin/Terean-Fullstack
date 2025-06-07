@@ -482,6 +482,39 @@ export const DisperCurveManager = () => {
     const rawUnit = getAxisUnit(axis, axesSwapped, velocityUnit, periodUnit)
     return rawUnit.charAt(0).toUpperCase() + rawUnit.slice(1)
   }, [getAxisUnit])
+  
+  const getAxisUnitDisplayBrief = useCallback((
+    axis: "x" | "y" | "xmin" | "xmax" | "ymin" | "ymax",
+    axesSwapped: boolean,
+    velocityUnit: "velocity" | "slowness",
+    periodUnit: "period" | "frequency"
+  ) => {
+    const rawUnit = getAxisUnit(axis, axesSwapped, velocityUnit, periodUnit)
+    let returnUnit: string 
+    switch (rawUnit) {
+      case "velocity":
+        if (displayUnits === "m") {
+          returnUnit = "m/s"
+        } else{
+          returnUnit = "ft/s"
+        }
+        break;
+      case "slowness":
+        if (displayUnits === "m") {
+          returnUnit = "s/m"
+        } else{
+          returnUnit = "s/ft"
+        }
+        break;
+      case "period":
+        returnUnit = "s"
+        break;
+      case "frequency":
+        returnUnit = "Hz"
+        break;
+    }
+    return returnUnit
+  }, [getAxisUnit, displayUnits])
 
   const getAxisStep = useCallback((
     axis: "x" | "y" | "xmin" | "xmax" | "ymin" | "ymax",
@@ -656,42 +689,45 @@ export const DisperCurveManager = () => {
 
   // This effect shows content when hovering over a point.
   useEffect(() => {
-    hoveredPoint
-      ? setTooltipContent(
-        (() => {
-          // Handle x-axis (period/frequency) conversion
-          const xValue = hoveredPoint.x;
-
-          // Handle y-axis (velocity/slowness) conversion
-          let yValue = hoveredPoint.y;
-
-          // Convert to display units if needed
-          if (displayUnits === "ft") {
-            if (velocityUnit === "velocity") {
-              yValue = MetersToFeet(yValue);
-            } else {
-              // slowness
-              yValue = yValue / 3.28084; // Convert s/m to s/ft
-            }
-          }
-
-          // Format the display string
-          return `(${xValue.toFixed(4)} ${periodUnit === "period" ? "s" : "Hz"
-          }, ${yValue.toFixed(4)} ${velocityUnit === "velocity"
-            ? `${displayUnits}/s`
-            : `s/${displayUnits}`
-          })`;
-        })()
+    if (hoveredPoint != null) {
+      // Get the units for each
+      const xUnit = getAxisUnitDisplayBrief(
+        "x",
+        axesSwapped,
+        velocityUnit,
+        periodUnit
       )
-      : setTooltipContent("");
-  }, [
-    hoveredPoint,
-    displayUnits,
-    periodReversed,
-    velocityReversed,
-    periodUnit,
-    velocityUnit,
-  ]);
+      const yUnit = getAxisUnitDisplayBrief(
+        "y",
+        axesSwapped,
+        velocityUnit,
+        periodUnit
+      )
+      
+      // Get the raw values for each, accounting for display unit
+      let xValue = hoveredPoint.x
+      let yValue = hoveredPoint.y
+      if(axesSwapped && xUnit.includes("ft")) {
+        if (velocityUnit === "velocity") {
+          xValue = MetersToFeet(xValue);
+        } else {
+          // slowness
+          xValue = xValue / MetersToFeet(1); // Convert s/m to s/ft
+        }
+      } else if(yUnit.includes("ft")) {
+        if (velocityUnit === "velocity") {
+          yValue = MetersToFeet(yValue);
+        } else {
+          // slowness
+          yValue = yValue / MetersToFeet(1); // Convert s/m to s/ft
+        }        
+      }
+      const toolTipString = `(${xValue.toFixed(4)} ${xUnit}, ${yValue.toFixed(4)} ${yUnit})`
+      setTooltipContent(toolTipString)
+    } else {
+      setTooltipContent("");
+    }
+  }, [hoveredPoint, axesSwapped, periodUnit, velocityUnit, getAxisUnitDisplayBrief]);
 
   // This useEffect updates the plotted curve, vs## and site class.
   useEffect(() => {
