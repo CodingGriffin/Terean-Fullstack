@@ -1255,8 +1255,8 @@ export const DisperCurveManager = () => {
             tooltipContent={tooltipContent}
             onPointerMove={handlePointerMove}
             axesSwapped={axesSwapped}
-            xAxisReversed={periodReversed}
-            yAxisReversed={velocityReversed}
+            xAxisReversed={axesSwapped ? velocityReversed : periodReversed}
+            yAxisReversed={axesSwapped ? periodReversed : velocityReversed}
             plotDimensions={plotDimensions}
           >
             <pixiContainer>
