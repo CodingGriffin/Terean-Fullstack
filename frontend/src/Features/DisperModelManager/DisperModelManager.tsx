@@ -14,7 +14,6 @@ import {useDisper, VelocityModelLayer} from "../../Contexts/DisperContext";
 import {Window} from "../../types";
 import {BasePlot} from "../../Components/BasePlot/BasePlot";
 import SectionHeader from "../../Components/SectionHeader/SectionHeader";
-// import { useParams } from "react-router";
 import {useAppDispatch} from "../../hooks/useAppDispatch";
 import {addToast} from "../../store/slices/toastSlice";
 import {autoFitVelocityModel} from '../../services/api';

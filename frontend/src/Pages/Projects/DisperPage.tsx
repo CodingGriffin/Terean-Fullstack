@@ -7,6 +7,7 @@ import DisperSettingsSave from '../../Features/DisperSettingsSave/DisperSettings
 import { Toast } from '../../Components/Toast/Toast';
 import Navbar from '../../Components/navbar/Navbar';
 import { useNavigate, useParams } from 'react-router-dom';
+import {ProjectProvider} from "../../Contexts/ProjectContext.tsx";
 
 const DisperPageContent = () => {
     const { state: { isLoading } } = useDisper();
@@ -77,8 +78,10 @@ const DisperPageContent = () => {
 
 export default function DisperPage() {
     return (
+      <ProjectProvider>
         <DisperProvider>
             <DisperPageContent />
         </DisperProvider>
+      </ProjectProvider>
     );
 }

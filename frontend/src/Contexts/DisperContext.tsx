@@ -5,7 +5,6 @@ import {Layer, PickData} from '../types/data';
 import {saveDisperSettings, getDisperSettings} from '../services/api';
 import {useAppDispatch} from '../hooks/useAppDispatch';
 import {addToast} from '../store/slices/toastSlice';
-import {useParams} from 'react-router-dom';
 import {fetchPicksByProjectId} from '../store/thunks/cacheThunks';
 import {useProject} from "./ProjectContext.tsx";
 
@@ -90,6 +89,7 @@ type DisperContextType = {
   setIsLoading: (value: boolean) => void;
 };
 
+// eslint-disable-next-line
 function reducer(state: typeof initialState, action: any) {
   switch (action.type) {
     case 'ADD_LAYER':
@@ -210,10 +210,11 @@ export function useDisper() {
 }
 
 export function DisperProvider({children}: { children: ReactNode }) {
+  const {project} = useProject()
   const [state, dispatch] = useReducer(reducer, initialState);
   const points = useAppSelector((state) => state.plot.points);
   const reduxDispatch = useAppDispatch();
-  const {projectId} = useParams<{ projectId: string }>();
+  const projectId = project?.id
   const initialFetchDone = useRef(false);
 
   const addLayer = useCallback((newLayer: Layer) => {

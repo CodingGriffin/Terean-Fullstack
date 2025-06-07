@@ -39,7 +39,6 @@ export const DisperCurveManager = () => {
       displayUnits,
       pickData,
       asceVersion,
-      dataLimits,
       curveAxisLimits,
       numPoints,
       rmseVel,
