@@ -1179,7 +1179,7 @@ export const DisperCurveManager = () => {
           </div>
           <div className="row">
             <div className="col-md-4">
-              <span className="fw-semibold">Vs30:</span>{" "}
+              <span className="fw-semibold">{`${displayUnits === "m" ? "Vs30:" : "Vs100:"}`}</span>{" "}
               <span className="fw-bold">
                 {vs30
                   ? displayUnits === "ft"
