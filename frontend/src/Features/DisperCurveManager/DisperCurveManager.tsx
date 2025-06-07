@@ -17,8 +17,8 @@ import {MetersToFeet} from "../../utils/unit-util.tsx";
 
 extend({Graphics, Container});
 
-const VELOCITY_MAX_MARGIN_FACTOR = 1.1; // 110% of max velocity
-const VELOCITY_MIN_MARGIN_FACTOR = 0.9; // 90% of min velocity
+const MAX_MARGIN_FACTOR = 1.1; // 110% of max
+const MIN_MARGIN_FACTOR = 0.9; // 90% of min
 const ABS_MAX_VELOCITY = 100000;
 const ABS_MIN_VELOCITY = 10.0;
 const VELOCITY_STEP = 1;
@@ -74,53 +74,28 @@ export const DisperCurveManager = () => {
   const plotContainerRef = useRef<HTMLDivElement>(null);
 
   const handleResetAxes = useCallback(() => {
-    console.log("DataLimits:", dataLimits)
-    //TODO - implement this based on the commented code - using datalimits + slack constants to automatically
-    // determine the limits
+    const numPickPoints = pickPoints.length
+    if (numPickPoints <= 0) {
+      return
+    }
 
+    // Get x and y min and max from pick points
+    const xValues = pickPoints.map(point => point.x);
+    const yValues = pickPoints.map(point => point.y);
 
-    // const xmin = Math.max(
-    //   0.0000000001,
-    //   periodUnit === "frequency"
-    //     ? dataLimits.minFrequency
-    //     : 1 / dataLimits.maxFrequency
-    // );
-    // const xmax = Math.max(
-    //   0.0000000001,
-    //   periodUnit === "frequency"
-    //     ? dataLimits.maxFrequency
-    //     : 1 / dataLimits.minFrequency
-    // );
-    // const ymin = Math.max(
-    //   0.0000000001,
-    //   velocityUnit === "slowness"
-    //     ? dataLimits.minSlowness
-    //     : 1 / dataLimits.maxSlowness
-    // );
-    // const ymax = Math.max(
-    //   0.0000000001,
-    //   velocityUnit === "slowness"
-    //     ? dataLimits.maxSlowness
-    //     : 1 / dataLimits.minSlowness
-    // );
-    //
-    // setCurveAxisLimits(
-    //   axesSwapped
-    //     ? {
-    //       xmin: ymin,
-    //       xmax: ymax,
-    //       ymin: xmin * VELOCITY_MIN_MARGIN_FACTOR,
-    //       ymax: xmax * VELOCITY_MAX_MARGIN_FACTOR,
-    //     }
-    //     : {
-    //       xmin: xmin,
-    //       xmax: xmax,
-    //       ymin: ymin * VELOCITY_MIN_MARGIN_FACTOR,
-    //       ymax: ymax * VELOCITY_MAX_MARGIN_FACTOR,
-    //     }
-    // );
-    console.log("axesSwapped:", axesSwapped)
-  }, [axesSwapped])
+    const xmin = Math.min(...xValues);
+    const xmax = Math.max(...xValues);
+    const ymin = Math.min(...yValues);
+    const ymax = Math.max(...yValues);
+
+    // Apply margin factors and set curve axis limits
+    setCurveAxisLimits({
+      xmin: xmin * MIN_MARGIN_FACTOR,
+      xmax: xmax * MAX_MARGIN_FACTOR,
+      ymin: ymin * MIN_MARGIN_FACTOR,
+      ymax: ymax * MAX_MARGIN_FACTOR,
+    });
+  }, [pickPoints, setCurveAxisLimits])
 
   const [hoveredPoint, setHoveredPoint] = useState<Point | undefined>(
     undefined
@@ -796,7 +771,7 @@ export const DisperCurveManager = () => {
       const minVorS = axesSwapped ? curveAxisLimits.xmin : curveAxisLimits.ymin;
       const maxVorS = axesSwapped ? curveAxisLimits.xmax : curveAxisLimits.ymax;
       const minSlowness = velocityUnit === "slowness" ? minVorS : 1 / maxVorS;
-      const maxSlowness = velocityUnit === "slowness" ? maxVorS : 1 / minVorS;      
+      const maxSlowness = velocityUnit === "slowness" ? maxVorS : 1 / minVorS;
 
       const model = new VelModel(
         num_layers,
@@ -1134,7 +1109,7 @@ export const DisperCurveManager = () => {
                 <div className="pt-1">
                   <button
                     onClick={handleResetAxes}
-                    className={`btn flex-grow-1 ${axesSwapped ? "btn-primary" : "btn-outline-secondary"}`}
+                    className={`btn flex-grow-1 btn-outline-secondary`}
                     title="Calculate Axes"
                   >
                     Calc Axes
