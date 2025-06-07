@@ -438,10 +438,11 @@ async def update_project_fields(
             )
         
         # Use the project CRUD update function which includes client_id validation
-        project_create = ProjectCreate(**project_update.model_dump(exclude_unset=True))
+        # logger.info("Before ProjectCreate")
+        project_update = ProjectUpdate(**project_update.model_dump(exclude_unset=True))
         
         try:
-            updated_project = update_project(db=db, project_id=project_id, project=project_create)
+            updated_project = update_project(db=db, project_id=project_id, project=project_update)
         except ValueError as e:
             # Handle client not found error
             raise HTTPException(status_code=400, detail=str(e))

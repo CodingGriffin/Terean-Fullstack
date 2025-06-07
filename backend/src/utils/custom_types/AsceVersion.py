@@ -7,6 +7,15 @@ from tereancore.utils import RE_COMBINE_WHITESPACE
 class AsceVersion(str, Enum):
     asce_716 = "ASCE 7-16"
     asce_722 = "ASCE 7-22"
+    
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            try:
+                return AsceVersion.from_str(value)
+            except ValueError:
+                return None
+        return None
 
     @classmethod
     def list_values(cls) -> list[str]:

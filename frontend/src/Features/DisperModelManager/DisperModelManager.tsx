@@ -5,21 +5,21 @@ import {
   Text,
   Rectangle,
   TextStyle,
+  FederatedPointerEvent,
 } from "pixi.js";
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { extend, useApp } from "@pixi/react";
-import "@pixi/events";
-import { Layer } from "../../types/data";
-import { useDisper } from "../../Contexts/DisperContext";
-import { Window } from "../../types";
-import { BasePlot } from "../../Components/BasePlot/BasePlot";
+import {useState, useRef, useEffect, useCallback, useMemo} from "react";
+import {extend} from "@pixi/react";
+import {Layer} from "../../types/data";
+import {useDisper, VelocityModelLayer} from "../../Contexts/DisperContext";
+import {Window} from "../../types";
+import {BasePlot} from "../../Components/BasePlot/BasePlot";
 import SectionHeader from "../../Components/SectionHeader/SectionHeader";
-// import { useParams } from "react-router";
-import { useAppDispatch } from "../../hooks/useAppDispatch";
-import { addToast } from "../../store/slices/toastSlice";
-import { autoFitVelocityModel } from '../../services/api';
+import {useAppDispatch} from "../../hooks/useAppDispatch";
+import {addToast} from "../../store/slices/toastSlice";
+import {autoFitVelocityModel} from '../../services/api';
+import {FeetToMeters, MetersToFeet} from "../../utils/unit-util.tsx";
 
-extend({ Container, Sprite, Graphics, Text });
+extend({Container, Sprite, Graphics, Text});
 
 interface DragState {
   layerIndex: number;
@@ -27,21 +27,58 @@ interface DragState {
   isDragging: boolean;
 }
 
+interface UploadDownloadDataItem {
+  depth: number;
+  density: number;
+  ignore: number;
+  velocity: number;
+}
+
 const VELOCITY_MARGIN_FACTOR = 1.1; // 110% of max velocity
 
 export const DisperModelManager = () => {
   const {
-    state: { layers, asceVersion, displayUnits, modelAxisLimits, pickData },
+    state: {layers, asceVersion, displayUnits, modelAxisLimits, pickData},
     setLayers,
     splitLayer,
     deleteLayer,
     setAsceVersion,
     setModelAxisLimits,
-    ToFeet,
-    ToMeter,
   } = useDisper();
 
   const dispatch = useAppDispatch();
+  const handleAutoFitLayers = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      const picks = pickData || [];
+
+      const response = await autoFitVelocityModel(picks);
+
+      if (response.data) {
+        setLayers(response.data.layers);
+
+        if (response.data.modelAxisLimits) {
+          setModelAxisLimits(response.data.modelAxisLimits);
+        }
+
+        dispatch(addToast({
+          message: "Velocity model auto-fitted successfully",
+          type: "success",
+          duration: 3000
+        }));
+      }
+    } catch (error) {
+      console.error("Error auto-fitting velocity model:", error);
+      dispatch(addToast({
+        message: "Failed to auto-fit velocity model",
+        type: "error",
+        duration: 5000
+      }));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pickData, setLayers, setModelAxisLimits, dispatch]);
 
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [tooltipContent, setTooltipContent] = useState<string>("");
@@ -154,6 +191,7 @@ export const DisperModelManager = () => {
 
   const handleUploadLayers = useCallback(async () => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
       const [fileHandle] = await (window as unknown as Window & { showOpenFilePicker: Function }).showOpenFilePicker({
         types: [
           {
@@ -165,20 +203,22 @@ export const DisperModelManager = () => {
         ],
         multiple: false,
       });
-      
+
       const file = await fileHandle.getFile();
       const content = await file.text();
-      
-      const lines = content.trim().split('\n');
+
+      const lines: string[] = content.trim().split('\n');
       const data = lines
         .map((line: string) => {
           const [depth, density, ignore, velocity] = line
             .trim()
             .split(" ")
             .map(Number);
-          return { depth, density, ignore, velocity };
+          return {depth, density, ignore, velocity};
         })
-        .filter((item:any) => !isNaN(item.depth) && !isNaN(item.velocity));
+        .filter((item: UploadDownloadDataItem) => {
+          return !isNaN(item.depth) && !isNaN(item.velocity)
+        });
 
       if (data.length > 0) {
         // Create layers from consecutive points
@@ -195,8 +235,8 @@ export const DisperModelManager = () => {
         }
 
         // Update axis limits based on data
-        const depthValues = data.map((d:any) => d.depth);
-        const velocityValues = data.map((d:any) => d.velocity);
+        const depthValues = data.map((d: UploadDownloadDataItem) => d.depth);
+        const velocityValues = data.map((d: UploadDownloadDataItem) => d.velocity);
         const maxVelocity = Math.max(...velocityValues);
 
         const newmodelAxisLimits = {
@@ -229,7 +269,7 @@ export const DisperModelManager = () => {
 
   const handlePointerDown = useCallback(
     (
-      event: React.PointerEvent,
+      event: FederatedPointerEvent,
       layerIndex: number,
       type: "boundary" | "velocity"
     ) => {
@@ -259,9 +299,6 @@ export const DisperModelManager = () => {
         handleDrag(x, y);
         return;
       }
-
-      // Handle hover effects
-      handleHover(x, y);
     },
     [dragState]
   );
@@ -269,31 +306,31 @@ export const DisperModelManager = () => {
   const handleDrag = useCallback(
     (x: number, y: number) => {
       if (!dragState) return;
-  
+
       const newLayers = layers.map(layer => ({...layer}));
-  
+
       if (dragState.type === "velocity") {
         let newVelocity = coordinateHelpers.fromScreenX(x);
-  
+
         if (x <= 10) {
           newVelocity = modelAxisLimits.xmin;
         }
-  
+
         const constrainedVelocity = Math.max(
           modelAxisLimits.xmin,
           Math.min(modelAxisLimits.xmax, newVelocity)
         );
-  
+
         newLayers[dragState.layerIndex] = {
           ...newLayers[dragState.layerIndex],
           velocity: constrainedVelocity
         };
-        
+
         setLayers(newLayers);
-  
+
         setTooltipContent(
           `Velocity: ${displayUnits === "ft"
-            ? ToFeet(constrainedVelocity).toFixed(1)
+            ? MetersToFeet(constrainedVelocity).toFixed(1)
             : constrainedVelocity.toFixed(1)
           } ${displayUnits}/s`
         );
@@ -322,7 +359,7 @@ export const DisperModelManager = () => {
           minDepth,
           Math.min(maxDepth, newDepth)
         );
-  
+
         if (dragState.layerIndex === 0) {
           newLayers[0] = {
             ...newLayers[0],
@@ -338,67 +375,67 @@ export const DisperModelManager = () => {
             ...newLayers[dragState.layerIndex - 1],
             endDepth: constrainedDepth
           };
-          
+
           newLayers[dragState.layerIndex] = {
             ...newLayers[dragState.layerIndex],
             startDepth: constrainedDepth
           };
         }
-  
+
         setLayers(newLayers);
-        
+
         setTooltipContent(
           `Depth: ${displayUnits === "ft"
-            ? ToFeet(constrainedDepth).toFixed(1)
+            ? MetersToFeet(constrainedDepth).toFixed(1)
             : constrainedDepth.toFixed(1)
           } ${displayUnits}`
         );
       }
     },
-    [dragState, layers, coordinateHelpers, modelAxisLimits, displayUnits, ToFeet]
+    [dragState, layers, coordinateHelpers, modelAxisLimits, displayUnits]
   );
 
-  const handleHover = useCallback(
-    (x: number, y: number) => {
-      let found = false;
-
-      // Check velocity lines
-      layers.forEach((layer) => {
-        const screenX = coordinateHelpers.toScreenX(layer.velocity);
-        if (Math.abs(x - screenX) < 10) {
-          setTooltipContent(
-            `Velocity: ${displayUnits === "ft"
-              ? ToFeet(layer.velocity).toFixed(1)
-              : layer.velocity.toFixed(1)
-            } ${displayUnits}/s`
-          );
-          found = true;
-        }
-      });
-
-      // Check depth lines
-      if (!found) {
-        layers.forEach((layer) => {
-          const screenY = coordinateHelpers.toScreenY(layer.endDepth);
-          if (Math.abs(y - screenY) < 10) {
-            setTooltipContent(
-              `Depth: ${displayUnits === "ft"
-                ? ToFeet(layer.endDepth).toFixed(1)
-                : layer.endDepth.toFixed(1)
-              } ${displayUnits}`
-            );
-
-            found = true;
-          }
-        });
-      }
-
-      if (!found) {
-        setTooltipContent("");
-      }
-    },
-    [layers, coordinateHelpers, displayUnits]
-  );
+  // const handleHover = useCallback(
+  //   (x: number, y: number) => {
+  //     let found = false;
+  //
+  //     // Check velocity lines
+  //     layers.forEach((layer) => {
+  //       const screenX = coordinateHelpers.toScreenX(layer.velocity);
+  //       if (Math.abs(x - screenX) < 10) {
+  //         setTooltipContent(
+  //           `Velocity: ${displayUnits === "ft"
+  //             ? MetersToFeet(layer.velocity).toFixed(1)
+  //             : layer.velocity.toFixed(1)
+  //           } ${displayUnits}/s`
+  //         );
+  //         found = true;
+  //       }
+  //     });
+  //
+  //     // Check depth lines
+  //     if (!found) {
+  //       layers.forEach((layer) => {
+  //         const screenY = coordinateHelpers.toScreenY(layer.endDepth);
+  //         if (Math.abs(y - screenY) < 10) {
+  //           setTooltipContent(
+  //             `Depth: ${displayUnits === "ft"
+  //               ? MetersToFeet(layer.endDepth).toFixed(1)
+  //               : layer.endDepth.toFixed(1)
+  //             } ${displayUnits}`
+  //           );
+  //
+  //           found = true;
+  //         }
+  //       });
+  //     }
+  //
+  //     if (!found) {
+  //       setTooltipContent("");
+  //     }
+  //   },
+  //   [layers, coordinateHelpers, displayUnits]
+  // );
 
   const handleDownloadLayers = useCallback(() => {
     const OutputData = [];
@@ -425,7 +462,7 @@ export const DisperModelManager = () => {
 
     const outTXT = OutputData.sort((a, b) => a.depth - b.depth)
       .map(
-        (output: any) =>
+        (output: UploadDownloadDataItem) =>
           `${output.depth.toFixed(3)} ${output.density.toFixed(
             3
           )} ${output.ignore.toFixed(3)} ${output.velocity.toFixed(3)}`
@@ -433,7 +470,7 @@ export const DisperModelManager = () => {
       .join("\n");
 
     // Create blob
-    const blob = new Blob([outTXT], { type: "text/plain" });
+    const blob = new Blob([outTXT], {type: "text/plain"});
 
     // Use showSaveFilePicker API for native file save dialog
     try {
@@ -449,7 +486,7 @@ export const DisperModelManager = () => {
             },
           ],
         })
-        .then(async (handle: any) => {
+        .then(async (handle: FileSystemFileHandle) => {
           const writable = await handle.createWritable();
           await writable.write(blob);
           await writable.close();
@@ -466,41 +503,7 @@ export const DisperModelManager = () => {
       URL.revokeObjectURL(url);
     }
   }, [layers, modelAxisLimits.ymax]);
-
-  const handleAutoFitLayers = useCallback(async () => {
-    const dispatch = useAppDispatch();
-    
-    try {
-      setIsLoading(true);
-      
-      const picks = pickData || [];
-      
-      const response = await autoFitVelocityModel(picks);
-      
-      if (response.data) {
-        setLayers(response.data.layers);
-        
-        if (response.data.modelAxisLimits) {
-          setModelAxisLimits(response.data.modelAxisLimits);
-        }
-        
-        dispatch(addToast({
-          message: "Velocity model auto-fitted successfully",
-          type: "success",
-          duration: 3000
-        }));
-      }
-    } catch (error) {
-      console.error("Error auto-fitting velocity model:", error);
-      dispatch(addToast({
-        message: "Failed to auto-fit velocity model",
-        type: "error",
-        duration: 5000
-      }));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [pickData, setLayers, setModelAxisLimits]);
+  
 
   // Add click handler for the plot area
   const handlePlotClick = (event: React.PointerEvent) => {
@@ -516,12 +519,12 @@ export const DisperModelManager = () => {
           const layer = layers[i];
           const startY = coordinateHelpers.toScreenY(layer.startDepth);
           const endY = coordinateHelpers.toScreenY(layer.endDepth);
-  
+
           if (y >= startY && y <= endY) {
             const newDepth =
               modelAxisLimits.ymin +
               (y / plotDimensions.height) * (modelAxisLimits.ymax - modelAxisLimits.ymin);
-  
+
             if (newDepth > layer.startDepth && newDepth < layer.endDepth) {
               if (event.shiftKey) {
                 splitLayer(i, newDepth);
@@ -535,23 +538,23 @@ export const DisperModelManager = () => {
           }
         }
       }
-    } 
+    }
     // If no modifier keys are pressed, update velocity
-    else if (!dragState?.isDragging){
+    else if (!dragState?.isDragging) {
       const rect = event.currentTarget.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      
+
       // Convert screen coordinates to plot values
       const clickVelocity = coordinateHelpers.fromScreenX(x);
       const clickDepth = coordinateHelpers.fromScreenY(y);
-      
+
       // Find which layer was clicked
       for (let i = 0; i < layers.length; i++) {
         const layer = layers[i];
-        if (clickDepth >= layer.startDepth && 
-            (i === layers.length - 1 || clickDepth <= layer.endDepth)) {
-          
+        if (clickDepth >= layer.startDepth &&
+          (i === layers.length - 1 || clickDepth <= layer.endDepth)) {
+
           const newLayers = layers.map((l, index) => {
             if (index === i) {
               return {
@@ -564,7 +567,7 @@ export const DisperModelManager = () => {
             }
             return {...l};
           });
-          
+
           // Update the layers
           setLayers(newLayers);
           break;
@@ -591,11 +594,11 @@ export const DisperModelManager = () => {
     if (layers.length > 0) {
       const newLayers = layers.map((layer, index) => {
         if (index === layers.length - 1) {
-          return { ...layer, endDepth: modelAxisLimits.ymax };
+          return {...layer, endDepth: modelAxisLimits.ymax};
         }
-        return { ...layer };
+        return {...layer};
       });
-      
+
       setLayers(newLayers);
     }
   }, [modelAxisLimits.ymax]);
@@ -608,59 +611,59 @@ export const DisperModelManager = () => {
   );
 
   const updateDimensions = useCallback(() => {
-      
-      if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
-        const rect = plotContainerRef.current.getBoundingClientRect();
-        const windowRect = window.innerHeight;
-        const newDimensions = {
-          width: rect.width,
-          // height: rect.height,
-          height: windowRect - rect.y - 48 - 16
-          // height: rect.width *0.75,
-        };
-        handleDimensionChange(newDimensions);
-      }
-    }, [plotContainerRef, plotDimensions.width, plotDimensions.height]);
-  
-    useEffect(() => {
-      updateDimensions();
-      const resizeObserver = new ResizeObserver(updateDimensions);
-      if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
-        resizeObserver.observe(plotContainerRef.current);
-      }
-  
-      window.addEventListener("resize", updateDimensions);
-  
-      return () => {
-        resizeObserver.disconnect();
-        window.removeEventListener("resize", updateDimensions);
+
+    if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
+      const rect = plotContainerRef.current.getBoundingClientRect();
+      const windowRect = window.innerHeight;
+      const newDimensions = {
+        width: rect.width,
+        // height: rect.height,
+        height: windowRect - rect.y - 48 - 16
+        // height: rect.width *0.75,
       };
-    }, [plotContainerRef]);
+      handleDimensionChange(newDimensions);
+    }
+  }, [plotContainerRef, plotDimensions.width, plotDimensions.height]);
+
+  useEffect(() => {
+    updateDimensions();
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    if (plotContainerRef && 'current' in plotContainerRef && plotContainerRef.current) {
+      resizeObserver.observe(plotContainerRef.current);
+    }
+
+    window.addEventListener("resize", updateDimensions);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateDimensions);
+    };
+  }, [plotContainerRef]);
 
   return (
-    <div className="card p-0 shadow-sm" style={{height:'calc(100vh - 70px - 42px - 2.5rem)'}}>
+    <div className="card p-0 shadow-sm" style={{height: 'calc(100vh - 70px - 42px - 2.5rem)'}}>
       <SectionHeader title="Dispersion Model"/>
-      <div className="card-body d-flex flex-column justify-content-space-between" >
-        <div className="w-full" style={{minHeight:'250px'}}>
+      <div className="card-body d-flex flex-column justify-content-space-between">
+        <div className="w-full" style={{minHeight: '250px'}}>
           <div className="row g-4 mb-2">
             <div className="col d-flex gap-5">
               {/* <FileControls
                 onFileSelect={handleFileSelect}
                 onDownload={handleDownloadLayers}
               /> */}
-              <button 
+              <button
                 className="btn btn-outline-secondary btn-sm"
                 onClick={handleUploadLayers}
               >
                 Upload Layers
               </button>
-              <button 
+              <button
                 className="btn btn-outline-secondary btn-sm"
                 onClick={handleDownloadLayers}
               >
                 Download Layers
               </button>
-              <button 
+              <button
                 className="btn btn-outline-secondary btn-sm"
                 onClick={handleAutoFitLayers}
                 disabled={isLoading}
@@ -686,21 +689,21 @@ export const DisperModelManager = () => {
                   type="number"
                   value={
                     displayUnits === "ft"
-                      ? ToFeet(modelAxisLimits.ymax)
+                      ? MetersToFeet(modelAxisLimits.ymax)
                       : modelAxisLimits.ymax
                   }
                   onChange={(e) => {
                     const value = parseFloat(e.target.value);
                     if (value < 0) return;
                     const valueInMeters =
-                      displayUnits === "ft" ? ToMeter(value) : value;
+                      displayUnits === "ft" ? FeetToMeters(value) : value;
                     setModelAxisLimits({
                       ...modelAxisLimits,
                       ymax: valueInMeters,
                     });
                   }}
                   className="form-control form-control-sm w-50"
-                  step={displayUnits === "ft" ? "0.5" : "0.1"}
+                  step="1"
                 />
               </div>
               <div className="mb-3 d-flex">
@@ -711,21 +714,21 @@ export const DisperModelManager = () => {
                   type="number"
                   value={
                     displayUnits === "ft"
-                      ? ToFeet(modelAxisLimits.ymin)
+                      ? MetersToFeet(modelAxisLimits.ymin)
                       : modelAxisLimits.ymin
                   }
                   onChange={(e) => {
                     const value = parseFloat(e.target.value);
                     if (value < 0) return;
                     const valueInMeters =
-                      displayUnits === "ft" ? ToMeter(value) : value;
+                      displayUnits === "ft" ? FeetToMeters(value) : value;
                     setModelAxisLimits({
                       ...modelAxisLimits,
                       ymin: valueInMeters,
                     });
                   }}
                   className="form-control form-control-sm w-50"
-                  step={displayUnits === "ft" ? "0.5" : "0.1"}
+                  step="1"
                 />
               </div>
             </div>
@@ -738,21 +741,21 @@ export const DisperModelManager = () => {
                   type="number"
                   value={
                     displayUnits === "ft"
-                      ? ToFeet(modelAxisLimits.xmax)
+                      ? MetersToFeet(modelAxisLimits.xmax)
                       : modelAxisLimits.xmax
                   }
                   onChange={(e) => {
                     const value = parseFloat(e.target.value);
                     if (value < 0) return;
                     const valueInMeters =
-                      displayUnits === "ft" ? ToMeter(value) : value;
+                      displayUnits === "ft" ? FeetToMeters(value) : value;
                     setModelAxisLimits({
                       ...modelAxisLimits,
                       xmax: valueInMeters,
                     });
                   }}
                   className="form-control form-control-sm w-50"
-                  step={displayUnits === "ft" ? "1.0" : "0.5"}
+                  step="1"
                 />
               </div>
               <div className="mb-3 d-flex">
@@ -763,14 +766,14 @@ export const DisperModelManager = () => {
                   type="number"
                   value={
                     displayUnits === "ft"
-                      ? ToFeet(modelAxisLimits.xmin)
+                      ? MetersToFeet(modelAxisLimits.xmin)
                       : modelAxisLimits.xmin
                   }
                   onChange={(e) => {
                     const value = parseFloat(e.target.value);
                     if (value < 0) return;
                     const valueInMeters =
-                      displayUnits === "ft" ? ToMeter(value) : value;
+                      displayUnits === "ft" ? FeetToMeters(value) : value;
                     setModelAxisLimits({
                       ...modelAxisLimits,
                       xmin: valueInMeters,
@@ -778,7 +781,7 @@ export const DisperModelManager = () => {
                   }}
                   className="form-control form-control-sm w-50"
                   min="0"
-                  step={displayUnits === "ft" ? "1.0" : "0.5"}
+                  step="1"
                 />
               </div>
             </div>
@@ -812,7 +815,7 @@ export const DisperModelManager = () => {
             yMin={modelAxisLimits.ymax}
             yMax={modelAxisLimits.ymin}
             display={(value) =>
-              displayUnits === "ft" ? ToFeet(value).toFixed(3) : value.toFixed(3)
+              displayUnits === "ft" ? MetersToFeet(value).toFixed(3) : value.toFixed(3)
             }
             tooltipContent={tooltipContent}
             onPointerMove={handlePointerMove}
@@ -835,7 +838,7 @@ export const DisperModelManager = () => {
                   // g.fill();
 
                   // Draw grid lines
-                  g.setStrokeStyle({ width: 1, color: 0xeeeeee, alpha: 0.8 });
+                  g.setStrokeStyle({width: 1, color: 0xeeeeee, alpha: 0.8});
 
                   // Vertical grid lines (velocity)
                   const velocityStep = (modelAxisLimits.xmax - modelAxisLimits.xmin) / 10;
@@ -863,7 +866,7 @@ export const DisperModelManager = () => {
                   g.stroke();
                 }}
               />
-              {layers.slice(0, -1).map((layer: any, index: number) => (
+              {layers.slice(0, -1).map((layer: VelocityModelLayer, index: number) => (
                 <pixiContainer key={`boundary-container-${index}-${Date.now()}`}>
                   <pixiGraphics
                     key={`boundary-${index}-${Date.now()}`}
@@ -891,13 +894,14 @@ export const DisperModelManager = () => {
                         10
                       )
                     }
-                    onPointerDown={(e: any) =>
+                    onPointerDown={(e: FederatedPointerEvent) => {
                       handlePointerDown(e, index + 1, "boundary")
+                    }
                     }
                   />
                   <pixiText
                     text={`${displayUnits === "ft"
-                      ? ToFeet(layer.endDepth).toFixed(1)
+                      ? MetersToFeet(layer.endDepth).toFixed(1)
                       : layer.endDepth.toFixed(1)
                     }`}
                     x={5}
@@ -912,24 +916,23 @@ export const DisperModelManager = () => {
                 </pixiContainer>
               ))}
 
-              {layers.map((layer: any, index: number) => (
+              {layers.map((layer: VelocityModelLayer, index: number) => (
                 <pixiContainer key={`velocity-container-${index}-${Date.now()}`}>
                   <pixiGraphics
                     draw={(g) => {
-                      console.log("Layer:", layer);
                       g.clear();
                       // Fill the region to the left of the velocity line with light red
-                      g.setFillStyle({ color: 0xff0000, alpha: 0.1 });
+                      g.setFillStyle({color: 0xff0000, alpha: 0.1});
                       const x = Math.round(coordinateHelpers.toScreenX(layer.velocity));
                       const startY = Math.round(coordinateHelpers.toScreenY(layer.startDepth));
                       const endY = index === layers.length - 1
                         ? plotDimensions.height
                         : Math.round(coordinateHelpers.toScreenY(layer.endDepth));
-                      
+
                       // Draw the filled rectangle from left edge to velocity line
                       g.rect(0, startY, x, endY - startY);
                       g.fill();
-                      
+
                       // Draw the velocity line
                       g.setStrokeStyle({
                         width: 2,
@@ -951,15 +954,16 @@ export const DisperModelManager = () => {
                         coordinateHelpers.toScreenY(layer.startDepth)
                       )
                     }
-                    onPointerDown={(e: any) =>
+                    onPointerDown={(e: FederatedPointerEvent) => {
                       handlePointerDown(e, index, "velocity")
+                    }
                     }
                   />
                   <pixiText
                     text={`${displayUnits === "ft"
-                        ? ToFeet(layer.velocity).toFixed(0)
-                        : layer.velocity.toFixed(0)
-                      }`}
+                      ? MetersToFeet(layer.velocity).toFixed(0)
+                      : layer.velocity.toFixed(0)
+                    }`}
                     x={coordinateHelpers.toScreenX(layer.velocity) + 5}
                     y={
                       (coordinateHelpers.toScreenY(layer.startDepth) +

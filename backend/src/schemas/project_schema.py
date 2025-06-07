@@ -90,8 +90,8 @@ class ProjectUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[ProjectStatus] = None
     priority: Optional[Priority] = None
-    survey_date: Optional[datetime.datetime] = None
-    received_date: Optional[datetime.datetime] = None
+    survey_date: Optional[datetime.datetime] = datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
+    received_date: Optional[datetime.datetime] = datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
     display_units: Optional[LengthUnit] = None
     asce_version: Optional[AsceVersion] = None
     client_id: Optional[int] = None
