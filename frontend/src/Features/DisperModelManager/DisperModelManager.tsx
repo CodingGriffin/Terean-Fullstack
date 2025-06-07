@@ -300,9 +300,6 @@ export const DisperModelManager = () => {
         handleDrag(x, y);
         return;
       }
-
-      // Handle hover effects
-      handleHover(x, y);
     },
     [dragState]
   );
@@ -399,47 +396,47 @@ export const DisperModelManager = () => {
     [dragState, layers, coordinateHelpers, modelAxisLimits, displayUnits]
   );
 
-  const handleHover = useCallback(
-    (x: number, y: number) => {
-      let found = false;
-
-      // Check velocity lines
-      layers.forEach((layer) => {
-        const screenX = coordinateHelpers.toScreenX(layer.velocity);
-        if (Math.abs(x - screenX) < 10) {
-          setTooltipContent(
-            `Velocity: ${displayUnits === "ft"
-              ? MetersToFeet(layer.velocity).toFixed(1)
-              : layer.velocity.toFixed(1)
-            } ${displayUnits}/s`
-          );
-          found = true;
-        }
-      });
-
-      // Check depth lines
-      if (!found) {
-        layers.forEach((layer) => {
-          const screenY = coordinateHelpers.toScreenY(layer.endDepth);
-          if (Math.abs(y - screenY) < 10) {
-            setTooltipContent(
-              `Depth: ${displayUnits === "ft"
-                ? MetersToFeet(layer.endDepth).toFixed(1)
-                : layer.endDepth.toFixed(1)
-              } ${displayUnits}`
-            );
-
-            found = true;
-          }
-        });
-      }
-
-      if (!found) {
-        setTooltipContent("");
-      }
-    },
-    [layers, coordinateHelpers, displayUnits]
-  );
+  // const handleHover = useCallback(
+  //   (x: number, y: number) => {
+  //     let found = false;
+  //
+  //     // Check velocity lines
+  //     layers.forEach((layer) => {
+  //       const screenX = coordinateHelpers.toScreenX(layer.velocity);
+  //       if (Math.abs(x - screenX) < 10) {
+  //         setTooltipContent(
+  //           `Velocity: ${displayUnits === "ft"
+  //             ? MetersToFeet(layer.velocity).toFixed(1)
+  //             : layer.velocity.toFixed(1)
+  //           } ${displayUnits}/s`
+  //         );
+  //         found = true;
+  //       }
+  //     });
+  //
+  //     // Check depth lines
+  //     if (!found) {
+  //       layers.forEach((layer) => {
+  //         const screenY = coordinateHelpers.toScreenY(layer.endDepth);
+  //         if (Math.abs(y - screenY) < 10) {
+  //           setTooltipContent(
+  //             `Depth: ${displayUnits === "ft"
+  //               ? MetersToFeet(layer.endDepth).toFixed(1)
+  //               : layer.endDepth.toFixed(1)
+  //             } ${displayUnits}`
+  //           );
+  //
+  //           found = true;
+  //         }
+  //       });
+  //     }
+  //
+  //     if (!found) {
+  //       setTooltipContent("");
+  //     }
+  //   },
+  //   [layers, coordinateHelpers, displayUnits]
+  // );
 
   const handleDownloadLayers = useCallback(() => {
     const OutputData = [];
