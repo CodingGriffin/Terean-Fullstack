@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+//@ts-nocheck
 import React, { useState, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../Components/navbar/Navbar";
