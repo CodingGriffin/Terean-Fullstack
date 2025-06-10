@@ -1,0 +1,129 @@
+// Database schema for Terean Fullstack Application
+// Generated from backend/src/models
+
+// Define enums
+Enum priority_enum {
+  very_high
+  high
+  medium
+  low
+  very_low
+}
+
+Enum project_status_enum {
+  not_started
+  in_progress
+  completed
+  blocked
+}
+
+// Users table
+Table users {
+  id int [pk, increment]
+  username varchar [unique, not null]
+  hashed_password varchar [not null]
+  disabled boolean [not null, default: false]
+  auth_level int [not null]
+  email varchar [null]
+  full_name varchar [null]
+  expiration datetime [null]
+  
+  indexes {
+    username [unique]
+    disabled
+    auth_level
+    email
+    full_name
+    expiration
+  }
+}
+
+// Clients table
+Table clients {
+  id int [pk, increment]
+  name varchar [not null]
+  
+  indexes {
+    name
+  }
+}
+
+// Contacts table
+Table contacts {
+  id int [pk, increment]
+  name varchar [not null]
+  phone_number varchar
+  email varchar
+  client_id int [ref: > clients.id]
+  
+  indexes {
+    name
+    phone_number
+    email
+    client_id
+  }
+}
+
+// Projects table
+Table projects {
+  id varchar [pk]
+  name varchar [not null]
+  status project_status_enum [null]
+  priority priority_enum [null]
+  survey_date datetime [null]
+  received_date datetime [null]
+  geometry varchar [null]
+  record_options varchar [null]
+  plot_limits varchar [null]
+  freq varchar [null]
+  slow varchar [null]
+  picks varchar [null]
+  disper_settings varchar [null]
+  client_id int [ref: > clients.id, null]
+  
+  indexes {
+    name
+    status
+    priority
+    survey_date
+    received_date
+    client_id
+  }
+}
+
+// Files table (additional files for projects)
+Table files {
+  id varchar [pk]
+  original_name varchar [not null]
+  path varchar [not null]
+  size int [not null]
+  upload_date datetime [not null, default: `now()`]
+  mime_type varchar [not null]
+  file_extension varchar [not null]
+  project_id varchar [ref: > projects.id]
+  
+  indexes {
+    id
+  }
+}
+
+// SGY Files table (seismic data files for projects)
+Table sgy_files {
+  id varchar [pk]
+  original_name varchar [not null]
+  path varchar [not null]
+  size int [not null]
+  upload_date datetime [not null, default: `now()`]
+  type varchar [not null]
+  project_id varchar [ref: > projects.id]
+  
+  indexes {
+    id
+  }
+}
+
+// Define relationships
+Ref: clients.id < contacts.client_id [delete: cascade]
+Ref: clients.id < projects.client_id [delete: set null]
+Ref: projects.id < files.project_id [delete: cascade]
+Ref: projects.id < sgy_files.project_id [delete: cascade] 
