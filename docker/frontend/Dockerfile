@@ -17,8 +17,6 @@ RUN rm /var/www/html/index.nginx-debian.html && mv dist/* /var/www/html
 
 COPY nginx/ ./nginx
 
-COPY data/ ./data
-
-RUN rm /etc/nginx/sites-enabled/default && mv /app/data/sites-enabled/* /etc/nginx/sites-enabled/ 
+RUN rm /etc/nginx/sites-enabled/default && mv /app/nginx/sites-enabled/* /etc/nginx/sites-enabled/ 
 
 CMD ["nginx", "-g", "daemon off;"]

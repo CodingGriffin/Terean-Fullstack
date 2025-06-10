@@ -15,7 +15,7 @@ services:
       - /tmp
     ports:
       - "8000:8000"
-    restart: unless-stopped
+    restart: no
     deploy:
       resources:
         reservations:

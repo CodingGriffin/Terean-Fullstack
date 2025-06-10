@@ -36,11 +36,6 @@ RUN --mount=type=bind,source=backend/src/settings,target=/container_readonly_dat
 # COPY tereancore tereancore/
 
 # Install Pycuda
-ENV PATH="/usr/local/cuda-11.6/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/cuda-11.6/lib64:${LD_LIBRARY_PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/cuda-11.6/compat/:${LD_LIBRARY_PATH}"
-ENV CPATH="/usr/local/cuda-11.6/targets/x86-64-linux/include:${CPATH}"
-ENV LIBRARY_PATH="/usr/local/cuda-11.6/targets/x86-64-linux/lib:${LIBRARY_PATH}"
 RUN pip install pycuda --root-user-action=ignore
 
 # Install requirements
@@ -57,4 +52,6 @@ COPY --exclude="settings/secret" --exclude=".venv" backend backend/
 
 WORKDIR /app/backend/src
 
+#CMD ["nvidia-smi"]
+#CMD ["sleep", "infinity"]
 CMD ["uvicorn", "main:app", "--proxy-headers", "--forwarded-allow-ips=*", "--host", "0.0.0.0", "--port", "8000"]
