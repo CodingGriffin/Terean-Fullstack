@@ -8,6 +8,7 @@ services:
     #   - ./.app.env
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
+      - DATABASE_URL=sqlite:////app/db/sql_app_docker.db
     volumes:
       - ./db:/app/db:rw
     tmpfs:
