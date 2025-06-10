@@ -1,0 +1,25 @@
+server { 
+        listen 80 default_server; 
+        listen [::]:80 default_server; 
+ 
+        # SSL configuration  
+        listen 443 ssl default_server; 
+        listen [::]:443 ssl default_server; 
+        ssl_certificate /app/nginx/certs/example.chained.crt;
+        ssl_certificate_key /app/nginx/certs/example.key;
+ 
+        root /var/www/html; 
+ 
+        # Add index.php to the list if you are using PHP 
+        index index.html;
+ 
+        server_name example.com; 
+        
+        client_max_body_size 1000M;
+         
+        location / { 
+                # First attempt to serve request as file, then 
+                # as directory, then fall back to displaying a 404. 
+                try_files $uri /index.html; 
+        }
+} 
