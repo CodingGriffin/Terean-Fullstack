@@ -1,30 +1,56 @@
 services:
   backend:
-    container_name: terean-backend-nocude
+    container_name: terean-backend-cuda
     build:
       context: .
-      dockerfile: docker/backend/fastapi-nocuda/Dockerfile
-      # dockerfile: docker/backend/fastapi-cuda/Dockerfile
+      dockerfile: docker/backend/fastapi-cuda/Dockerfile
     # env_file:
     #   - ./.app.env
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - DATABASE_URL=sqlite:////app/db/sql_app_docker.db
     volumes:
       - ./db:/app/db:rw
     tmpfs:
       - /tmp
     ports:
-      - "5050:5050"
-    restart: unless-stopped
+      - "8000:8000"
+    restart: no
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+###
+### No Cuda implementation of backend
+###
+#  backend-nocuda: 
+#    container_name: terean-backend-nocuda
+#    build:
+#      context: .
+#      dockerfile: docker/backend/fastapi-nocuda/Dockerfile
+#    # env_file:
+#    #   - ./.app.env
+#    volumes:
+#      - ./db:/app/db:rw
+#    tmpfs:
+#      - /tmp
+#    ports:
+#      - "8000:8000"
+#    restart: unless-stopped    
   frontend:
     container_name: terean-frontend
     build:
       context: .
       dockerfile: docker/frontend/Dockerfile
     environment:
-      # - VITE_BACKEND_URL=https://todo-live-backend-domain:5050/
-      - VITE_BACKEND_URL=http://localhost:5050/
+      - VITE_BACKEND_URL=https://www.app.terean.com:35203/
     tmpfs:
       - /tmp
     ports:
-        - "3000:3000"
+      - "35201:80"
+      - "35202:443"
+      - "35203:8000"
     restart: unless-stopped
-

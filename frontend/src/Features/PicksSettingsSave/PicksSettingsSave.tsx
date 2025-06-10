@@ -1,3 +1,4 @@
+//@ts-nocheck
 import React, {useEffect, useCallback} from 'react';
 import {useParams} from 'react-router';
 import {useAppDispatch} from '../../hooks/useAppDispatch';

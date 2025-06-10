@@ -53,3 +53,5 @@ lerna-debug.log*
 /tereancore
 tereancore
 data
+/nginx/sites-enabled/*
+/nginx/certs/*
