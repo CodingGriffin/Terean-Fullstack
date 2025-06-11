@@ -6,9 +6,32 @@ import time
 import requests
 from dotenv import load_dotenv
 from utils.token_manager import TokenManager
-from utils.auth_utils import make_authenticated_request
 
 logger = logging.getLogger(__name__)
+
+
+def make_authenticated_request(url: str, token_manager: TokenManager, method: str = "GET",
+                               **kwargs) -> requests.Response:
+    """
+    Make an authenticated request with automatic token refresh.
+    
+    Args:
+        url: URL to make the request to
+        token_manager: TokenManager instance
+        method: HTTP method to use
+        **kwargs: Additional arguments to pass to requests
+        
+    Returns:
+        requests.Response: Response from the request
+    """
+    access_token = token_manager.get_valid_access_token()
+    headers = kwargs.pop("headers", {})
+    headers["Authorization"] = f"Bearer {access_token}"
+    kwargs["headers"] = headers
+
+    response = requests.request(method, url, **kwargs)
+    return response
+
 
 def main():
     logging.basicConfig(
@@ -26,7 +49,7 @@ def main():
     logger.info(f"backend_url: {backend_url}")
     logger.info(f"backend_username: {backend_username}")
 
-    try:        
+    try:
         # Get initial tokens
         _, _ = token_manager.get_initial_tokens()
 
@@ -52,6 +75,7 @@ def main():
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         sys.exit(1)
+
 
 if __name__ == '__main__':
     main()
