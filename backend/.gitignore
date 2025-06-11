@@ -84,7 +84,6 @@ logs/
 Thumbs.db
 
 # Project specific
-old_tests/
 Notebooks/.ipynb_checkpoints/
 *.ipynb_checkpoints
 data/

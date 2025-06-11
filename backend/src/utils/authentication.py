@@ -1,12 +1,10 @@
 import logging
-import os
 from datetime import timedelta, datetime, timezone
 from typing import Annotated
-import uuid
 import hashlib
 
 from fastapi import Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer, HTTPBearer
+from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from starlette import status
 from passlib.context import CryptContext

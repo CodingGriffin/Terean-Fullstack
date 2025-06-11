@@ -1,5 +1,5 @@
 --extra-index-url https://dbarnes-terean.github.io/terean-pypi/
-tereancore>=2025.4.24
+tereancore>=2025.6.11
 aiofiles
 bcrypt
 cffi
@@ -10,7 +10,9 @@ matplotlib
 openpyxl
 pandas
 passlib
+pydantic[email]
 pyjwt
+python-dotenv
 python-jose
 python-multipart
 python3-pika
@@ -21,4 +23,3 @@ SQLAlchemy
 tqdm
 uvicorn
 pika
-pika-stubs==0.1.3

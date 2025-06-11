@@ -50,12 +50,6 @@ app = FastAPI()
 # Check if we're running tests by looking for pytest in sys.modules
 import sys
 
-logger.info(f"ASDFASDFASDFASD")
-logger.info(f"DB path is: {settings.DATABASE_URL}")
-dir_thing = os.listdir("/app")
-logger.info(f"dir_thing: {dir_thing}")
-dir_thing = os.listdir("/app/db")
-logger.info(f"dir_thing: {dir_thing}")
 if "pytest" not in sys.modules:
     Base.metadata.create_all(bind=engine)
 
