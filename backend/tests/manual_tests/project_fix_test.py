@@ -46,7 +46,7 @@ class MockProjectDB:
         self._sa_instance_state = "some_internal_state"
 
 try:
-    from backend.schemas.project_schema import Project
+    from schemas.project_schema import Project
     
     mock_db = MockProjectDB()
     project = Project.from_db(mock_db)
